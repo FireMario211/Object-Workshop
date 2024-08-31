@@ -1,0 +1,61 @@
+{
+	"geode": "3.4.0",
+	"gd": {
+		"win": "2.206",
+		"android": "2.206",
+		"mac": "2.206",
+		"ios": "2.206"
+	},
+	"id": "firee.object-workshop",
+	"name": "Object Workshop",
+	"version": "v0.9.0",
+	"developer": "Firee",
+	"description": "Download, upload, or find custom objects made by other creators!",
+    "resources": {
+        "sprites": [
+            "resources/*.png"
+        ]
+    },
+    "settings": {
+        "enabled": {
+            "name": "Enabled",
+            "description": "Whether or not the mod should replace your Custom Objects screen. Disabling this won't allow you to use the workshop.",
+            "type": "bool",
+            "default": true
+        },
+        "token": {
+            "name": "Auth Token",
+            "description": "Authentication Token (DO NOT CHANGE)",
+            "type": "string",
+            "default": ""
+        },
+        "auth-server": {
+            "name": "Auth Server",
+            "description": "Authentication Server (-1 = None, 0 = DashAuth, 1 = GDAuth, 2 = Custom Auth (Ignores the test auth))",
+            "type": "int",
+            "default": -1,
+            "min": -1,
+            "max": 2
+        },
+        "render-objects": {
+            "name": "Render Objects",
+            "description": "The amount of objects that should be shown. Decrease for performance. (0 = Unlimited)",
+            "type": "int",
+            "default": 0,
+            "min": 0,
+            "max": 50000
+        }
+    },
+    "dependencies": [
+        {
+            "id": "geode.node-ids",
+            "version": ">=v1.13.1",
+            "importance": "required"
+        },
+        {
+            "id": "fig.authentication",
+            "version": ">=v1.0.1",
+            "importance": "required"
+        }
+    ]
+}
