@@ -1,2 +1,2 @@
 # 1.0.0
-- alpha build
+- Mod Release

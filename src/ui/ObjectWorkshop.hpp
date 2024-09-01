@@ -78,6 +78,7 @@ protected:
     int m_amountItems = 0;
     std::string m_token;
     UserData m_user;
+    CCMenu* m_categoryButtons;
 
     CCNode* myUploadsBar;
     CCNode* categoryBar;

@@ -14,7 +14,6 @@ const isAscii: CustomValidator = (value: string) => {
     return /^[\x00-\x7F]*$/.test(value); // Checks if all characters are within the ASCII range
 };
 
-
 const areValidTags: CustomValidator = (tags: string[]) => {
     return tags.every(tag => allowedTags.includes(tag));
 };
@@ -89,15 +88,16 @@ oRouter.post('/objects/upload',
                     return res.status(401).json({ error: verifyRes.message });
                 }
                 if (!verifyRes.user) return res.status(404).json({error: "Couldn't retrieve user."});
+                if (verifyRes.user.role == -1) return res.status(403).json({error: "You are banned!"});
                 try {
                     const dupCheck = await pool.query("SELECT id FROM objects WHERE data = $1 LIMIT 1;", [data]);
                     if (dupCheck.rowCount != null && dupCheck.rowCount > 0) return res.status(409).json({error: "You cannot upload an object that already exists!"});
                     const insertQuery = `
-                        INSERT INTO objects (account_id, name, description, tags, data)
-                        VALUES ($1, $2, $3, $4, $5)
+                        INSERT INTO objects (account_id, name, description, tags, status, data)
+                        VALUES ($1, $2, $3, $4, $5, $6)
                         RETURNING id, timestamp;
                     `;
-                    const insertResult = await pool.query(insertQuery, [verifyRes.user.account_id, name, description, tags, data]);
+                    const insertResult = await pool.query(insertQuery, [verifyRes.user.account_id, name, description, tags, (verifyRes.user.role == 1) ? 1 : 0, data]);
                     if (insertResult.rowCount === 1) {
                         const object = insertResult.rows[0];
                         res.status(200).json({
@@ -180,6 +180,7 @@ oRouter.post('/objects/:id/rate',
                     return res.status(401).json({ error: verifyRes.message });
                 }
                 const accountID = verifyRes.user?.account_id;
+                if (verifyRes.user?.role == -1) return res.status(403).json({error: "You are banned!"});
                 try {
                     const objExists = await pool.query("SELECT EXISTS (SELECT 1 FROM objects WHERE id = $1 AND status = 1)", [objectID])
                     if (!objExists.rows[0].exists) return res.status(404).json({error: "Object not found."}); 
@@ -191,6 +192,45 @@ oRouter.post('/objects/:id/rate',
                     `;
                     await pool.query(query, [objectID, accountID, stars]);
                     res.status(200).json({ message: `Sent rating of ${stars} stars!`});
+                } catch (e) {
+                    console.error(e);
+                    res.status(500).json({ error: 'Internal server error' });
+                }
+            }).catch(() => {
+                res.status(500).json({ error: 'Internal server error' });
+            })
+        }).catch(e => {
+            console.error(e);
+            res.status(500).json({ error: 'Internal server error' });
+        });
+    }
+)
+
+oRouter.post('/objects/:id/report',
+    param('id').isNumeric().notEmpty(),
+    body('token').notEmpty().isString(),
+    (req: Request, res: Response) => {
+        const result = validationResult(req);
+        if (!result.isEmpty()) return res.status(400).json({ errors: result.array() })
+        const token = req.body.token as string;
+        // why would this ever happen
+        const objectID = req.params.id;
+        getCache().then(pool => {
+            verifyToken(pool, token).then(async verifyRes => {
+                if (!verifyRes.valid && verifyRes.expired) {
+                    return res.status(410).json({ error: verifyRes.message });
+                } else if (!verifyRes.valid) {
+                    return res.status(401).json({ error: verifyRes.message });
+                }
+                const accountID = verifyRes.user?.account_id;
+                if (verifyRes.user?.role == -1) return res.status(403).json({error: "You are banned!"});
+                try {
+                    const objExists = await pool.query("SELECT EXISTS (SELECT 1 FROM objects WHERE id = $1 AND status = 1)", [objectID])
+                    if (!objExists.rows[0].exists) return res.status(404).json({error: "Object not found."}); 
+                    const reportExists = await pool.query("SELECT EXISTS (SELECT 1 FROM reports WHERE object_id = $1 AND account_id = $2)", [objectID, accountID])
+                    if (reportExists.rows[0].exists) return res.status(404).json({error: "You have already reported this object!"}); 
+                    await pool.query('INSERT INTO reports (object_id, account_id) VALUES ($1, $2)', [objectID, accountID])
+                    res.status(200).json({ message: `Reported!`});
                 } catch (e) {
                     console.error(e);
                     res.status(500).json({ error: 'Internal server error' });
@@ -589,6 +629,71 @@ oRouter.post('/objects/pending',
     }
 );
 
+oRouter.post('/objects/reports',
+    body('token').notEmpty().isString(),
+    query('page').isNumeric().optional(),
+    query('limit').isBoolean().optional(),
+    async (req: Request, res: Response) => {
+        const result = validationResult(req);
+        if (!result.isEmpty()) return res.status(400).json({ errors: result.array() })
+        const token = req.body.token as string;
+        getCache().then(pool => {
+            verifyToken(pool, token).then(async verifyRes => {
+                if (!verifyRes.valid && verifyRes.expired) {
+                    return res.status(410).json({ error: verifyRes.message });
+                } else if (!verifyRes.valid) {
+                    return res.status(401).json({ error: verifyRes.message });
+                }
+                if (verifyRes.user && verifyRes.user.role != 3) return res.status(403).json({ error: "No permission" });
+                const page = parseInt(req.query.page as string) || 1;
+                const limit = (req.query.limit as string == "true") ? 2 : 9;
+                const offset = (page - 1) * limit;
+                try {
+                    let query = `
+                        SELECT
+                            o.*,
+                            u.name as account_name,
+                            COALESCE(AVG(orate.stars), 0) as rating,
+                            COUNT(orate.stars) as rating_count,
+                            COUNT(*) OVER() AS total_records,
+                            COUNT(rep) AS report_count
+                        FROM
+                            objects o
+                        LEFT JOIN
+                            ratings orate ON o.id = orate.object_id
+                        JOIN 
+                            reports rep ON rep.object_id = o.id
+                        JOIN
+                            users u ON o.account_id = u.account_id
+                        GROUP BY o.id, u.name
+                        ORDER BY o.timestamp DESC
+                        LIMIT $1 OFFSET $2
+                    `;
+                    const result = await pool.query(query, [limit, offset]);
+                    const totalRecords = (result.rows.length > 0) ? parseInt(result.rows[0].total_records) : 0;
+                    const totalPages = Math.ceil(totalRecords / limit);
+
+                    const objectData = convertRowsToObjects(result.rows)
+                    res.json({
+                        results: objectData,
+                        page,
+                        total: totalRecords,
+                        pageAmount: totalPages
+                    });
+                } catch (e) {
+                    console.error(e);
+                    res.status(500).json({ error: 'Internal server error' });
+                }
+            }).catch(() => {
+                res.status(500).json({ error: 'Internal server error' });
+            })
+        }).catch(e => {
+            console.error(e);
+            res.status(500).json({ error: 'Internal server error' });
+        });
+    }
+);
+
 oRouter.post('/user/@me/favorites',
     body('token').notEmpty().isString(),
     query('page').isNumeric().optional(),
@@ -729,14 +834,14 @@ oRouter.get('/objects',
                     case 2: // Most Liked
                         orderBy = 'ORDER BY o.favorites DESC';
                         break;
-                    /*case 3: // Trending (based on the current week)
+                    case 3: // Trending (based on the current week)
                         //WHERE o.timestamp >= NOW() - INTERVAL '7 days'
                         query += `
                             AND o.timestamp >= COALESCE((SELECT MAX(timestamp) FROM objects), NOW() - INTERVAL '7 days')
                         `;
                         orderBy = 'ORDER BY o.downloads DESC';
-                        break;*/
-                    case 3: // Most recent
+                        break;
+                    case 4: // Most recent
                     default:
                         orderBy = 'ORDER BY o.timestamp DESC';
                         break;

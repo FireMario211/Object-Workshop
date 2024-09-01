@@ -93,6 +93,9 @@ void EditPopup::onUpdateBtn(CCObject*) {
             log::error("Request was cancelled.");
         }
     });
+    if (m_objName != nullptr && m_objDesc->getString().length() > 0) {
+        m_object.name = m_objName->getString();
+    }
     m_object.description = "[No description provided]";
     if (m_objDesc != nullptr && m_objDesc->getString().length() > 0) {
         m_object.description = m_objDesc->getString();

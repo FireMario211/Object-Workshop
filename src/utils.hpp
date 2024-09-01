@@ -56,8 +56,6 @@ class Utils {
     };
     static std::string menuIndexToString(int menuIndex) {
         switch (menuIndex) {
-            case 6:
-                return "Pending";
             case 0:
             default:
                 return "My Objects";
@@ -71,8 +69,15 @@ class Utils {
                 return "Most Popular";
             case 4:
                 return "Most Liked";
-            case 5: // 6
+            case 5:
+                return "Trending";
+            case 6:
                 return "Most Recent";
+            case 7:
+                return "Pending";
+            case 8:
+                return "Reports";
+
         }
     }
     static float calculateScale(const std::string& text, int minLength, int maxLength, float minScale, float maxScale) {

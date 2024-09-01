@@ -105,17 +105,29 @@ bool ObjectWorkshop::setup(bool authenticated) {
     createCategoryBtn("Most Recent", 6);
     createCategoryBtn("Friends' Favorite", 7);*/
 
+    m_categoryButtons = CCMenu::create();
+    m_categoryButtons->setLayout(
+        ColumnLayout::create()
+            ->setAxisReverse(true)
+            ->setAutoScale(false)
+            ->setCrossAxisOverflow(false)
+            ->setAxisAlignment(AxisAlignment::Even)
+    );
+    m_categoryButtons->setAnchorPoint({0.5, 1});
+    m_categoryButtons->setContentSize({90, 122});
+
     createCategoryBtn("Top Downloads", 2); // 0
     createCategoryBtn("Most Popular", 3); // 1
     createCategoryBtn("Most Liked", 4); // 2
-    //createCategoryBtn("Trending", 5); // 3
-    createCategoryBtn("Most Recent", 5); // 3
+    createCategoryBtn("Trending", 5); // 3
+    createCategoryBtn("Most Recent", 6); // 4
 
     m_searchInput = TextInput::create(110.0F, "Search...");
     m_searchInput->setMaxCharCount(64);
     m_searchInput->setScale(0.525F);
     m_searchInput->setTextAlign(TextInputAlign::Left);
     m_buttonMenu->addChildAtPosition(m_searchInput, Anchor::BottomLeft, { 38, 18 });
+    m_buttonMenu->addChildAtPosition(m_categoryButtons, Anchor::Left, {55, 32});
 
     auto searchSpr = CCSprite::createWithSpriteFrameName("gj_findBtn_001.png");
     searchSpr->setScale(0.525F);
@@ -125,9 +137,13 @@ bool ObjectWorkshop::setup(bool authenticated) {
         menu_selector(ObjectWorkshop::onSearchBtn)
     );
     m_buttonMenu->addChildAtPosition(searchBtn, Anchor::BottomLeft, { 93, 18 });
+    if (auto item = typeinfo_cast<CCMenuItemSpriteExtra*>(m_categoryButtons->getChildByID(fmt::format("category-{}"_spr, currentMenuIndexGD)))) {
+        static_cast<CategoryButton*>(item->getChildren()->objectAtIndex(0))->setIndicatorState(true);
+    }
     if (auto item = typeinfo_cast<CCMenuItemSpriteExtra*>(m_buttonMenu->getChildByID(fmt::format("category-{}"_spr, currentMenuIndexGD)))) {
         static_cast<CategoryButton*>(item->getChildren()->objectAtIndex(0))->setIndicatorState(true);
     }
+
 
     auto filterSpr = ButtonSprite::create(
         CCSprite::createWithSpriteFrameName("GJ_filterIcon_001.png"),
@@ -207,7 +223,10 @@ bool ObjectWorkshop::setup(bool authenticated) {
                 }
                 leftTopBar->addChildAtPosition(uploadsLabel, Anchor::Center, {-22, -11});
                 if (m_user.role >= 2) {
-                    createCategoryBtn("Pending", 6);
+                    createCategoryBtn("Pending", 7);
+                    if (m_user.role == 3) {
+                        createCategoryBtn("Reports", 8);
+                    }
                 }
             } else if (web::WebProgress* progress = e->getProgress()) {
                 // The request is still in progress...
@@ -263,6 +282,9 @@ void ObjectWorkshop::onSideButton(CCObject* pSender) {
     int id = std::stoi(idStr.substr(idStr.length() - 1));
     if (id != currentMenuIndexGD) {
         if (auto oldItem = typeinfo_cast<CCMenuItemSpriteExtra*>(m_buttonMenu->getChildByID(fmt::format("category-{}"_spr, currentMenuIndexGD)))) {
+            static_cast<CategoryButton*>(oldItem->getChildren()->objectAtIndex(0))->setIndicatorState(false);
+        }
+        if (auto oldItem = typeinfo_cast<CCMenuItemSpriteExtra*>(m_categoryButtons->getChildByID(fmt::format("category-{}"_spr, currentMenuIndexGD)))) {
             static_cast<CategoryButton*>(oldItem->getChildren()->objectAtIndex(0))->setIndicatorState(false);
         }
         static_cast<CategoryButton*>(item->getChildren()->objectAtIndex(0))->setIndicatorState(true);
@@ -367,6 +389,8 @@ void ObjectWorkshop::RegenCategory() {
             break;
         case 1:
         case 6:
+        case 7:
+        case 8:
             barSize = 80;
             break;
     }
@@ -682,7 +706,7 @@ void ObjectWorkshop::load() {
         }
         return;
     }
-    if (currentMenuIndexGD < 2 || currentMenuIndexGD == 6) {
+    if (currentMenuIndexGD < 2 || currentMenuIndexGD > 6) {
         if (m_authenticated) {
             auto myjson = matjson::Value();
             myjson.set("token", m_token);
@@ -692,8 +716,10 @@ void ObjectWorkshop::load() {
                 m_listener1.setFilter(request.get(fmt::format("{}/user/@me/objects?page=0&limit=false", HOST_URL, m_currentPage)));
             } else if (currentMenuIndexGD == 1) { // favorited
                 m_listener1.setFilter(request.post(fmt::format("{}/user/@me/favorites?page={}", HOST_URL, m_currentPage)));
-            } else if (currentMenuIndexGD == 6) { // pending 
+            } else if (currentMenuIndexGD == 7) { // pending 
                 m_listener1.setFilter(request.post(fmt::format("{}/objects/pending?page={}", HOST_URL, m_currentPage)));
+            } else if (currentMenuIndexGD == 8) { // reports
+                m_listener1.setFilter(request.post(fmt::format("{}/objects/reports?page={}", HOST_URL, m_currentPage)));
             }
         } else {
             FLAlertLayer::create("Error", "You aren't <cy>authenticated!</c>", "OK")->show();
@@ -740,12 +766,15 @@ void ObjectWorkshop::createCategoryBtn(const char* string, int menuIndex) {
             // -85
         );
     } else {
-        m_buttonMenu->addChildAtPosition(
+        // -25
+        /*m_categoryButtons->addChildAtPosition(
             btn,
             Anchor::TopLeft,
-            {55, (-125.F) + (-25 * (menuIndex - 2))}
+            {55, (-120.F) + (-25 * (menuIndex - 2))}
             // -85
-        );
+        );*/ 
+        m_categoryButtons->addChild(btn);
+        m_categoryButtons->updateLayout();
     }
 }
 
@@ -1262,7 +1291,40 @@ void ObjectWorkshop::onRejectBtn(CCObject*) {
     );
 }
 void ObjectWorkshop::onReportBtn(CCObject*) {
-    FLAlertLayer::create("Error", "Reporting currently is <cy>not implemented!</c>", "OK")->show();
+    geode::createQuickPopup(
+        "Warning",
+        "Are you sure you want to <cy>report this object</c>?\n\nPlease make sure this object <cr>violates the guidelines</c> before reporting. Any misuse of this button will result in <cr>a ban</c>",
+        "No",
+        "Yes",
+        [this](auto, bool btn2) {
+            if (btn2) {
+                m_reviewListener.getFilter().cancel();
+                m_reviewListener.bind([this] (web::WebTask::Event* e) {
+                    if (web::WebResponse* value = e->getValue()) {
+                        auto jsonRes = value->json().unwrapOrDefault();
+                        if (!jsonRes.is_object()) return log::error("Response isn't object.");
+                        auto jsonObj = jsonRes.as_object();
+                        auto isError = jsonRes.try_get<std::string>("error");
+                        if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
+                        Notification::create(jsonRes.get<std::string>("message").c_str(), NotificationIcon::Success)->show();
+                        return;
+                    } else if (web::WebProgress* progress = e->getProgress()) {
+                        // The request is still in progress...
+                    } else if (e->isCancelled()) {
+                        log::error("Request was cancelled.");
+                    }
+                });
+                web::WebRequest req = web::WebRequest();
+                auto myjson = matjson::Value();
+                myjson.set("token", m_token);
+                req.header("Content-Type", "application/json");
+                req.bodyJSON(myjson);
+                m_reviewListener.setFilter(req.post(fmt::format("{}/objects/{}/report", HOST_URL, m_currentObject.id)));
+            }
+        },
+        true,
+        true
+    );
 }
 
 void ObjectWorkshop::onBackBtn(CCObject*) {
