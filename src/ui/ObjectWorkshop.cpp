@@ -122,7 +122,7 @@ bool ObjectWorkshop::setup(bool authenticated) {
     auto searchBtn = CCMenuItemSpriteExtra::create(
         searchSpr,
         this,
-        nullptr
+        menu_selector(ObjectWorkshop::onSearchBtn)
     );
     m_buttonMenu->addChildAtPosition(searchBtn, Anchor::BottomLeft, { 93, 18 });
     if (auto item = typeinfo_cast<CCMenuItemSpriteExtra*>(m_buttonMenu->getChildByID(fmt::format("category-{}"_spr, currentMenuIndexGD)))) {
@@ -254,8 +254,10 @@ bool ObjectWorkshop::setup(bool authenticated) {
 }
 
 void ObjectWorkshop::onSideButton(CCObject* pSender) {
+    isSearching = false;
     m_currentPage = 1;
     m_pageInput->setString("1");
+    onBackBtn(pSender);
     auto item = static_cast<CCMenuItemSpriteExtra*>(pSender);
     auto idStr = item->getID();
     int id = std::stoi(idStr.substr(idStr.length() - 1));
@@ -429,6 +431,8 @@ void ObjectWorkshop::load() {
     web::WebRequest request = web::WebRequest();
     m_listener1.getFilter().cancel();
     m_listener2.getFilter().cancel();
+    categoryItems->setVisible(false);
+    myUploadsMenu->setVisible(false);
     m_listener1.bind([this] (web::WebTask::Event* e) {
         if (web::WebResponse* value = e->getValue()) {
             if (!value->ok()) {
@@ -522,6 +526,8 @@ void ObjectWorkshop::load() {
                 categoryItems->updateLayout();
                 loadingCircle->fadeAndRemove();
                 cocos::handleTouchPriority(m_content);
+                categoryItems->setVisible(true);
+                myUploadsMenu->setVisible(true);
             }
             m_scrollLayer->moveToTop();
             if (m_authenticated && currentMenuIndexGD != 0) {
@@ -646,6 +652,8 @@ void ObjectWorkshop::load() {
                     m_scrollLayer->setTouchEnabled(false);
                 }
             }
+            categoryItems->setVisible(true);
+            myUploadsMenu->setVisible(true);
             myUploadsMenu->updateLayout();
             myUploadsBar->updateLayout();
             categoryBar->updateLayout();
@@ -660,6 +668,20 @@ void ObjectWorkshop::load() {
             log::error("Request was cancelled.");
         }
     });
+    if (isSearching && !m_searchInput->getString().empty()) {
+        if (m_filterTags.empty()) {
+            m_listener1.setFilter(request.post(fmt::format("{}/objects/search?query={}&page={}", HOST_URL, m_searchInput->getString(), m_currentPage)));
+        } else {
+            std::ostringstream oss;
+            std::copy(m_filterTags.begin(), m_filterTags.end(), 
+                      std::ostream_iterator<std::string>(oss, ","));
+            std::string tagsString = oss.str();
+            
+            if (!tagsString.empty()) tagsString.pop_back();
+            m_listener1.setFilter(request.post(fmt::format("{}/objects/search?query={}&page={}&tags={}", HOST_URL, m_searchInput->getString(), m_currentPage, tagsString)));
+        }
+        return;
+    }
     if (currentMenuIndexGD < 2 || currentMenuIndexGD == 6) {
         if (m_authenticated) {
             auto myjson = matjson::Value();
@@ -798,7 +820,9 @@ void ObjectWorkshop::onClickObject(CCObject* sender) {
             menu2->addChild(acceptBtn);
             menu2->addChild(rejectBtn);
         }
-        menu2->addChild(reportBtn);
+        if (m_user.account_id != m_currentObject.authorAccId) {
+            menu2->addChild(reportBtn);
+        }
         menu2->setContentSize({18, 80});
         //menu2->setPosition({7, 115});
         menu2->setPosition({16, 155});
@@ -835,7 +859,8 @@ void ObjectWorkshop::onClickObject(CCObject* sender) {
         clippingNode->setAnchorPoint({0.5, 0.5});
 
         if (auto editorUI = EditorUI::get() && objectData.objectString.length() > 0) {
-            CCSprite* sprite = EditorUI::get()->spriteFromObjectString(objectData.objectString, false, false, 0, (CCArray *)0x0, (CCArray *)0x0,(GameObject *)0x0);
+            auto renderLimit = Mod::get()->getSettingValue<int64_t>("render-objects");
+            CCSprite* sprite = EditorUI::get()->spriteFromObjectString(objectData.objectString, false, false, renderLimit, (CCArray *)0x0, (CCArray *)0x0,(GameObject *)0x0);
             sprite->setScale((previewBG->getContentSize().height - 20) / sprite->getContentSize().height);
             clippingNode->addChildAtPosition(sprite, Anchor::Center, {0, -5});
         }
@@ -1021,7 +1046,7 @@ void ObjectWorkshop::onFavBtn(CCObject*) {
 
 void ObjectWorkshop::actuallyDownload() {
     if (auto gameManager = GameManager::sharedState()) {
-        if (auto editorUI = EditorUI::get()) {
+        if (auto editorUI = CustomObjects::get()) {
             gameManager->addNewCustomObject(m_currentObject.objectString);
             editorUI->reloadCustomItems();
             Notification::create("Downloaded object!", NotificationIcon::Success)->show();
@@ -1310,7 +1335,7 @@ void ObjectWorkshop::onUploadBtn(CCObject*) {
     bottomBg->addChildAtPosition(m_objDesc, Anchor::Center, {0, -3});
     m_objDesc->setCallback(
         [this, textArea](std::string p0) {
-            m_objDesc->getInputNode()->m_placeholderLabel->setOpacity((p0.length() == 0) ? 255 : 0);
+            m_objDesc->getInputNode()->m_placeholderLabel->setOpacity((p0.empty()) ? 255 : 0);
             textArea->setScale(Utils::calculateScale(p0, 50, 300, 1.0F, 0.35F));
             textArea->m_width = 220.0F / Utils::calculateScale(p0, 50, 300, 1.0F, 0.32F);
             textArea->setString(p0);
@@ -1401,6 +1426,14 @@ void ObjectWorkshop::onUploadBtn(CCObject*) {
     }
 }
 
+void ObjectWorkshop::onSearchBtn(CCObject*) {
+    if (m_searchInput != nullptr) {
+        if (m_searchInput->getString().empty()) return FLAlertLayer::create("Error", "You must enter in a <cy>search query</c>!", "OK")->show();
+        isSearching = true;
+        RegenCategory();
+    }
+}
+
 void ObjectWorkshop::onFilterBtn(CCObject*) {
     FiltersPopup::create(m_availableTags, m_filterTags, false, [this](std::unordered_set<std::string> selectedTags) {
         if (m_filterTags != selectedTags) {
@@ -1411,6 +1444,7 @@ void ObjectWorkshop::onFilterBtn(CCObject*) {
 }
 
 void ObjectWorkshop::onPendingBtn(CCObject*) {
+    isSearching = false;
     m_currentPage = 1;
     m_pageInput->setString("1");
     currentMenuIndexGD = -1;
@@ -1427,7 +1461,7 @@ void ObjectWorkshop::onUpload(CCObject*) {
         if (auto gameManager = GameManager::sharedState()) {
             if (m_filterTags.size() > 5) return FLAlertLayer::create("Error", "You cannot set more than <cy>5 tags</c>!", "OK")->show();
             if (m_objName == nullptr || m_objDesc == nullptr) return FLAlertLayer::create("Error", "Couldn't find <cy>input nodes</c>", "OK")->show();
-            if (m_objName != nullptr && m_objName->getString().length() == 0) return FLAlertLayer::create("Error", "You must enter in the <cy>object name</c>!", "OK")->show();
+            if (m_objName != nullptr && m_objName->getString().empty()) return FLAlertLayer::create("Error", "You must enter in the <cy>object name</c>!", "OK")->show();
             ObjectData obj = {
                 0,
                 m_objName->getString(),

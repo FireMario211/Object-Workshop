@@ -63,5 +63,10 @@ build-*/
 .idea/
 /cmake-build-*/
 
-server
+server/dist
+server/node_modules
+server/redis
+server/package-lock.json
+
+build-linux
 compile_commands.json

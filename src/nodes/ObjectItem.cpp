@@ -69,9 +69,9 @@ bool ObjectItem::init(ObjectData data) {
     bgSpr->setContentSize({ 86.0f, 100.0f });
 
     auto title = CCLabelBMFont::create(data.name.c_str(), "bigFont.fnt");
-    title->limitLabelWidth(45.0F, 0.8F, 0.25F); // 0.425
+    title->limitLabelWidth(70.0F, 0.8F, 0.1F); // 0.425
     auto author = CCLabelBMFont::create(fmt::format("By {}", data.authorName).c_str(), "goldFont.fnt");
-    author->limitLabelWidth(45.0F, 0.7F, 0.2F); // 0.4
+    author->limitLabelWidth(60.0F, 0.8F, 0.2F); // 0.4
 
     auto previewBG = CCScale9Sprite::create("square02_small.png");
     previewBG->setOpacity(60);
@@ -99,7 +99,8 @@ bool ObjectItem::init(ObjectData data) {
         cocos2d::CCArray* - i have no idea, maybe a filter of what objects to not show?
         GameObject* - something with keyframes
         */
-        CCSprite* sprite = EditorUI::get()->spriteFromObjectString(data.objectString, false, false, 0, (CCArray *)0x0, (CCArray *)0x0,(GameObject *)0x0);
+        auto renderLimit = Mod::get()->getSettingValue<int64_t>("render-objects");
+        CCSprite* sprite = EditorUI::get()->spriteFromObjectString(data.objectString, false, false, renderLimit, (CCArray *)0x0, (CCArray *)0x0,(GameObject *)0x0);
         sprite->setScale(((previewBG->getContentSize().height - 6) / sprite->getContentSize().height));
         m_clippingNode->addChildAtPosition(sprite, Anchor::Center);
     }

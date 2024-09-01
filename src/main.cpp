@@ -11,15 +11,16 @@ using namespace geode::prelude;
 void CustomObjects::setupCustomMenu(EditButtonBar* bar, bool hideItems) {
     if (!Mod::get()->getSettingValue<bool>("enabled")) return;
     m_fields->oldChildrenCount = bar->getChildrenCount();
-    if (auto boomlist = getChildOfType<BoomScrollLayer>(bar, 0)) {
+    /*if (auto boomlist = getChildOfType<BoomScrollLayer>(bar, 0)) {
         boomlist->setVisible(hideItems);
         boomlist->setPositionY(-30);
         boomlist->setScale(0.8F);
     }
     if (auto menu = getChildOfType<CCMenu>(bar, 0)) {
         menu->setVisible(hideItems);
-    }
+    }*/
     auto menu = CCMenu::create();
+    menu->setID("ow-menu"_spr);
     auto label = CCLabelBMFont::create("Custom Objects", "goldFont.fnt");
     label->setScale(0.525F);
     m_fields->customObjsLabel = CCMenuItemSpriteExtra::create(label, this, menu_selector(CustomObjects::onBackLbl));
@@ -67,6 +68,7 @@ void CustomObjects::setupCustomMenu(EditButtonBar* bar, bool hideItems) {
     btn1Spr->addChildAtPosition(bgOther1, Anchor::Center, {0, -26});
     btn1Spr->addChildAtPosition(labelOther1, Anchor::Bottom, {0, 15});
 
+    /*
     auto btn2Spr = CCScale9Sprite::create("GJ_button_04.png");
     btn2Spr->setContentSize({90, 90});
     btn2Spr->setScale(0.7F);
@@ -90,20 +92,23 @@ void CustomObjects::setupCustomMenu(EditButtonBar* bar, bool hideItems) {
         10.0F,
         false 
     );
+    labelOther2->setID("ow-custom-count"_spr);
     labelOther2->setAnchorPoint({0.53, 0.5});
 
     btn2Spr->addChildAtPosition(folder2, Anchor::Center, {0, 23});
     btn2Spr->addChildAtPosition(label2, Anchor::Center, {0, 2});
     btn2Spr->addChildAtPosition(bgOther2, Anchor::Center, {0, -22});
     btn2Spr->addChildAtPosition(labelOther2, Anchor::Bottom, {0, 18});
-
+*/
 
     m_fields->btn1 = CCMenuItemSpriteExtra::create(btn1Spr, this, menu_selector(CustomObjects::onWorkshop));
+    menu->addChildAtPosition(m_fields->btn1, Anchor::Center, {0, -7});
+/*
     menu->addChildAtPosition(m_fields->btn1, Anchor::Center, {-36, -7});
 
     m_fields->btn2 = CCMenuItemSpriteExtra::create(btn2Spr, this, menu_selector(CustomObjects::onMyObjects));
     menu->addChildAtPosition(m_fields->btn2, Anchor::Center, {36, -7});
-
+*/
     menu->setContentHeight(90.F);
     menu->setPositionY(45.F);
 
@@ -157,21 +162,20 @@ void CustomObjects::setupCustomMenu(EditButtonBar* bar, bool hideItems) {
         m_fields->m_listener.setFilter(req.post(fmt::format("{}/user/@me", HOST_URL)));
     }
 }
+
 void CustomObjects::onBackLbl(CCObject*) {
-    //if (auto bar = typeinfo_cast<EditButtonBar*>(getChildByID("custom-tab-bar"))) {
-        if (auto boomlist = getChildOfType<BoomScrollLayer>(m_fields->m_customBar, 0)) {
-            boomlist->setVisible(false);
+    if (auto boomlist = getChildOfType<BoomScrollLayer>(m_fields->m_customBar, 0)) {
+        boomlist->setVisible(false);
+    }
+    if (m_fields->oldChildrenCount >= 2) {
+        if (auto menu = getChildOfType<CCMenu>(m_fields->m_customBar, 0)) {
+            menu->setVisible(false);
         }
-        if (m_fields->oldChildrenCount >= 2) {
-            if (auto menu = getChildOfType<CCMenu>(m_fields->m_customBar, 0)) {
-                menu->setVisible(false);
-            }
-        }
-        m_fields->btn1->setVisible(true);
-        m_fields->btn2->setVisible(true);
-        m_fields->myObjsLabel->setVisible(false);
-        m_fields->customObjsLabel->updateAnchoredPosition(Anchor::Top, {0, -9});
-    //}
+    }
+    m_fields->btn1->setVisible(true);
+    m_fields->btn2->setVisible(true);
+    m_fields->myObjsLabel->setVisible(false);
+    m_fields->customObjsLabel->updateAnchoredPosition(Anchor::Top, {0, -9});
 }
 void CustomObjects::onWorkshop(CCObject*) {
     int authServer = Mod::get()->getSettingValue<int64_t>("auth-server");
@@ -241,13 +245,15 @@ class $modify(LevelEditorLayer) {
 
 bool CustomObjects::init(LevelEditorLayer* editorLayer) {
     if (!EditorUI::init(editorLayer)) return false;
+    if (!Mod::get()->getSettingValue<bool>("enabled")) return true;
     EditorTabs::addTab(this, TabType::BUILD, "workshop"_spr, [this](EditorUI* ui, CCMenuItemToggler* toggler) -> CCNode* { //create the tab
-        auto arr = ui->createCustomItems();
+        //auto arr = ui->createCustomItems();
+        auto arr = CCArray::create();
         auto folder = CCSprite::createWithSpriteFrameName("gj_folderBtn_001.png");
+        /*arr->removeLastObject();
         arr->removeLastObject();
         arr->removeLastObject();
-        arr->removeLastObject();
-        arr->removeLastObject();
+        arr->removeLastObject();*/
         folder->setScale(0.4F);
         auto label = CCLabelBMFont::create("C+", "bigFont.fnt");
         label->setScale(0.4F);

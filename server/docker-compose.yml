@@ -1,0 +1,25 @@
+services:
+  db:
+    image: postgres:13.16
+    restart: always
+    environment:
+      POSTGRES_DB: db
+      POSTGRES_USER: myuser
+      POSTGRES_PASSWORD: mypassword
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./table.sql:/docker-entrypoint-initdb.d/table.sql
+  pgadmin:
+    image: elestio/pgadmin:latest
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@firee.dev
+      PGADMIN_DEFAULT_PASSWORD: mypassword
+      PGADMIN_LISTEN_PORT: 8080
+    ports:
+      - "8080:8080"
+
+volumes:
+  postgres_data:

@@ -25,6 +25,7 @@ struct CustomObjects : Modify<CustomObjects, EditorUI> {
     };
     bool init(LevelEditorLayer* editorLayer);
     void setupCustomMenu(EditButtonBar* bar, bool hideItems);
+    void reloadCustomMenu();
     void onBackLbl(CCObject*);
     void onWorkshop(CCObject*);
     void onMyObjects(CCObject*);
@@ -93,7 +94,7 @@ protected:
     LoadingCircle* loadingCircle;
     TextInput* m_searchInput;
     TextInput* m_pageInput;
-
+    bool isSearching = false;
 
     bool setup(bool authenticated) override;
     void onInfoBtn(CCObject*);
