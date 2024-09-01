@@ -9,3 +9,4 @@ Download, upload, or find custom objects made by other creators!
 - maybe try adding trending filter
 - add icon
 - fix bugs like clicking on the side bar while in an object
+- fix the noticable movement

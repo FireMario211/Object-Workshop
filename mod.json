@@ -46,7 +46,7 @@
             "max": 50000
         }
     },
-    "dependencies": [
+    "dependencieswhy": [
         {
             "id": "geode.node-ids",
             "version": ">=v1.13.1",
