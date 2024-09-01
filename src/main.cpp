@@ -5,6 +5,7 @@ using namespace geode::prelude;
 #include "ui/AuthMenu.hpp"
 #include "config.hpp"
 #include <fig.authentication/include/authentication.hpp>
+#include <alphalaneous.editortab_api/include/EditorTabs.hpp>
 
 // 13 = custom objects
 void CustomObjects::setupCustomMenu(EditButtonBar* bar, bool hideItems) {
@@ -23,6 +24,8 @@ void CustomObjects::setupCustomMenu(EditButtonBar* bar, bool hideItems) {
     label->setScale(0.525F);
     m_fields->customObjsLabel = CCMenuItemSpriteExtra::create(label, this, menu_selector(CustomObjects::onBackLbl));
     menu->addChildAtPosition(m_fields->customObjsLabel, Anchor::Top, {0, -9});
+
+    menu->setPositionX(0);
 
     m_fields->myObjsLabel = CCLabelBMFont::create("• My Objects", "bigFont.fnt");
     m_fields->myObjsLabel->setScale(0.4F);
@@ -154,27 +157,13 @@ void CustomObjects::setupCustomMenu(EditButtonBar* bar, bool hideItems) {
         m_fields->m_listener.setFilter(req.post(fmt::format("{}/user/@me", HOST_URL)));
     }
 }
-
-void CustomObjects::setupCreateMenu() {
-    EditorUI::setupCreateMenu();
-    if (auto bar = getChildOfType<EditButtonBar>(this, 13)) {
-    //if (auto bar = typeinfo_cast<EditButtonBar*>(getChildByID("custom-tab-bar"))) {
-        CustomObjects::setupCustomMenu(bar, false);
-    }
-}
-void CustomObjects::reloadCustomItems() { // rebuild it!
-    EditorUI::reloadCustomItems();
-    if (auto bar = typeinfo_cast<EditButtonBar*>(getChildByID("custom-tab-bar"))) {
-        CustomObjects::setupCustomMenu(bar, true);
-    }
-}
 void CustomObjects::onBackLbl(CCObject*) {
-    if (auto bar = typeinfo_cast<EditButtonBar*>(getChildByID("custom-tab-bar"))) {
-        if (auto boomlist = getChildOfType<BoomScrollLayer>(bar, 0)) {
+    //if (auto bar = typeinfo_cast<EditButtonBar*>(getChildByID("custom-tab-bar"))) {
+        if (auto boomlist = getChildOfType<BoomScrollLayer>(m_fields->m_customBar, 0)) {
             boomlist->setVisible(false);
         }
         if (m_fields->oldChildrenCount >= 2) {
-            if (auto menu = getChildOfType<CCMenu>(bar, 0)) {
+            if (auto menu = getChildOfType<CCMenu>(m_fields->m_customBar, 0)) {
                 menu->setVisible(false);
             }
         }
@@ -182,7 +171,7 @@ void CustomObjects::onBackLbl(CCObject*) {
         m_fields->btn2->setVisible(true);
         m_fields->myObjsLabel->setVisible(false);
         m_fields->customObjsLabel->updateAnchoredPosition(Anchor::Top, {0, -9});
-    }
+    //}
 }
 void CustomObjects::onWorkshop(CCObject*) {
     int authServer = Mod::get()->getSettingValue<int64_t>("auth-server");
@@ -219,18 +208,18 @@ void CustomObjects::onWorkshop(CCObject*) {
     }
 }
 void CustomObjects::onMyObjects(CCObject*) {
-    if (auto bar = typeinfo_cast<EditButtonBar*>(getChildByID("custom-tab-bar"))) {
-        if (auto boomlist = getChildOfType<BoomScrollLayer>(bar, 0)) {
+    //if (auto bar = typeinfo_cast<EditButtonBar*>(getChildByID("custom-tab-bar"))) {
+        if (auto boomlist = getChildOfType<BoomScrollLayer>(m_fields->m_customBar, 0)) {
             boomlist->setVisible(true);
         }
-        if (auto menu = getChildOfType<CCMenu>(bar, 0)) {
+        if (auto menu = getChildOfType<CCMenu>(m_fields->m_customBar, 0)) {
             menu->setVisible(true);
         }
         m_fields->btn1->setVisible(false);
         m_fields->btn2->setVisible(false);
         m_fields->myObjsLabel->setVisible(true);
         m_fields->customObjsLabel->updateAnchoredPosition(Anchor::Top, {-44, -9});
-    }
+    //}
 }
 
 /*
@@ -249,3 +238,36 @@ class $modify(LevelEditorLayer) {
 	}
 };
 */
+
+bool CustomObjects::init(LevelEditorLayer* editorLayer) {
+    if (!EditorUI::init(editorLayer)) return false;
+    EditorTabs::addTab(this, TabType::BUILD, "workshop"_spr, [this](EditorUI* ui, CCMenuItemToggler* toggler) -> CCNode* { //create the tab
+        auto arr = ui->createCustomItems();
+        auto folder = CCSprite::createWithSpriteFrameName("gj_folderBtn_001.png");
+        arr->removeLastObject();
+        arr->removeLastObject();
+        arr->removeLastObject();
+        arr->removeLastObject();
+        folder->setScale(0.4F);
+        auto label = CCLabelBMFont::create("C+", "bigFont.fnt");
+        label->setScale(0.4F);
+        folder->addChildAtPosition(label, Anchor::Center);
+        CCLabelBMFont* textLabelOn = CCLabelBMFont::create("C+", "bigFont.fnt");
+        textLabelOn->setScale(0.4f);
+        CCLabelBMFont* textLabelOff = CCLabelBMFont::create("C+", "bigFont.fnt");
+        textLabelOff->setScale(0.4f);
+
+        EditorTabUtils::setTabIcons(toggler, folder, folder);
+
+        auto bar = EditorTabUtils::createEditButtonBar(arr, ui);
+        m_fields->m_customBar = bar;
+        return bar;
+    }, [this](EditorUI* ui, bool state, CCNode*) { //toggled the tab (activates on every tab click)
+        if (state && !m_fields->m_hasMade) {
+            m_fields->m_hasMade = true;
+            CustomObjects::setupCustomMenu(m_fields->m_customBar, false);
+        }
+    });
+
+    return true;
+}

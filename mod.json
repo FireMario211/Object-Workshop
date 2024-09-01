@@ -16,6 +16,11 @@
             "resources/*.png"
         ]
     },
+    "links": {
+        "community": "https://discord.gg/XGBMVVvJ7J",
+        "source": "https://github.com/FireMario211/Object-Workshop"
+    },
+    "tags": ["online", "utility", "content", "editor", "interface"],
     "settings": {
         "enabled": {
             "name": "Enabled",
@@ -48,13 +53,13 @@
     },
     "dependencies": [
         {
-            "id": "geode.node-ids",
-            "version": ">=v1.13.1",
+            "id": "fig.authentication",
+            "version": ">=v1.0.1",
             "importance": "required"
         },
         {
-            "id": "fig.authentication",
-            "version": ">=v1.0.1",
+            "id": "alphalaneous.editortab_api",
+            "version": ">=v1.0.0-alpha.19",
             "importance": "required"
         }
     ]

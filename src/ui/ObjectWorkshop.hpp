@@ -19,10 +19,12 @@ struct CustomObjects : Modify<CustomObjects, EditorUI> {
         std::string currentObjString;
         EventListener<web::WebTask> m_listener;
         bool hasCheckedUploads;
+
+        bool m_hasMade = false;
+        EditButtonBar* m_customBar;
     };
+    bool init(LevelEditorLayer* editorLayer);
     void setupCustomMenu(EditButtonBar* bar, bool hideItems);
-    void setupCreateMenu();
-    void reloadCustomItems();
     void onBackLbl(CCObject*);
     void onWorkshop(CCObject*);
     void onMyObjects(CCObject*);
