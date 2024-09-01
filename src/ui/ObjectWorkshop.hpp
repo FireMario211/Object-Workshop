@@ -15,20 +15,17 @@ struct CustomObjects : Modify<CustomObjects, EditorUI> {
         CCMenuItemSpriteExtra* btn2;
         CCMenuItemSpriteExtra* customObjsLabel;
         CCLabelBMFont* myObjsLabel;
-        int oldChildrenCount = 0;
         std::string currentObjString;
         EventListener<web::WebTask> m_listener;
         bool hasCheckedUploads;
 
+        CCMenu* menu;
         bool m_hasMade = false;
-        EditButtonBar* m_customBar;
     };
     bool init(LevelEditorLayer* editorLayer);
     void setupCustomMenu(EditButtonBar* bar, bool hideItems);
-    void reloadCustomMenu();
     void onBackLbl(CCObject*);
     void onWorkshop(CCObject*);
-    void onMyObjects(CCObject*);
     //void onCreateButton(CCObject*);
 };
 

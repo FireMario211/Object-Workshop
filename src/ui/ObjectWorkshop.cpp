@@ -1328,7 +1328,7 @@ void ObjectWorkshop::onReportBtn(CCObject*) {
 }
 
 void ObjectWorkshop::onBackBtn(CCObject*) {
-    bottomPageLabel->setVisible(true);
+    if (bottomPageLabel != nullptr) bottomPageLabel->setVisible(true);
     rightBg->setVisible(true);
     obj_backBtn->setVisible(false);
     objectInfoNode->removeAllChildrenWithCleanup(true);

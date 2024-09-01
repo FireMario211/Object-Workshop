@@ -12,6 +12,9 @@ Thank you to <cj>Midair</c> for the mod idea, <cy>Alphalaneous</c> for the extra
 - Simply open <cb>the editor</c> and navigate to the next page! There you should see a <cy>folder with a C+</c>.
 - Click on the folder and you should be in the <cy>Object Workshop</c> if you already authenticated before! If not, it will ask you for authentication!
 
+# Notice
+Currently, if you have the <cb>Happy Textures</c> mod, there is a bug which will cause the <cy>Object Workshop</c> popup to crash if you have the <cy>CCScale9Sprite Fix</c> setting enabled. Ensure that you <cg>disable this</c> if you plan to use this mod with <cb>Happy Textures</c>.
+
 # Authentication Methods
 - <cp>DashAuth</c> is an authentication method that <cy>sends a message to a bot</c> to confirm the authenticity of your <cy>GD account</c>, similar to how mods like <cb>Globed</c> handles verifying your <cy>GD account</c>. Unfortunately, RobTop's servers <cr>IP banned my server</c>, meaning this method <cr>is not available</c>.
 - <cg>GDAuth</c> is an authentication method made by <cg>fig</c> which <cy>sends your GJP</c> (session token for GD) to <cg>fig's server</c> to confirm the authenticity of your <cy>GD account</c>. You should only use this <cy>if you trust fig's server</c>, as this method is like sending your GD account to <cy>fig's server</c>.
