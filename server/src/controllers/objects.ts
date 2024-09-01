@@ -10,49 +10,6 @@ const allowedTags = ["Font", "Decoration", "Gameplay", "Art", "Structure", "Cust
 
 const oRouter = Router();
 
-/*
-async function rateObject(redisClient: RedisClientType, objectID: string, userID: string, rating: number) {
-    const ratingKey = `objects:${objectID}:ratings`;
-    await redisClient.hSet(ratingKey, userID, rating);
-}
-
-async function calculateAverageRating(redisClient: RedisClientType, objectID: number): Promise<number> {
-    const ratingKey = `objects:${objectID}:ratings`;
-    const ratings = await redisClient.hGetAll(ratingKey);
-    const totalRatings: number = Object.values(ratings).reduce((acc, rating) => acc + parseInt(rating), 0);
-    const numberOfRatings = Object.keys(ratings).length;
-    
-    return numberOfRatings > 0 ? totalRatings / numberOfRatings : 0;
-}
-async function calculateAverageRating(pool: PoolClient, articleID: number): Promise<number> {
-    const query = `
-        SELECT AVG(rating) AS average_rating
-        FROM ratings
-        WHERE article_id = $1;
-    `;
-    const values = [articleID];
-
-    try {
-        const res = await pool.query(query, values);
-        const averageRating = parseFloat(res.rows[0].average_rating);
-        return isNaN(averageRating) ? 0 : averageRating;
-    } catch (err: any) {
-        console.error('Error executing query', err.stack);
-        throw err;
-    }
-}
-
-function dataToObjectData(redisClient: RedisClientType, data: ObjectData): Promise<ObjectData> {
-    return new Promise((resolve, reject) => {
-        data.timestamp = new Date(data.timestamp as number);
-        data.tags = data.tags.toString().split(",");
-        calculateAverageRating(redisClient, data.id).then(avgRatings => {
-            data.rating = avgRatings;
-            resolve(data);
-        }).catch(reject);
-    })
-}*/ 
-
 const isAscii: CustomValidator = (value: string) => {
     return /^[\x00-\x7F]*$/.test(value); // Checks if all characters are within the ASCII range
 };
@@ -166,16 +123,6 @@ oRouter.post('/objects/upload',
         });
     }
 );
-/*
-oRouter.post('/:room/upload', validator.body('username').notEmpty().isString(), validator.body('ext').notEmpty().isString(), validator.body('file').notEmpty().isString(), (req, res) => {
-        const roomID = req.params.room;
-        if (!roomID) res.sendStatus(400);
-        const result = validator.validationResult(req);
-        if (!result.isEmpty()) return res.status(400).json({ errors: result.array() })
-        uploadImage(req, res, false)
-    })
-})
-*/ 
 
 oRouter.get('/objects/:id', param("id").isNumeric().notEmpty(), (req: Request, res: Response) => {
     const result = validationResult(req);
