@@ -69,7 +69,7 @@ bool ObjectItem::init(ObjectData data) {
     bgSpr->setContentSize({ 86.0f, 100.0f });
 
     auto title = CCLabelBMFont::create(data.name.c_str(), "bigFont.fnt");
-    title->limitLabelWidth(70.0F, 0.8F, 0.1F); // 0.425
+    title->limitLabelWidth(70.0F, 0.7F, 0.1F); // 0.425
     auto author = CCLabelBMFont::create(fmt::format("By {}", data.authorName).c_str(), "goldFont.fnt");
     author->limitLabelWidth(60.0F, 0.8F, 0.2F); // 0.4
 

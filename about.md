@@ -11,6 +11,7 @@ Thank you to <cj>Midair</c> for the mod idea, <cy>Alphalaneous</c> for the extra
 # How to use
 - Simply open <cb>the editor</c> and navigate to the next page! There you should see a <cy>folder with a C+</c>.
 - Click on the folder and you should be in the <cy>Object Workshop</c> if you already authenticated before! If not, it will ask you for authentication!
+- To upload, make sure that the object you want to upload is in your <co>custom objects</c> (C). Otherwise, you won't be able to <cy>upload an object</c>!
 
 # Notice
 Currently, if you have the <cb>Happy Textures</c> mod, there is a bug which will cause the <cy>Object Workshop</c> popup to crash if you have the <cy>CCScale9Sprite Fix</c> setting enabled. Ensure that you <cg>disable this</c> if you plan to use this mod with <cb>Happy Textures</c>.
