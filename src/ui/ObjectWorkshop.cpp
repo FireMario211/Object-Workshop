@@ -25,7 +25,7 @@ bool ObjectWorkshop::setup(bool authenticated) {
                 auto jsonObj = jsonRes.as_object();
                 auto isError = jsonRes.try_get<std::string>("error");
                 if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
-                log::error(jsonRes.dump());
+                log::error("{}", jsonRes.dump());
                 return Notification::create("(Tags) Expected array, but got object.", NotificationIcon::Error)->show();
             }
             matjson::Array jsonArr = jsonRes.as_array();
