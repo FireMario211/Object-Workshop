@@ -59,7 +59,7 @@
         },
         {
             "id": "alphalaneous.editortab_api",
-            "version": ">=v1.0.0-alpha.19",
+            "version": ">=v1.0.0-alpha.21",
             "importance": "required"
         }
     ]
