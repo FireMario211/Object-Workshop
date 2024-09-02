@@ -20,6 +20,11 @@ bool ObjectWorkshop::setup(bool authenticated) {
     m_tagsListener.getFilter().cancel();
     m_tagsListener.bind([this] (web::WebTask::Event* e) {
         if (web::WebResponse* value = e->getValue()) {
+            if (value->code() >= 500 && !value->ok()) {
+                Notification::create("A server error occured. Check logs for info.", NotificationIcon::Error)->show();
+                log::error("{}", value->string().unwrapOrDefault());
+                return;
+            }
             auto jsonRes = value->json().unwrapOrDefault();
             if (jsonRes.is_object()) {
                 auto jsonObj = jsonRes.as_object();
@@ -486,6 +491,7 @@ void ObjectWorkshop::load() {
                 return;
             }
             auto jsonRes = value->json().unwrapOrDefault();
+            if (!jsonRes.is_object()) return log::error("Response isn't object.");
             auto isError = jsonRes.try_get<std::string>("error");
             if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
             if (!value->ok()) return Notification::create("An unknown error occured.", NotificationIcon::Error)->show();
@@ -577,6 +583,7 @@ void ObjectWorkshop::load() {
     m_listener2.bind([this] (web::WebTask::Event* e) {
         if (web::WebResponse* value = e->getValue()) {
             auto jsonRes = value->json().unwrapOrDefault();
+            if (!jsonRes.is_object()) return log::error("Response isn't object.");
             auto isError = jsonRes.try_get<std::string>("error");
             if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
             if (!value->ok()) return Notification::create("An unknown error occured.", NotificationIcon::Error)->show();
@@ -855,7 +862,7 @@ void ObjectWorkshop::onClickObject(CCObject* sender) {
             menu2->addChild(acceptBtn);
             menu2->addChild(rejectBtn);
         }
-        if (m_user.account_id != m_currentObject.authorAccId) {
+        if (m_user.account_id != m_currentObject.authorAccId && m_authenticated) {
             menu2->addChild(reportBtn);
         }
         menu2->setContentSize({18, 80});
@@ -1043,6 +1050,7 @@ void ObjectWorkshop::onClickObject(CCObject* sender) {
 }
 
 void ObjectWorkshop::onFavBtn(CCObject*) {
+    if (!m_authenticated) return FLAlertLayer::create("Error", "You cannot favorite levels as you are <cy>not authenticated!</c>", "OK")->show();
     m_favoriteListener.getFilter().cancel();
     m_favoriteListener.bind([this] (web::WebTask::Event* e) {
         if (web::WebResponse* value = e->getValue()) {
@@ -1113,7 +1121,10 @@ void ObjectWorkshop::onDownloadBtn(CCObject*) {
                 auto jsonObj = jsonRes.as_object();
                 auto isError = jsonRes.try_get<std::string>("error");
                 if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
-                log::info("{}", jsonRes.get<std::string>("message").c_str());
+                auto message = jsonRes.try_get<std::string>("message");
+                if (message) {
+                    log::info("{}", message);
+                }
                 downloadsLabel->setString(std::to_string(m_currentObject.downloads).c_str());
                 return;
             } else if (web::WebProgress* progress = e->getProgress()) {
@@ -1135,6 +1146,7 @@ void ObjectWorkshop::onDownloadBtn(CCObject*) {
 }
 
 void ObjectWorkshop::onRateBtn(CCObject* sender) {
+    if (!m_authenticated) return FLAlertLayer::create("Error", "You cannot rate levels as you are <cy>not authenticated!</c>", "OK")->show();
     m_rateListener.getFilter().cancel();
     auto menuItem = static_cast<CCMenuItemSpriteExtra*>(sender);
     auto menu = static_cast<CCMenu*>(menuItem->getParent());

@@ -2,6 +2,7 @@ name: Build Geode Mod
 
 on:
   workflow_dispatch:
+  pull_request:
   push:
     branches:
       - "**"
@@ -35,7 +36,9 @@ jobs:
       - name: Build the mod
         uses: geode-sdk/build-geode-mod@main
         with:
+          build-config: 'RelWithDebInfo'
           bindings: geode-sdk/bindings
+          export-pdb: true
           bindings-ref: main
           combine: true
           target: ${{ matrix.config.target }}

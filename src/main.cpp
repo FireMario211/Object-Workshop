@@ -30,6 +30,9 @@ void CustomObjects::onWorkshop(CCObject*) {
                         FLAlertLayer::create("Error", "Unsupported <cy>authentication method</c>.", "OK")->show();
                         break;
                     }
+                    case AuthMethod::Custom: {
+                        FLAlertLayer::create("Error", "Either the token you set is <cy>expired</c>, or you <cy>entered the token incorrectly!</c>", "OK")->show();
+                    }
                     case AuthMethod::GDAuth: {
                         authentication::AuthenticationManager::get()->getAuthenticationToken([](std::string token) {
                             AuthMenu::genAuthToken(AuthMethod::GDAuth, token, false, [](int value) {

@@ -6,8 +6,9 @@ import { Router, Request, Response } from 'express'
 import { query, body, param, validationResult, CustomValidator } from 'express-validator';
 import { verifyToken } from './user';
 import axios from 'axios';
+import { describe } from 'node:test';
 
-const allowedTags = ["Font", "Decoration", "Gameplay", "Art", "Structure", "Custom", "Icon", "Meme", "Technical"];
+const allowedTags = ["Font", "Decoration", "Gameplay", "Art", "Structure", "Custom", "Icon", "Meme", "Technical", "Particles", "Triggers"];
 
 const oRouter = Router();
 
@@ -107,6 +108,50 @@ oRouter.post('/objects/upload',
                             description,
                             tags,
                             timestamp: object.timestamp
+                        });
+                        const embeds = {
+                            "content": null,
+                            "embeds": [
+                                {
+                                    "title": "Object Uploaded!",
+                                    "color": 0x00AAFF,
+                                    "fields": [
+                                        {
+                                            "name": "Name",
+                                            "value": name,
+                                            "inline": true
+                                        },
+                                        {
+                                            "name": "Author",
+                                            "value": verifyRes.user.name,
+                                            "inline": true
+                                        },
+                                        {
+                                          "name": "Description",
+                                          "value": description
+                                        },
+                                        {
+                                          "name": "Objects",
+                                          "value": data.split(";").length,
+                                          "inline": true
+                                        },
+                                        {
+                                          "name": "Tags",
+                                          "value": tags.join(", "),
+                                          "inline": true
+                                        }
+                                    ],
+                                    "timestamp": new Date()
+                                }
+                            ],
+                            "attachments": []
+                        }
+                        axios({url: process.env.DISCORD_PENDING_WEBHOOK, method: "POST", headers: {"Content-Type": "application/json"}, data: embeds}).then((response) => {
+                            console.log("Webhook delivered successfully");
+                            return response;
+                        }).catch((error) => {
+                            console.log(error);
+                            return error;
                         });
                     } else {
                         res.status(500).json({ error: "Failed to upload object." });
@@ -459,7 +504,6 @@ oRouter.post('/objects/:id/accept',
                         objData.account_name = query2.rows[0].name;
                     }
                     await pool.query("UPDATE objects SET status = 1 WHERE id = $1", [objectID]);
-                    process.env.DISCORD_WEBHOOK
                     const embeds = {
                         "content": null,
                         "embeds": [
@@ -498,7 +542,7 @@ oRouter.post('/objects/:id/accept',
                         "attachments": []
                     }
                     res.status(200).json({ message: "Accepted!" });
-                    axios({url: process.env.DISCORD_WEBHOOK, method: "POST", headers: {"Content-Type": "application/json"}, data: embeds}).then((response) => {
+                    axios({url: process.env.DISCORD_APPROVE_WEBHOOK, method: "POST", headers: {"Content-Type": "application/json"}, data: embeds}).then((response) => {
                         console.log("Webhook delivered successfully");
                         return response;
                     }).catch((error) => {
@@ -634,7 +678,7 @@ oRouter.post('/objects/pending',
                 }
                 if (verifyRes.user && verifyRes.user.role < 2) return res.status(403).json({ error: "No permission" });
                 const page = parseInt(req.query.page as string) || 1;
-                const limit = (req.query.limit as string == "true") ? 2 : 9;
+                const limit = (req.query.limit as string == "true") ? 2 : 6;
                 const offset = (page - 1) * limit;
                 try {
                     let query = `
@@ -967,12 +1011,12 @@ oRouter.post('/objects/search',
 
                 if (tags.length > 0) {
                     query += `
-                        WHERE o.tags @> $4 AND o.status = 1 AND LOWER(o.name) LIKE LOWER($1 || '%')
+                        WHERE o.tags @> $4 AND o.status = 1 AND LOWER(o.name) LIKE LOWER('%' || $1 || '%')
                     `;
                     queryParams.push(tags);
                 } else {
                     query += `
-                        WHERE o.status = 1 AND LOWER(o.name) LIKE LOWER($1 || '%')
+                        WHERE o.status = 1 AND LOWER(o.name) LIKE LOWER('%' || $1 || '%')
                     `
                 }
 

@@ -1,3 +1,6 @@
+# v1.0.3
+- Fixed downloading objects crashing when you're not authenticated
+- Fixed other problems
 # v1.0.2
 - Quickly revert a change with Editor Tab API
 # v1.0.1

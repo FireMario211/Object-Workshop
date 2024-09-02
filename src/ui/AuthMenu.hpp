@@ -6,7 +6,8 @@ using namespace geode::prelude;
 enum AuthMethod {
     None = -1,
     DashAuth = 0,
-    GDAuth = 1
+    GDAuth = 1,
+    Custom = 2
 };
 
 class AuthMenu : public geode::Popup<> {
@@ -28,6 +29,8 @@ public:
                 return AuthMethod::DashAuth;
             case 1:
                 return AuthMethod::GDAuth;
+            case 2:
+                return AuthMethod::Custom;
         }
     }
     static AuthMenu* create() {

@@ -48,7 +48,7 @@ void AuthMenu::onDashAuth(CCObject*) {
 void AuthMenu::testAuth(std::string token, utils::MiniFunction<void(int)> callback) {
     m_authListener.bind([callback] (web::WebTask::Event* e) {
         if (web::WebResponse* value = e->getValue()) {
-            if (value->json().has_error() && !value->ok()) {
+            if (value->json().has_error() && !value->ok() && value->code() >= 500) {
                 std::string err = value->string().unwrapOrDefault();
                 log::error("Couldn't get server. {}", err);
                 callback(-1);
@@ -92,7 +92,7 @@ void AuthMenu::genAuthToken(AuthMethod method, std::string token, bool showFLAle
     m_authListener.bind([method, showFLAlert, callback] (web::WebTask::Event* e) {
         if (web::WebResponse* value = e->getValue()) {
             log::info("Request was finished!");
-            if (value->json().has_error() && !value->ok()) {
+            if (value->json().has_error() && !value->ok() && value->code() >= 500) {
                 std::string err = value->string().unwrapOrDefault();
                 log::error("Couldn't get server. {}", err);
                 callback(-1);
