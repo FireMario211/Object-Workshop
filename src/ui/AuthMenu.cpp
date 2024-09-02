@@ -45,12 +45,13 @@ void AuthMenu::onDashAuth(CCObject*) {
     FLAlertLayer::create("Error", "Unfortunately, RobTop's servers <cr>IP banned my server</c>, meaning this method <cr>is not available</c>.", "OK")->show();
 }
 
-void AuthMenu::testAuth(std::string token, utils::MiniFunction<void(bool)> callback) {
+void AuthMenu::testAuth(std::string token, utils::MiniFunction<void(int)> callback) {
     m_authListener.bind([callback] (web::WebTask::Event* e) {
         if (web::WebResponse* value = e->getValue()) {
-            if (value->json().has_error()) {
-                log::error("Couldn't get server.");
-                callback(false);
+            if (value->json().has_error() && !value->ok()) {
+                std::string err = value->string().unwrapOrDefault();
+                log::error("Couldn't get server. {}", err);
+                callback(-1);
                 return;
             }
             log::info("Request was finished!");
@@ -59,24 +60,24 @@ void AuthMenu::testAuth(std::string token, utils::MiniFunction<void(bool)> callb
                 auto isError = jsonRes.try_get<std::string>("error");
                 if (isError) {
                     log::error("{}", jsonRes.dump());
-                    callback(false);
+                    callback(0);
                 } else {
                     log::info("The token provided is valid!");
-                    callback(true);
+                    callback(1);
                 }
             } else {
                 auto strValue = value->string()->c_str();
                 log::error("Got value {}, expected valid JSON.", strValue);
-                callback(false);
+                callback(0);
             }
         } else if (web::WebProgress* progress = e->getProgress()) {
             // The request is still in progress...
         } else if (e->isCancelled()) {
             log::error("Request was cancelled.");
-            callback(false);
+            callback(0);
         } else {
             log::error("what happened?");
-            callback(false);
+            callback(0);
         }
     });
     web::WebRequest req = web::WebRequest();
@@ -87,13 +88,14 @@ void AuthMenu::testAuth(std::string token, utils::MiniFunction<void(bool)> callb
     req.bodyJSON(myjson);
     m_authListener.setFilter(req.post(fmt::format("{}/verify", HOST_URL)));
 }
-void AuthMenu::genAuthToken(AuthMethod method, std::string token, bool showFLAlert, utils::MiniFunction<void(bool)> callback) {
+void AuthMenu::genAuthToken(AuthMethod method, std::string token, bool showFLAlert, utils::MiniFunction<void(int)> callback) {
     m_authListener.bind([method, showFLAlert, callback] (web::WebTask::Event* e) {
         if (web::WebResponse* value = e->getValue()) {
             log::info("Request was finished!");
-            if (value->json().has_error()) {
-                log::error("Couldn't get server.");
-                callback(false);
+            if (value->json().has_error() && !value->ok()) {
+                std::string err = value->string().unwrapOrDefault();
+                log::error("Couldn't get server. {}", err);
+                callback(-1);
                 return;
             }
             auto jsonRes = value->json().unwrapOrDefault();
@@ -103,11 +105,11 @@ void AuthMenu::genAuthToken(AuthMethod method, std::string token, bool showFLAle
                     if (showFLAlert) {
                         FLAlertLayer::create("Error", isError->data(), "OK")->show();
                     }
-                    callback(false);
+                    callback(0);
                 } else {
                     Mod::get()->setSettingValue<std::string>("token", jsonRes.get<std::string>("token"));
                     Mod::get()->setSettingValue<int64_t>("auth-server", method);
-                    callback(true);
+                    callback(1);
                 }
             } else {
                 auto strValue = value->string()->c_str();
@@ -115,16 +117,16 @@ void AuthMenu::genAuthToken(AuthMethod method, std::string token, bool showFLAle
                 if (showFLAlert) {
                     FLAlertLayer::create("Error", "Something went wrong when trying to parse the request.", "OK")->show();
                 }
-                callback(false);
+                callback(0);
             }
         } else if (web::WebProgress* progress = e->getProgress()) {
             // The request is still in progress...
         } else if (e->isCancelled()) {
             log::error("Request was cancelled.");
-            callback(false);
+            callback(0);
         } else {
             log::error("what happened?");
-            callback(false);
+            callback(0);
         }
     });
     if (method == AuthMethod::GDAuth) {

@@ -1,10 +1,10 @@
-// Prism Menu Server 
 import express, { Request, Response, NextFunction } from 'express'
 import bodyParser from 'body-parser'
 import oRouter from './controllers/objects';
 import uRouter from './controllers/user';
 import morgan from 'morgan';
 import { rateLimit } from 'express-rate-limit'
+import 'dotenv/config'
 
 const app = express();
 const port = 3000;
@@ -23,7 +23,7 @@ app.all("/", (_, res) => {
 
 const limiter = rateLimit({
 	windowMs: 3 * 60 * 1000,
-	limit: 200,
+	limit: 500,
 	standardHeaders: 'draft-7',
 	legacyHeaders: false,
     message: { error: "You are ratelimited!" }

@@ -5,8 +5,9 @@ import { getCache } from '../postgres';
 import { Router, Request, Response } from 'express'
 import { query, body, param, validationResult, CustomValidator } from 'express-validator';
 import { verifyToken } from './user';
+import axios from 'axios';
 
-const allowedTags = ["Font", "Decoration", "Gameplay", "Art", "Structure", "Custom"];
+const allowedTags = ["Font", "Decoration", "Gameplay", "Art", "Structure", "Custom", "Icon", "Meme", "Technical"];
 
 const oRouter = Router();
 
@@ -124,7 +125,7 @@ oRouter.post('/objects/upload',
     }
 );
 
-oRouter.get('/objects/:id', param("id").isNumeric().notEmpty(), (req: Request, res: Response) => {
+oRouter.get('/objects/:id', param("id").isInt({min: 0, max: 2147483647}).notEmpty(), (req: Request, res: Response) => {
     const result = validationResult(req);
     if (!result.isEmpty()) return res.status(400).json({ errors: result.array() })
     const objectID = req.params.id;
@@ -160,9 +161,9 @@ oRouter.get('/objects/:id', param("id").isNumeric().notEmpty(), (req: Request, r
 })
 
 oRouter.post('/objects/:id/rate',
-    param('id').isNumeric().notEmpty(),
+    param('id').isInt({min: 0, max: 2147483647}).notEmpty(),
     body('token').notEmpty().isString(),
-    body('stars').notEmpty().isNumeric(),
+    body('stars').notEmpty().isInt({min: 0, max: 2147483647}),
     (req: Request, res: Response) => {
         const result = validationResult(req);
         if (!result.isEmpty()) return res.status(400).json({ errors: result.array() })
@@ -207,7 +208,7 @@ oRouter.post('/objects/:id/rate',
 )
 
 oRouter.post('/objects/:id/report',
-    param('id').isNumeric().notEmpty(),
+    param('id').isInt({min: 0, max: 2147483647}).notEmpty(),
     body('token').notEmpty().isString(),
     (req: Request, res: Response) => {
         const result = validationResult(req);
@@ -246,7 +247,7 @@ oRouter.post('/objects/:id/report',
 )
 
 oRouter.post('/objects/:id/favorite',
-    param('id').isNumeric().notEmpty(),
+    param('id').isInt({min: 0, max: 2147483647}).notEmpty(),
     body('token').notEmpty().isString(),
     (req: Request, res: Response) => {
         const result = validationResult(req);
@@ -294,7 +295,7 @@ oRouter.post('/objects/:id/favorite',
 )
 
 oRouter.post('/objects/:id/download',
-    param('id').isNumeric().notEmpty(),
+    param('id').isInt({min: 0, max: 2147483647}).notEmpty(),
     body('token').notEmpty().isString(),
     (req: Request, res: Response) => {
         const result = validationResult(req);
@@ -336,7 +337,7 @@ oRouter.post('/objects/:id/download',
 )
 
 oRouter.post('/objects/:id/delete',
-    param('id').isNumeric().notEmpty(),
+    param('id').isInt({min: 0, max: 2147483647}).notEmpty(),
     body('token').notEmpty().isString(),
     (req: Request, res: Response) => {
         const result = validationResult(req);
@@ -376,7 +377,7 @@ oRouter.post('/objects/:id/delete',
 )
 
 oRouter.post('/objects/:id/update',
-    param('id').isNumeric().notEmpty(),
+    param('id').isInt({min: 0, max: 2147483647}).notEmpty(),
     body('token').notEmpty().isString(),
     body('name').notEmpty().isString(),
     body('description').notEmpty().isString(),
@@ -434,7 +435,7 @@ oRouter.post('/objects/:id/update',
 );
 
 oRouter.post('/objects/:id/accept',
-    param('id').isNumeric().notEmpty(),
+    param('id').isInt({min: 0, max: 2147483647}).notEmpty(),
     body('token').notEmpty().isString(),
     (req: Request, res: Response) => {
         const result = validationResult(req);
@@ -450,10 +451,60 @@ oRouter.post('/objects/:id/accept',
                 }
                 if (verifyRes.user && verifyRes.user.role < 2) return res.status(403).json({ error: "No permission" });
                 try {
-                    const objExists = await pool.query("SELECT EXISTS (SELECT 1 FROM objects WHERE id = $1 AND status = 0)", [objectID])
-                    if (!objExists.rows[0].exists) return res.status(404).json({error: "Object not found."});
+                    const query = await pool.query("SELECT * FROM objects WHERE id = $1 AND status = 0", [objectID])
+                    if (!query.rows.length) return res.status(404).json({error: "Object not found."});
+                    const objData: ObjectData = query.rows[0];
+                    const query2 = await pool.query("SELECT name FROM users WHERE account_id = $1", [objData.account_id]);
+                    if (query2.rows.length) {
+                        objData.account_name = query2.rows[0].name;
+                    }
                     await pool.query("UPDATE objects SET status = 1 WHERE id = $1", [objectID]);
+                    process.env.DISCORD_WEBHOOK
+                    const embeds = {
+                        "content": null,
+                        "embeds": [
+                            {
+                                "title": "Object Approved!",
+                                "color": 0x00FF00,
+                                "fields": [
+                                    {
+                                        "name": "Name",
+                                        "value": objData.name,
+                                        "inline": true
+                                    },
+                                    {
+                                        "name": "Author",
+                                        "value": objData.account_name,
+                                        "inline": true
+                                    },
+                                    {
+                                      "name": "Description",
+                                      "value": objData.description
+                                    },
+                                    {
+                                      "name": "Objects",
+                                      "value": objData.data.split(";").length,
+                                      "inline": true
+                                    },
+                                    {
+                                      "name": "Tags",
+                                      "value": objData.tags.join(", "),
+                                      "inline": true
+                                    }
+                                ],
+                                "timestamp": new Date()
+                            }
+                        ],
+                        "attachments": []
+                    }
                     res.status(200).json({ message: "Accepted!" });
+                    axios({url: process.env.DISCORD_WEBHOOK, method: "POST", headers: {"Content-Type": "application/json"}, data: embeds}).then((response) => {
+                        console.log("Webhook delivered successfully");
+                        return response;
+                    }).catch((error) => {
+                        console.log(error);
+                        return error;
+                    });
                 } catch (e) {
                     console.error(e);
                     res.status(500).json({ error: 'Internal server error' });
@@ -469,7 +520,7 @@ oRouter.post('/objects/:id/accept',
 )
 
 oRouter.post('/objects/:id/reject',
-    param('id').isNumeric().notEmpty(),
+    param('id').isInt({min: 0, max: 2147483647}).notEmpty(),
     body('token').notEmpty().isString(),
     (req: Request, res: Response) => {
         const result = validationResult(req);
@@ -506,7 +557,7 @@ oRouter.post('/objects/:id/reject',
 
 oRouter.post('/user/@me/objects',
     body('token').notEmpty().isString(),
-    query('page').isNumeric().optional(),
+    query('page').isInt({min: 0, max: 2147483647}).optional(),
     query('limit').isBoolean().optional(),
     async (req: Request, res: Response) => {
         const result = validationResult(req);
@@ -568,7 +619,7 @@ oRouter.post('/user/@me/objects',
 
 oRouter.post('/objects/pending',
     body('token').notEmpty().isString(),
-    query('page').isNumeric().optional(),
+    query('page').isInt({min: 0, max: 2147483647}).optional(),
     query('limit').isBoolean().optional(),
     async (req: Request, res: Response) => {
         const result = validationResult(req);
@@ -631,7 +682,7 @@ oRouter.post('/objects/pending',
 
 oRouter.post('/objects/reports',
     body('token').notEmpty().isString(),
-    query('page').isNumeric().optional(),
+    query('page').isInt({min: 0, max: 2147483647}).optional(),
     query('limit').isBoolean().optional(),
     async (req: Request, res: Response) => {
         const result = validationResult(req);
@@ -696,7 +747,7 @@ oRouter.post('/objects/reports',
 
 oRouter.post('/user/@me/favorites',
     body('token').notEmpty().isString(),
-    query('page').isNumeric().optional(),
+    query('page').isInt({min: 0, max: 2147483647}).optional(),
     async (req: Request, res: Response) => {
         const result = validationResult(req);
         if (!result.isEmpty()) return res.status(400).json({ errors: result.array() })
@@ -763,8 +814,8 @@ oRouter.post('/user/@me/favorites',
 );
 
 oRouter.get('/objects',
-    query('page').isNumeric().optional(),
-    query('category').isNumeric().optional(),
+    query('page').isInt({min: 0, max: 2147483647}).optional(),
+    query('category').isInt({min: 0, max: 2147483647}).optional(),
     body('tags').optional().isString(),
     async (req: Request, res: Response) => {
         const result = validationResult(req);
@@ -835,9 +886,8 @@ oRouter.get('/objects',
                         orderBy = 'ORDER BY o.favorites DESC';
                         break;
                     case 3: // Trending (based on the current week)
-                        //WHERE o.timestamp >= NOW() - INTERVAL '7 days'
                         query += `
-                            AND o.timestamp >= COALESCE((SELECT MAX(timestamp) FROM objects), NOW() - INTERVAL '7 days')
+                            AND o.timestamp >= NOW() - INTERVAL '7 days'
                         `;
                         orderBy = 'ORDER BY o.downloads DESC';
                         break;
@@ -879,7 +929,7 @@ oRouter.get('/objects',
 
 oRouter.post('/objects/search',
     query('query').notEmpty().isString(),
-    query('page').isNumeric().optional(),
+    query('page').isInt({min: 0, max: 2147483647}).optional(),
     body('tags').optional().isString(),
     async (req: Request, res: Response) => {
         const result = validationResult(req);

@@ -98,6 +98,7 @@ protected:
     void onInfoBtn(CCObject*);
     void onSearchBtn(CCObject*);
     void onFilterBtn(CCObject*);
+    void onReloadBtn(CCObject*);
     void onPendingBtn(CCObject*);
     void createCategoryBtn(const char* string, int menuIndex);
     void onSideButton(CCObject*);

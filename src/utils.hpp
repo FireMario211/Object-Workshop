@@ -60,7 +60,7 @@ class Utils {
             default:
                 return "My Objects";
             case 1:
-                return "Favorite";
+                return "Favorites";
             /*case 5:
                 return "Trending";*/
             case 2:

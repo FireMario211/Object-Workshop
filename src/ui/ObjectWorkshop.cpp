@@ -92,7 +92,7 @@ bool ObjectWorkshop::setup(bool authenticated) {
 
     //m_buttonMenu->addChildAtPosition(CategoryButton::create("My Objects", nullptr), Anchor::Top, {3, -55});
     createCategoryBtn("My Objects", 0);
-    createCategoryBtn("Favorite", 1);
+    createCategoryBtn("Favorites", 1);
 
     auto vLine = CCSprite::createWithSpriteFrameName("edit_vLine_001.png");
     vLine->setRotation(90);
@@ -162,6 +162,12 @@ bool ObjectWorkshop::setup(bool authenticated) {
         menu_selector(ObjectWorkshop::onFilterBtn)
     );
     m_buttonMenu->addChildAtPosition(filterBtn, Anchor::BottomLeft, { 76, 18 });
+
+    auto refreshSpr = CCSprite::createWithSpriteFrameName("GJ_updateBtn_001.png");
+    refreshSpr->setScale(0.75F);
+    auto refreshBtn = CCMenuItemSpriteExtra::create(refreshSpr, this, menu_selector(ObjectWorkshop::onReloadBtn));
+    m_buttonMenu->addChildAtPosition(refreshBtn, Anchor::BottomRight, {-8, 8});
+
 /*
     auto unlistedSpr = CCSprite::createWithSpriteFrameName("accountBtn_myLevels_001.png");
     unlistedSpr->setScale(0.425F);
@@ -1494,6 +1500,11 @@ void ObjectWorkshop::onSearchBtn(CCObject*) {
         isSearching = true;
         RegenCategory();
     }
+}
+
+void ObjectWorkshop::onReloadBtn(CCObject*) {
+    onBackBtn(nullptr);
+    RegenCategory();
 }
 
 void ObjectWorkshop::onFilterBtn(CCObject*) {

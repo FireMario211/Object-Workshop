@@ -1,4 +1,6 @@
-# Object Workshop
+# Object Workshop 
+**Download, upload, or find custom objects made by other creators!**
+
 This mod was made with most of the hard work done by me! <cp>Firee</c>!
 Thank you to <cj>Midair</c> for the mod idea, <cy>Alphalaneous</c> for the extra mod ui design / feedback, and <cy>Zidnes</c> for creating the ui concept!
 
@@ -12,9 +14,6 @@ Thank you to <cj>Midair</c> for the mod idea, <cy>Alphalaneous</c> for the extra
 - Simply open <cb>the editor</c> and navigate to the next page! There you should see a <cy>folder with a C+</c>.
 - Click on the folder and you should be in the <cy>Object Workshop</c> if you already authenticated before! If not, it will ask you for authentication!
 - To upload, make sure that the object you want to upload is in your <co>custom objects</c> (C). Otherwise, you won't be able to <cy>upload an object</c>!
-
-# Notice
-Currently, if you have the <cb>Happy Textures</c> mod, there is a bug which will cause the <cy>Object Workshop</c> popup to crash if you have the <cy>CCScale9Sprite Fix</c> setting enabled. Ensure that you <cg>disable this</c> if you plan to use this mod with <cb>Happy Textures</c>.
 
 # Authentication Methods
 - <cp>DashAuth</c> is an authentication method that <cy>sends a message to a bot</c> to confirm the authenticity of your <cy>GD account</c>, similar to how mods like <cb>Globed</c> handles verifying your <cy>GD account</c>. Unfortunately, RobTop's servers <cr>IP banned my server</c>, meaning this method <cr>is not available</c>.

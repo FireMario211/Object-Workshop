@@ -17,9 +17,11 @@ void CustomObjects::onWorkshop(CCObject*) {
     int authServer = Mod::get()->getSettingValue<int64_t>("auth-server");
     if (authServer != -1) {
         auto token = Mod::get()->getSettingValue<std::string>("token");
-        AuthMenu::testAuth(token, [authServer, token](bool value) {
-            if (value) {
+        AuthMenu::testAuth(token, [authServer, token](int value) {
+            if (value == 1) {
                 ObjectWorkshop::create(true)->show();
+            } else if (value == -1) {
+                FLAlertLayer::create("Error", "Currently, Object Workshop <cy>servers are down</c> at the moment! View your logs, or view announcements on the <cy>Discord Server</c> for more information, or if there are no announcements, inform the developer of this error!", "OK")->show();
             } else {
                 switch (AuthMenu::intToAuth(authServer)) {
                     default:
@@ -30,9 +32,11 @@ void CustomObjects::onWorkshop(CCObject*) {
                     }
                     case AuthMethod::GDAuth: {
                         authentication::AuthenticationManager::get()->getAuthenticationToken([](std::string token) {
-                            AuthMenu::genAuthToken(AuthMethod::GDAuth, token, false, [](bool value) {
-                                if (value) {
+                            AuthMenu::genAuthToken(AuthMethod::GDAuth, token, false, [](int value) {
+                                if (value == 1) {
                                     ObjectWorkshop::create(true)->show();
+                                } else if (value == -1) {
+                                    FLAlertLayer::create("Error", "Currently, Object Workshop <cy>servers are down</c> at the moment! View your logs, or view announcements on the <cy>Discord Server</c> for more information, or if there are no announcements, inform the developer of this error!", "OK")->show();
                                 } else {
                                     FLAlertLayer::create("Error", "Something went wrong when <cy>trying to generate a new authentication token!</c>\nIf this issue happens again, please consider <cr>resetting your settings</c> to redo the authentication process.", "OK")->show();
                                 }

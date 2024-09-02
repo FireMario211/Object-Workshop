@@ -163,4 +163,53 @@ uRouter.post('/gdauth',
     }
 );
 
+uRouter.post('/custom',
+    body('token').notEmpty().isString(),
+    body('accountID').notEmpty().isString(),
+    body('username').notEmpty().isString(),
+    async (req: Request, res: Response) => {
+        const result = validationResult(req);
+        if (!result.isEmpty()) return res.status(400).json({ errors: result.array() })
+        const token = req.body.token as string;
+        getCache().then(pool => {
+            verifyToken(pool, token).then(async verifyRes => {
+                if (!verifyRes.valid && verifyRes.expired) {
+                    return res.status(410).json({ error: verifyRes.message });
+                } else if (!verifyRes.valid) {
+                    return res.status(401).json({ error: verifyRes.message });
+                }
+                if (verifyRes.user && verifyRes.user.role != 3) return res.status(403).json({ error: "No permission" });
+                const data = req.body;
+                pool.query("INSERT INTO users (auth_method, account_id, name) VALUES ($1, $2, $3) ON CONFLICT (account_id) DO NOTHING RETURNING *;", ["custom", data.accountID, data.username]).then(async userResult => {
+                    let user = userResult.rows[0];
+                    if (!user) {
+                        const existingUserResult = await pool.query(
+                            `SELECT * FROM users WHERE account_id = $1;`,
+                            [data.accountID]
+                        );
+                        user = existingUserResult.rows[0];
+                    }
+                    if (!user) return res.status(500).json({ error: "Unable to retrieve or create user." });
+                    const authToken = generateAuthToken(user.account_id);
+                    const expiration = new Date(Date.now() + ((60 * 60 * 1000) * 24) * 365); // 1 year
+                    await pool.query(
+                        `INSERT INTO user_tokens (account_id, token, expiration)
+                         VALUES ($1, $2, $3);`,
+                        [user.account_id, authToken, expiration]
+                    );
+                    res.status(200).json({ token: authToken });
+                }).catch(err => {
+                    console.error(err);
+                    res.status(500).json({ error: "Something went wrong when trying to create a user." })
+                })
+            }).catch(() => {
+                res.status(500).json({ error: 'Internal server error' });
+            })
+        }).catch(e => {
+            console.error(e);
+            res.sendStatus(500);
+        });
+    }
+);
+
 export default uRouter;
