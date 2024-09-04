@@ -30,7 +30,6 @@ void ReportPopup::onReportBtn(CCObject*) {
         [this](auto, bool btn2) {
             auto token = Mod::get()->getSettingValue<std::string>("token");
             if (btn2) {
-                onClose(nullptr);
                 m_listener.getFilter().cancel();
                 m_listener.bind([this] (web::WebTask::Event* e) {
                     if (web::WebResponse* value = e->getValue()) {
@@ -40,6 +39,7 @@ void ReportPopup::onReportBtn(CCObject*) {
                         auto isError = jsonRes.try_get<std::string>("error");
                         if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
                         Notification::create(jsonRes.get<std::string>("message").c_str(), NotificationIcon::Success)->show();
+                        onClose(nullptr);
                         return;
                     } else if (web::WebProgress* progress = e->getProgress()) {
                         // The request is still in progress...
