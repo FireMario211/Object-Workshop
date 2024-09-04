@@ -1,4 +1,4 @@
-import express, { Request, Response, NextFunction } from 'express'
+import express from 'express'
 import bodyParser from 'body-parser'
 import oRouter from './controllers/objects';
 import uRouter from './controllers/user';
@@ -9,7 +9,7 @@ import 'dotenv/config'
 const app = express();
 const port = 3000;
 
-app.use(bodyParser.json());
+app.use(bodyParser.json({ limit: '80mb' }));
 
 app.set("trust proxy", 1);
 

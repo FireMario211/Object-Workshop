@@ -6,7 +6,6 @@ import { Router, Request, Response } from 'express'
 import { query, body, param, validationResult, CustomValidator } from 'express-validator';
 import { verifyToken } from './user';
 import axios from 'axios';
-import { describe } from 'node:test';
 
 const allowedTags = ["Font", "Decoration", "Gameplay", "Art", "Structure", "Custom", "Icon", "Meme", "Technical", "Particles", "Triggers"];
 
@@ -47,7 +46,7 @@ function convertRowsToObjects(rows: any): Array<ObjectData> {
     return rows.map(convertRowToObject);
 }
 
-const blacklistedObjectIDs = [142];
+const blacklistedObjectIDs = [142, 3800];
 
 oRouter.post('/objects/upload',
     body('token').notEmpty().isString(),
@@ -254,11 +253,14 @@ oRouter.post('/objects/:id/rate',
 
 oRouter.post('/objects/:id/report',
     param('id').isInt({min: 0, max: 2147483647}).notEmpty(),
+    body('reason').notEmpty().isString(),
     body('token').notEmpty().isString(),
     (req: Request, res: Response) => {
         const result = validationResult(req);
         if (!result.isEmpty()) return res.status(400).json({ errors: result.array() })
         const token = req.body.token as string;
+        const reason = req.body.reason as string;
+        if (reason.length > 300) return res.status(400).json({error: "Your reason cannot be more than 300 characters!"})
         // why would this ever happen
         const objectID = req.params.id;
         getCache().then(pool => {
@@ -275,7 +277,7 @@ oRouter.post('/objects/:id/report',
                     if (!objExists.rows[0].exists) return res.status(404).json({error: "Object not found."}); 
                     const reportExists = await pool.query("SELECT EXISTS (SELECT 1 FROM reports WHERE object_id = $1 AND account_id = $2)", [objectID, accountID])
                     if (reportExists.rows[0].exists) return res.status(404).json({error: "You have already reported this object!"}); 
-                    await pool.query('INSERT INTO reports (object_id, account_id) VALUES ($1, $2)', [objectID, accountID])
+                    await pool.query('INSERT INTO reports (object_id, account_id, reason) VALUES ($1, $2, $3)', [objectID, accountID, reason])
                     res.status(200).json({ message: `Reported!`});
                 } catch (e) {
                     console.error(e);
@@ -359,7 +361,7 @@ oRouter.post('/objects/:id/download',
                     const objExists = await pool.query("SELECT EXISTS (SELECT 1 FROM objects WHERE id = $1 AND status = 1)", [objectID])
                     if (!objExists.rows[0].exists) return res.status(404).json({error: "Object not found."}); 
                     let message = ""
-                    if (verifyRes.user?.favorites.includes(parseInt(objectID))) {
+                    if (verifyRes.user?.downloaded.includes(parseInt(objectID))) {
                         message = "You already downloaded the object.";
                     } else {
                         message = "Updated download count!";

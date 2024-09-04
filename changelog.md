@@ -1,3 +1,6 @@
+# v1.0.4
+- Showcased whether or not your object is pending
+- Allowed sending a report reason (required)
 # v1.0.3
 - Fixed downloading objects crashing when you're not authenticated
 - Fixed other problems

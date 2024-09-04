@@ -6,9 +6,12 @@
 #include "../config.hpp"
 #include "ObjectWorkshop.hpp"
 #include "../nodes/CategoryButton.hpp"
+#include "Geode/utils/cocos.hpp"
 #include "Geode/utils/web.hpp"
 #include "../utils.hpp"
 #include "FiltersPopup.hpp"
+#include "../nodes/ScrollLayerExt.hpp"
+#include "ReportPopup.hpp"
 //#include <dashauth.hpp>
 
 int currentMenuIndexGD = 2;
@@ -280,6 +283,7 @@ bool ObjectWorkshop::setup(bool authenticated) {
     RegenCategory();
 
     this->setID("objectworkshop"_spr);
+    //cocos::handleTouchPriority(m_scrollLayer);
     return true;
 }
 
@@ -698,7 +702,6 @@ void ObjectWorkshop::load() {
             cocos::handleTouchPriority(m_content);
             loadingCircle->fadeAndRemove();
             m_scrollLayer->moveToTop();
-
         } else if (web::WebProgress* progress = e->getProgress()) {
             // The request is still in progress...
         } else if (e->isCancelled()) {
@@ -1025,7 +1028,11 @@ void ObjectWorkshop::onClickObject(CCObject* sender) {
         auto tagsLabel = CCLabelBMFont::create("Tags:", "goldFont.fnt");
         auto tagsNode = FiltersPopup::createTags(m_currentObject.tags);
         auto objectCountLabel = CCLabelBMFont::create(
-            fmt::format("Objects: {}", std::count(m_currentObject.objectString.begin(), m_currentObject.objectString.end(), ';')).c_str(),
+            fmt::format(
+                "Objects: {}{}",
+                std::count(m_currentObject.objectString.begin(), m_currentObject.objectString.end(), ';'),
+                (m_currentObject.pending) ? "; PENDING" : ""
+                ).c_str(),
             "bigFont.fnt"
         );
         tagsLabel->setScale(0.41F);
@@ -1309,40 +1316,7 @@ void ObjectWorkshop::onRejectBtn(CCObject*) {
     );
 }
 void ObjectWorkshop::onReportBtn(CCObject*) {
-    geode::createQuickPopup(
-        "Warning",
-        "Are you sure you want to <cy>report this object</c>?\n\nPlease make sure this object <cr>violates the guidelines</c> before reporting. Any misuse of this button will result in <cr>a ban</c>",
-        "No",
-        "Yes",
-        [this](auto, bool btn2) {
-            if (btn2) {
-                m_reviewListener.getFilter().cancel();
-                m_reviewListener.bind([this] (web::WebTask::Event* e) {
-                    if (web::WebResponse* value = e->getValue()) {
-                        auto jsonRes = value->json().unwrapOrDefault();
-                        if (!jsonRes.is_object()) return log::error("Response isn't object.");
-                        auto jsonObj = jsonRes.as_object();
-                        auto isError = jsonRes.try_get<std::string>("error");
-                        if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
-                        Notification::create(jsonRes.get<std::string>("message").c_str(), NotificationIcon::Success)->show();
-                        return;
-                    } else if (web::WebProgress* progress = e->getProgress()) {
-                        // The request is still in progress...
-                    } else if (e->isCancelled()) {
-                        log::error("Request was cancelled.");
-                    }
-                });
-                web::WebRequest req = web::WebRequest();
-                auto myjson = matjson::Value();
-                myjson.set("token", m_token);
-                req.header("Content-Type", "application/json");
-                req.bodyJSON(myjson);
-                m_reviewListener.setFilter(req.post(fmt::format("{}/objects/{}/report", HOST_URL, m_currentObject.id)));
-            }
-        },
-        true,
-        true
-    );
+    ReportPopup::create(m_currentObject)->show();
 }
 
 void ObjectWorkshop::onBackBtn(CCObject*) {
@@ -1584,7 +1558,7 @@ void ObjectWorkshop::onUpload(CCObject*) {
                     auto jsonObj = jsonRes.as_object();
                     auto isError = jsonRes.try_get<std::string>("error");
                     if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
-                    Notification::create("Uploaded Object!", NotificationIcon::Success)->show();
+                    Notification::create("Uploaded Object! It is now pending!", NotificationIcon::Success)->show();
                     loadingCircle->fadeAndRemove();
                     m_buttonMenu->setEnabled(true);
                     return;
