@@ -32,6 +32,7 @@ void CustomObjects::onWorkshop(CCObject*) {
                     }
                     case AuthMethod::Custom: {
                         FLAlertLayer::create("Error", "Either the token you set is <cy>expired</c>, or you <cy>entered the token incorrectly!</c>", "OK")->show();
+                        break;
                     }
                     case AuthMethod::GDAuth: {
                         authentication::AuthenticationManager::get()->getAuthenticationToken([](std::string token) {
@@ -182,13 +183,13 @@ bool CustomObjects::init(LevelEditorLayer* editorLayer) {
             req.bodyJSON(myjson);
             m_fields->m_listener.setFilter(req.post(fmt::format("{}/user/@me", HOST_URL)));
         }
-        m_fields->menu->setPosition({-2, -112});
-        //m_fields->menu->setPosition({285, 45});
-        return EditorTabUtils::createEditButtonBar(arr, ui);
-        //return m_fields->menu;
+        //m_fields->menu->setPosition({-2, -112});
+        m_fields->menu->setPosition({285, 45});
+        //return EditorTabUtils::createEditButtonBar(arr, ui);
+        return m_fields->menu;
     }, [this](EditorUI* ui, bool state, CCNode*) { //toggled the tab (activates on every tab click)
         if (m_fields->menu != nullptr) {
-            m_fields->menu->setPosition({-2, -112});
+            //m_fields->menu->setPosition({-2, -112});
         }
     });
 

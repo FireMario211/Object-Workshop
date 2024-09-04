@@ -1,3 +1,6 @@
+# v1.0.5 
+- Fixed issue with pausing the editor causing misalignment
+- Fixed the "token expiration" popup
 # v1.0.4
 - Showcased whether or not your object is pending
 - Allowed sending a report reason (required)
