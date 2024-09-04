@@ -10,7 +10,7 @@
 #include "Geode/utils/web.hpp"
 #include "../utils.hpp"
 #include "FiltersPopup.hpp"
-#include "../nodes/ScrollLayerExt.hpp"
+//#include "../nodes/ScrollLayerExt.hpp"
 #include "ReportPopup.hpp"
 //#include <dashauth.hpp>
 
