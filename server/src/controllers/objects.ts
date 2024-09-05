@@ -7,7 +7,7 @@ import { query, body, param, validationResult, CustomValidator } from 'express-v
 import { verifyToken } from './user';
 import axios from 'axios';
 
-const allowedTags = ["Font", "Decoration", "Gameplay", "Art", "Structure", "Custom", "Icon", "Meme", "Technical", "Particles", "Triggers"];
+const allowedTags = ["Font", "Decoration", "Gameplay", "Art", "Structure", "Custom", "Icon", "Meme", "Technical", "Particles", "Triggers", "SFX", "Effects"];
 
 const oRouter = Router();
 
@@ -617,7 +617,7 @@ oRouter.post('/user/@me/objects',
                     return res.status(401).json({ error: verifyRes.message });
                 }
                 const page = parseInt(req.query.page as string) || 1;
-                const limit = (req.query.limit as string == "true") ? 2 : 9;
+                const limit = (req.query.limit as string == "true") ? 2 : 6;
                 const offset = (page - 1) * limit;
                 try {
                     let query = `
@@ -666,7 +666,6 @@ oRouter.post('/user/@me/objects',
 oRouter.post('/objects/pending',
     body('token').notEmpty().isString(),
     query('page').isInt({min: 0, max: 2147483647}).optional(),
-    query('limit').isBoolean().optional(),
     async (req: Request, res: Response) => {
         const result = validationResult(req);
         if (!result.isEmpty()) return res.status(400).json({ errors: result.array() })
@@ -680,7 +679,7 @@ oRouter.post('/objects/pending',
                 }
                 if (verifyRes.user && verifyRes.user.role < 2) return res.status(403).json({ error: "No permission" });
                 const page = parseInt(req.query.page as string) || 1;
-                const limit = (req.query.limit as string == "true") ? 2 : 6;
+                const limit = 9;
                 const offset = (page - 1) * limit;
                 try {
                     let query = `
@@ -729,7 +728,6 @@ oRouter.post('/objects/pending',
 oRouter.post('/objects/reports',
     body('token').notEmpty().isString(),
     query('page').isInt({min: 0, max: 2147483647}).optional(),
-    query('limit').isBoolean().optional(),
     async (req: Request, res: Response) => {
         const result = validationResult(req);
         if (!result.isEmpty()) return res.status(400).json({ errors: result.array() })
@@ -743,7 +741,7 @@ oRouter.post('/objects/reports',
                 }
                 if (verifyRes.user && verifyRes.user.role != 3) return res.status(403).json({ error: "No permission" });
                 const page = parseInt(req.query.page as string) || 1;
-                const limit = (req.query.limit as string == "true") ? 2 : 9;
+                const limit = 9;
                 const offset = (page - 1) * limit;
                 try {
                     let query = `
@@ -794,6 +792,7 @@ oRouter.post('/objects/reports',
 oRouter.post('/user/@me/favorites',
     body('token').notEmpty().isString(),
     query('page').isInt({min: 0, max: 2147483647}).optional(),
+    query('limit').isInt({min: 1, max: 9}).optional(),
     async (req: Request, res: Response) => {
         const result = validationResult(req);
         if (!result.isEmpty()) return res.status(400).json({ errors: result.array() })
@@ -806,7 +805,7 @@ oRouter.post('/user/@me/favorites',
                     return res.status(401).json({ error: verifyRes.message });
                 }
                 const page = parseInt(req.query.page as string) || 1;
-                const limit = 6;
+                const limit = parseInt(req.query.limit as string) || 6;
                 const offset = (page - 1) * limit;
                 try {
                     let query = `
@@ -862,6 +861,7 @@ oRouter.post('/user/@me/favorites',
 oRouter.get('/objects',
     query('page').isInt({min: 0, max: 2147483647}).optional(),
     query('category').isInt({min: 0, max: 2147483647}).optional(),
+    query('limit').isInt({min: 0, max: 9}).optional(),
     body('tags').optional().isString(),
     async (req: Request, res: Response) => {
         const result = validationResult(req);
@@ -869,13 +869,14 @@ oRouter.get('/objects',
         getCache().then(async pool => {
             const page = parseInt(req.query.page as string) || 1;
             const category = parseInt(req.query.category as string) || 0;
+            const limit = parseInt(req.query.limit as string) || 6;
+
             let tags: string[] = [];
             if (req.query.tags) {
                 tags = req.query.tags.toString().split(",");
             }
             if (!tags.every(tag => allowedTags.includes(tag))) return res.status(400).json({error: `Tags must be one of: ${allowedTags.join(', ')}`})
 
-            const limit = 6;
             const offset = (page - 1) * limit;
             try {
                 /*let query = `
@@ -976,6 +977,7 @@ oRouter.get('/objects',
 oRouter.post('/objects/search',
     query('query').notEmpty().isString(),
     query('page').isInt({min: 0, max: 2147483647}).optional(),
+    query('limit').isInt({min: 0, max: 9}).optional(),
     body('tags').optional().isString(),
     async (req: Request, res: Response) => {
         const result = validationResult(req);
@@ -983,6 +985,7 @@ oRouter.post('/objects/search',
         getCache().then(async pool => {
             const page = parseInt(req.query.page as string) || 1;
             const search = req.query.query as string;
+            const limit = parseInt(req.query.limit as string) || 6;
             if (search.length > 300) res.status(400).json({error: "no"})
             let tags: string[] = [];
             if (req.query.tags) {
@@ -990,7 +993,6 @@ oRouter.post('/objects/search',
             }
             if (!tags.every(tag => allowedTags.includes(tag))) return res.status(400).json({error: `Tags must be one of: ${allowedTags.join(', ')}`});
 
-            const limit = 6;
             const offset = (page - 1) * limit;
             try {
                 let query = `

@@ -2,6 +2,8 @@
 #include <Geode/utils/web.hpp>
 #include <Geode/Geode.hpp>
 #include "../nodes/ObjectItem.hpp"
+#include "../nodes/ScrollLayerExt.hpp"
+#include "../nodes/ExtPreviewBG.hpp"
 
 using namespace geode::prelude;
 
@@ -112,7 +114,7 @@ protected:
     void onBackBtn(CCObject*);
 
     CCScale9Sprite* rightBg;
-    CCScrollLayerExt* m_scrollLayer;
+    ScrollLayerExt* m_scrollLayer;
     CCMenu* m_content;
     
     ObjectData m_currentObject;
@@ -138,6 +140,10 @@ protected:
     void onVerifyBtn(CCObject*);
     void onRejectBtn(CCObject*);
     void onReportBtn(CCObject*);
+
+    ExtPreviewBG* previewBG;
+    void onZoomIn(CCObject*);
+    void onZoomOut(CCObject*);
 
     std::unordered_set<std::string> m_filterTags;
     void onUpload(CCObject*);

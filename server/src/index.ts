@@ -9,11 +9,11 @@ import 'dotenv/config'
 const app = express();
 const port = 3000;
 
-app.use(bodyParser.json({ limit: '80mb' }));
+app.use(bodyParser.json({ limit: '40mb' }));
 
 app.set("trust proxy", 1);
 
-app.use(express.raw({ limit: '80mb' }));
+app.use(express.raw({ limit: '40mb' }));
 
 app.use(morgan('combined'));
 

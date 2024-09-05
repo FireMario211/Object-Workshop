@@ -1,3 +1,13 @@
+# v1.1.0
+- Added color preview to objects (no color triggers work :<)
+- Moved uploading to My Objects
+- Added Object Count and Download Count on the Object Item
+- Redesigned object summary
+- Increased the amount of objects per page to be 9
+- Allowed moving and zooming in/out the object in the preview
+- Fixed issue with scrolling for objects (on Android as well!)
+- Fixed issue with objects selecting when they're not supposed to when uploading an object
+- (hopefully) Fixed issue with setting the description crashing on Android 32
 # v1.0.5 
 - Fixed issue with pausing the editor causing misalignment
 - Fixed the "token expiration" popup

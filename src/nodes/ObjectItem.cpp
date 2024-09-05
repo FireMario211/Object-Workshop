@@ -62,6 +62,7 @@ CCMenu* ObjectItem::createClickableStars(CCObject* target, SEL_MenuHandler callb
     return node;
 }
 bool ObjectItem::init(ObjectData data) {
+    if (!CCScale9Sprite::init()) return false;
     m_data = data;
     this->setContentSize({ 86.0f, 100.0f });
     
@@ -69,18 +70,48 @@ bool ObjectItem::init(ObjectData data) {
     bgSpr->setContentSize({ 86.0f, 100.0f });
 
     auto title = CCLabelBMFont::create(data.name.c_str(), "bigFont.fnt");
-    title->limitLabelWidth(70.0F, 0.7F, 0.1F); // 0.425
+    title->limitLabelWidth(70.0F, 0.4F, 0.1F); // 0.425
     auto author = CCLabelBMFont::create(fmt::format("By {}", data.authorName).c_str(), "goldFont.fnt");
-    author->limitLabelWidth(60.0F, 0.8F, 0.2F); // 0.4
+    author->limitLabelWidth(80.0F, 0.4F, 0.1F); // 0.4
 
     auto previewBG = CCScale9Sprite::create("square02_small.png");
     previewBG->setOpacity(60);
     previewBG->setContentSize({ 72.F, 41.F });
     
-    bgSpr->addChildAtPosition(title, Anchor::Center, {1, -8}); // 0.425
-    bgSpr->addChildAtPosition(author, Anchor::Center, {1, -20}); // 0.4
+    bgSpr->addChildAtPosition(title, Anchor::Center, {1, -4}); // 0.425
+    bgSpr->addChildAtPosition(author, Anchor::Center, {1, -14}); // 0.4
 
-    bgSpr->addChildAtPosition(createStars(data.rating), Anchor::BottomLeft, { -2, 5 });
+    bgSpr->addChildAtPosition(createStars(data.rating), Anchor::BottomLeft, { -2, 13 });
+
+    auto objectsBG = CCScale9Sprite::create("square02_small.png");
+    objectsBG->setOpacity(60);
+    objectsBG->setScale(0.35F);
+    objectsBG->setContentSize({ 95.F, 30.F });
+    auto blockSpr = CCSprite::createWithSpriteFrameName("square_01_001.png");
+    blockSpr->setScale(0.75F);
+    auto objectsIcon = CircleButtonSprite::create(blockSpr);
+    objectsIcon->setScale(0.5F);
+    objectsBG->addChildAtPosition(objectsIcon, Anchor::Left, { 15, 0 });
+    auto objectsLabel = CCLabelBMFont::create(std::to_string(std::count(data.objectString.begin(), data.objectString.end(), ';')).c_str(), "bigFont.fnt");
+    objectsLabel->limitLabelWidth(120.F, 0.6F, 0.4F);
+    objectsLabel->setAnchorPoint({0, 0.5});
+    objectsBG->addChildAtPosition(objectsLabel, Anchor::Left, { 32, 0 });
+
+    auto downloadsBG = CCScale9Sprite::create("square02_small.png");
+    downloadsBG->setOpacity(60);
+    downloadsBG->setScale(0.35F);
+    downloadsBG->setContentSize({ 95.F, 30.F });
+    auto downloadsIcon = CCSprite::createWithSpriteFrameName("GJ_downloadBtn_001.png");
+    downloadsIcon->setScale(0.5F);
+    downloadsBG->addChildAtPosition(downloadsIcon, Anchor::Left, { 15, 0 });
+    auto downloadsLabel = CCLabelBMFont::create(std::to_string(data.downloads).c_str(), "bigFont.fnt");
+    downloadsLabel->limitLabelWidth(120.F, 0.6F, 0.4F);
+    downloadsLabel->setAnchorPoint({0, 0.5});
+    downloadsBG->addChildAtPosition(downloadsLabel, Anchor::Left, { 32, 0 });
+
+    bgSpr->addChildAtPosition(objectsBG, Anchor::BottomLeft, {22, 11});
+    bgSpr->addChildAtPosition(downloadsBG, Anchor::BottomRight, {-22, 11});
+
     this->addChildAtPosition(bgSpr, Anchor::Center);
 
     CCLayerColor* mask = CCLayerColor::create({255, 255, 255});
@@ -99,11 +130,15 @@ bool ObjectItem::init(ObjectData data) {
         cocos2d::CCArray* - i have no idea, maybe a filter of what objects to not show?
         GameObject* - something with keyframes
         */
+        auto smartBlock = CCArray::create();
         auto renderLimit = Mod::get()->getSettingValue<int64_t>("render-objects");
-        CCSprite* sprite = EditorUI::get()->spriteFromObjectString(data.objectString, false, false, renderLimit, (CCArray *)0x0, (CCArray *)0x0,(GameObject *)0x0);
+        CCSprite* sprite = EditorUI::get()->spriteFromObjectString(data.objectString, false, false, renderLimit, smartBlock, (CCArray *)0x0,(GameObject *)0x0);
+        LevelEditorLayer::get()->updateObjectColors(smartBlock);
         sprite->setScale(((previewBG->getContentSize().height - 6) / sprite->getContentSize().height));
         m_clippingNode->addChildAtPosition(sprite, Anchor::Center);
     }
+
+    //FLAlertLayerProtocol, ColorSelectDelegate, GJRotationControlDelegate, GJScaleControlDelegate, GJTransformControlDelegate, MusicDownloadDelegate, SetIDPopupDelegate {
     m_clippingNode->setStencil(mask);
     //m_clippingNode->setAlphaThreshold(0.05F);
     m_clippingNode->setZOrder(1);
