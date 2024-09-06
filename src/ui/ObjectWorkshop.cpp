@@ -1,17 +1,8 @@
-#include "DescPopup.hpp"
-#include "EditPopup.hpp"
-#include "Geode/ui/Notification.hpp"
-#include "Geode/ui/Popup.hpp"
-#include "Geode/ui/TextInput.hpp"
 #include "../config.hpp"
 #include "ObjectWorkshop.hpp"
+#include "popups/includes.h"
 #include "../nodes/CategoryButton.hpp"
-#include "Geode/utils/cocos.hpp"
-#include "Geode/utils/web.hpp"
 #include "../utils.hpp"
-#include "FiltersPopup.hpp"
-#include "../nodes/ScrollLayerExt.hpp"
-#include "ReportPopup.hpp"
 //#include <dashauth.hpp>
 
 int currentMenuIndexGD = 2;
@@ -277,6 +268,8 @@ bool ObjectWorkshop::setup(bool authenticated) {
     m_pageInput->setString("1");
     m_pageInput->setMaxCharCount(8);
     m_pageInput->setScale(0.525F);
+    m_pageInput->setCommonFilter(CommonFilter::Uint);
+    m_pageInput->setDelegate(this);
     pagesMenu->addChild(m_pageInput);
 
     RegenCategory();
@@ -317,6 +310,22 @@ void ObjectWorkshop::onLeftPage(CCObject*) {
 void ObjectWorkshop::onRightPage(CCObject*) {
     if ((m_currentPage + 1) <= m_maxPage) {
         m_currentPage++;
+        m_pageInput->setString(std::to_string(m_currentPage).c_str());
+        RegenCategory();
+    }
+}
+
+void ObjectWorkshop::textInputOpened(CCTextInputNode* input) {
+    input->setString("");
+}
+
+void ObjectWorkshop::textInputClosed(CCTextInputNode* input) {
+    if (input->getString().empty()) return m_pageInput->setString(std::to_string(m_currentPage).c_str());
+    int page = std::stoi(input->getString());
+    if (page == m_currentPage) return m_pageInput->setString(std::to_string(m_currentPage).c_str());
+    if (page < 1) page = 1;
+    if (page <= m_maxPage) {
+        m_currentPage = page;
         m_pageInput->setString(std::to_string(m_currentPage).c_str());
         RegenCategory();
     }
@@ -722,8 +731,9 @@ void ObjectWorkshop::load() {
         }
     });
     if (isSearching && !m_searchInput->getString().empty()) {
+        std::string query = Utils::url_encode(m_searchInput->getString());
         if (m_filterTags.empty()) {
-            m_listener1.setFilter(request.post(fmt::format("{}/objects/search?query={}&limit=9&page={}", HOST_URL, m_searchInput->getString(), m_currentPage)));
+            m_listener1.setFilter(request.post(fmt::format("{}/objects/search?query={}&limit={}&page={}", HOST_URL, query, RESULT_LIMIT, m_currentPage)));
         } else {
             std::ostringstream oss;
             std::copy(m_filterTags.begin(), m_filterTags.end(), 
@@ -731,7 +741,7 @@ void ObjectWorkshop::load() {
             std::string tagsString = oss.str();
             
             if (!tagsString.empty()) tagsString.pop_back();
-            m_listener1.setFilter(request.post(fmt::format("{}/objects/search?query={}&page={}&limit=9&tags={}", HOST_URL, m_searchInput->getString(), m_currentPage, tagsString)));
+            m_listener1.setFilter(request.post(fmt::format("{}/objects/search?query={}&page={}&limit={}&tags={}", HOST_URL, query, m_currentPage, RESULT_LIMIT, tagsString)));
         }
         return;
     }
@@ -744,7 +754,7 @@ void ObjectWorkshop::load() {
             if (currentMenuIndexGD == 0) { // my uploads
                 m_listener1.setFilter(request.get(fmt::format("{}/user/@me/objects?page=0&limit=false", HOST_URL, m_currentPage)));
             } else if (currentMenuIndexGD == 1) { // favorited
-                m_listener1.setFilter(request.post(fmt::format("{}/user/@me/favorites?page={}&limit=9", HOST_URL, m_currentPage)));
+                m_listener1.setFilter(request.post(fmt::format("{}/user/@me/favorites?page={}&limit={}", HOST_URL, m_currentPage, RESULT_LIMIT)));
             } else if (currentMenuIndexGD == 7) { // pending 
                 m_listener1.setFilter(request.post(fmt::format("{}/objects/pending?page={}", HOST_URL, m_currentPage)));
             } else if (currentMenuIndexGD == 8) { // reports
@@ -752,11 +762,11 @@ void ObjectWorkshop::load() {
             }
         } else {
             FLAlertLayer::create("Error", "You aren't <cy>authenticated!</c>", "OK")->show();
-            m_listener1.setFilter(request.get(fmt::format("{}/objects?page={}&category={}&limit=9", HOST_URL, m_currentPage, 0)));
+            m_listener1.setFilter(request.get(fmt::format("{}/objects?page={}&category={}&limit={}", HOST_URL, m_currentPage, 0, RESULT_LIMIT)));
         }
     } else {
         if (m_filterTags.empty()) {
-            m_listener1.setFilter(request.get(fmt::format("{}/objects?page={}&category={}&limit=9", HOST_URL, m_currentPage, currentMenuIndexGD - 2)));
+            m_listener1.setFilter(request.get(fmt::format("{}/objects?page={}&category={}&limit={}", HOST_URL, m_currentPage, currentMenuIndexGD - 2, RESULT_LIMIT)));
         } else {
             std::ostringstream oss;
             std::copy(m_filterTags.begin(), m_filterTags.end(), 
@@ -764,7 +774,7 @@ void ObjectWorkshop::load() {
             std::string tagsString = oss.str();
             
             if (!tagsString.empty()) tagsString.pop_back();
-            m_listener1.setFilter(request.get(fmt::format("{}/objects?page={}&category={}&tags={}&limit=9", HOST_URL, m_currentPage, currentMenuIndexGD - 2, tagsString)));
+            m_listener1.setFilter(request.get(fmt::format("{}/objects?page={}&category={}&tags={}&limit={}", HOST_URL, m_currentPage, currentMenuIndexGD - 2, tagsString, RESULT_LIMIT)));
         }
     }
 }
@@ -1721,4 +1731,25 @@ void ObjectWorkshop::onInfoBtn(CCObject*) {
         "This mod was made with most of the hard work done by me! <cp>Firee</c>!\nThank you to <cj>Midair</c> for the mod idea, <cy>Alphalaneous</c> for the extra mod ui design / feedback, and <cy>Zidnes</c> for creating the ui concept!", // Description
         "OK" // Not having another button will only show this one button.
     )->show();
+}
+
+void ObjectWorkshop::keyDown(cocos2d::enumKeyCodes key) {
+    if (key == cocos2d::enumKeyCodes::KEY_Escape) {
+        if (rightBg->isVisible()) {
+            this->onClose(nullptr);
+        } else {
+            this->onBackBtn(nullptr);
+        }
+        return;
+    }
+    if (key == cocos2d::enumKeyCodes::KEY_Space) return;
+    return FLAlertLayer::keyDown(key);
+}
+
+void ObjectWorkshop::keyBackClicked() {
+    if (rightBg->isVisible()) {
+        this->onClose(nullptr);
+    } else {
+        this->onBackBtn(nullptr);
+    }
 }

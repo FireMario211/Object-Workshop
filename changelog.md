@@ -1,3 +1,8 @@
+# v1.1.1
+- Made typing in pages work
+- Made pressing escape while in an object not close the menu, but instead "go back"
+- Added a loading circle so people dont accidentally click on the object workshop button twice
+- Fixed issue searching with spaces causing an error
 # v1.1.0
 - Added color preview to objects (no color triggers work :<)
 - Moved uploading to My Objects

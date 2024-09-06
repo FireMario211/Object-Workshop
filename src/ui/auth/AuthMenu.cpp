@@ -1,7 +1,6 @@
-#include "../config.hpp"
+#include "../../config.hpp"
 #include "AuthMenu.hpp"
-#include "Geode/ui/Popup.hpp"
-#include "ObjectWorkshop.hpp"
+#include "../ObjectWorkshop.hpp"
 #include <fig.authentication/include/authentication.hpp>
 
 EventListener<web::WebTask> m_authListener;

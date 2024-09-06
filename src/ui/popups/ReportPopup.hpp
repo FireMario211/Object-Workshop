@@ -1,7 +1,7 @@
 #pragma once
 
 #include <Geode/ui/Popup.hpp>
-#include "../nodes/ObjectItem.hpp"
+#include "../../nodes/ObjectItem.hpp"
 #include <Geode/utils/web.hpp>
 using namespace geode::prelude;
 

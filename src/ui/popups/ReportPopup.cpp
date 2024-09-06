@@ -1,5 +1,5 @@
 #include "ReportPopup.hpp"
-#include "../config.hpp"
+#include "../../config.hpp"
 
 bool ReportPopup::setup(ObjectData obj) {
     m_object = obj;

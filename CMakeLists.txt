@@ -10,6 +10,8 @@ file(GLOB SOURCES
 	src/*.cpp
 	src/nodes/*.cpp
 	src/ui/*.cpp
+	src/ui/popups/*.cpp
+	src/ui/auth/*.cpp
 )
 
 # Set up the mod binary

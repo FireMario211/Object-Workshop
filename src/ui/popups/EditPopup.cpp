@@ -1,6 +1,6 @@
 #include "EditPopup.hpp"
-#include "../utils.hpp"
-#include "../config.hpp"
+#include "../../utils.hpp"
+#include "../../config.hpp"
 #include "FiltersPopup.hpp"
 
 bool EditPopup::setup(ObjectData obj, std::unordered_set<std::string> availableTags) {

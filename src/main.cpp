@@ -2,8 +2,9 @@
 using namespace geode::prelude;
 
 #include "ui/ObjectWorkshop.hpp"
-#include "ui/AuthMenu.hpp"
+#include "ui/auth/AuthMenu.hpp"
 #include "config.hpp"
+#include "ui/auth/AuthLoadLayer.hpp"
 #include <fig.authentication/include/authentication.hpp>
 #include <alphalaneous.editortab_api/include/EditorTabs.hpp>
 
@@ -16,27 +17,34 @@ void CustomObjects::setupCustomMenu(EditButtonBar* bar, bool hideItems) {
 void CustomObjects::onWorkshop(CCObject*) {
     int authServer = Mod::get()->getSettingValue<int64_t>("auth-server");
     if (authServer != -1) {
+        auto loadLayer = AuthLoadLayer::create();
+        loadLayer->show();
         auto token = Mod::get()->getSettingValue<std::string>("token");
-        AuthMenu::testAuth(token, [authServer, token](int value) {
+        AuthMenu::testAuth(token, [loadLayer, authServer, token](int value) {
             if (value == 1) {
+                loadLayer->finished();
                 ObjectWorkshop::create(true)->show();
             } else if (value == -1) {
+                loadLayer->finished();
                 FLAlertLayer::create("Error", "Currently, Object Workshop <cy>servers are down</c> at the moment! View your logs, or view announcements on the <cy>Discord Server</c> for more information, or if there are no announcements, inform the developer of this error!", "OK")->show();
             } else {
                 switch (AuthMenu::intToAuth(authServer)) {
                     default:
                     case AuthMethod::None:
                     case AuthMethod::DashAuth: {
+                        loadLayer->finished();
                         FLAlertLayer::create("Error", "Unsupported <cy>authentication method</c>.", "OK")->show();
                         break;
                     }
                     case AuthMethod::Custom: {
+                        loadLayer->finished();
                         FLAlertLayer::create("Error", "Either the token you set is <cy>expired</c>, or you <cy>entered the token incorrectly!</c>", "OK")->show();
                         break;
                     }
                     case AuthMethod::GDAuth: {
-                        authentication::AuthenticationManager::get()->getAuthenticationToken([](std::string token) {
-                            AuthMenu::genAuthToken(AuthMethod::GDAuth, token, false, [](int value) {
+                        authentication::AuthenticationManager::get()->getAuthenticationToken([loadLayer](std::string token) {
+                            AuthMenu::genAuthToken(AuthMethod::GDAuth, token, false, [loadLayer](int value) {
+                                loadLayer->finished();
                                 if (value == 1) {
                                     ObjectWorkshop::create(true)->show();
                                 } else if (value == -1) {

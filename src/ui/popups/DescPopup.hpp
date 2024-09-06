@@ -1,7 +1,7 @@
 #pragma once
 
 #include <Geode/ui/Popup.hpp>
-#include "../nodes/ObjectItem.hpp"
+#include "../../nodes/ObjectItem.hpp"
 using namespace geode::prelude;
 
 class DescPopup : public geode::Popup<ObjectData> {

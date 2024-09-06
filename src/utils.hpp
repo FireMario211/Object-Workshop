@@ -54,6 +54,21 @@ class Utils {
     static matjson::Array unorderedSetToArray(std::unordered_set<T> set) {
         return matjson::Array(set.begin(), set.end());
     };
+    static std::string url_encode(const std::string &value) {
+        std::ostringstream escaped;
+        escaped.fill('0');
+        escaped << std::hex;
+
+        for (char c : value) {
+            if (isalnum(c) || c == '-' || c == '_' || c == '.' || c == '~') {
+                escaped << c;
+            } else {
+                escaped << '%' << std::setw(2) << int((unsigned char) c);
+            }
+        }
+
+        return escaped.str();
+    }
     static std::string menuIndexToString(int menuIndex) {
         switch (menuIndex) {
             case 0:

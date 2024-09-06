@@ -1,9 +1,13 @@
 #pragma once
 #include <Geode/utils/web.hpp>
 #include <Geode/Geode.hpp>
+#include <Geode/ui/Notification.hpp>
+#include <Geode/ui/Popup.hpp>
+#include <Geode/ui/TextInput.hpp>
 #include "../nodes/ObjectItem.hpp"
 #include "../nodes/ScrollLayerExt.hpp"
 #include "../nodes/ExtPreviewBG.hpp"
+#include "../nodes/ScrollLayerExt.hpp"
 
 using namespace geode::prelude;
 
@@ -65,9 +69,8 @@ struct UserData {
 };
 
 // do i really need a bunch of event listeners
-class ObjectWorkshop : public geode::Popup<bool> {
+class ObjectWorkshop : public geode::Popup<bool>, public TextInputDelegate {
 protected:
-    //CCScale9Sprite* leftBar;
     std::unordered_set<std::string> m_availableTags;
     EventListener<web::WebTask> m_listener2;
     EventListener<web::WebTask> m_listener1;
@@ -90,6 +93,10 @@ protected:
     int m_maxPage = 1;
     void onLeftPage(CCObject*);
     void onRightPage(CCObject*);
+    void textInputOpened(CCTextInputNode* input) override;
+    void textInputClosed(CCTextInputNode* input) override;
+    void keyDown(cocos2d::enumKeyCodes) override;
+    virtual void keyBackClicked() override;
 
     LoadingCircle* loadingCircle;
     TextInput* m_searchInput;
