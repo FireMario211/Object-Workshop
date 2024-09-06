@@ -106,9 +106,15 @@ void AuthMenu::genAuthToken(AuthMethod method, std::string token, bool showFLAle
                     }
                     callback(0);
                 } else {
-                    Mod::get()->setSettingValue<std::string>("token", jsonRes.get<std::string>("token"));
-                    Mod::get()->setSettingValue<int64_t>("auth-server", method);
-                    callback(1);
+                    auto token = jsonRes.try_get<std::string>("token");
+                    if (token) {
+                        Mod::get()->setSettingValue<std::string>("token", token->c_str());
+                        Mod::get()->setSettingValue<int64_t>("auth-server", method);
+                        callback(1);
+                    } else {
+                        log::error("Expected token, got an unknown result. {}", jsonRes.dump());
+                        callback(0);
+                    }
                 }
             } else {
                 auto strValue = value->string()->c_str();

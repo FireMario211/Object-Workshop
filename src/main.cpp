@@ -170,14 +170,16 @@ bool CustomObjects::init(LevelEditorLayer* editorLayer) {
                         log::error("{}", isError);
                         return;
                     }
-                    int uploads = jsonRes.get<int>("uploads");
-                    labelOther1->setString(
-                        fmt::format(
-                            "<cg>{}</c> Upload{} from you",
-                            uploads,
-                            (uploads == 1) ? "" : "s"
-                        )
-                    );
+                    auto uploads = jsonRes.try_get<int>("uploads");
+                    if (uploads) {
+                        labelOther1->setString(
+                            fmt::format(
+                                "<cg>{}</c> Upload{} from you",
+                                uploads.value(),
+                                (uploads.value() == 1) ? "" : "s"
+                            )
+                        );
+                    }
                 } else if (web::WebProgress* progress = e->getProgress()) {
                     // The request is still in progress...
                 } else if (e->isCancelled()) {

@@ -209,14 +209,26 @@ bool ObjectWorkshop::setup(bool authenticated) {
                 auto jsonObj = jsonRes.as_object();
                 auto isError = jsonRes.try_get<std::string>("error");
                 if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
-                m_user = {
-                    jsonRes.get<int>("account_id"),
-                    jsonRes.get<std::string>("name"),
-                    jsonRes.get<matjson::Array>("downloaded"),
-                    jsonRes.get<matjson::Array>("favorites"),
-                    jsonRes.get<int>("uploads"),
-                    jsonRes.get<int>("role")
-                };
+                // i know its a lotta more lines but gotta check!
+                auto r_account_id = jsonRes.try_get<int>("account_id");
+                auto r_name = jsonRes.try_get<std::string>("name");
+                auto r_downloaded = jsonRes.try_get<matjson::Array>("downloaded");
+                auto r_favorites = jsonRes.try_get<matjson::Array>("favorites");
+                auto r_uploads = jsonRes.try_get<int>("uploads");
+                auto r_role = jsonRes.try_get<int>("role");
+                if (r_account_id && r_name && r_downloaded && r_favorites && r_uploads && r_role) {
+                    m_user = {
+                        r_account_id.value(),
+                        r_name->c_str(),
+                        r_downloaded.value(),
+                        r_favorites.value(),
+                        r_uploads.value(),
+                        r_role.value()
+                    };
+                } else {
+                    log::error("Something went wrong when getting keys from the users object. {}", jsonRes.dump());
+                    Notification::create("Couldn't parse user object.", NotificationIcon::Warning)->show();
+                }
                 auto uploadsLabel = CCLabelBMFont::create(fmt::format("{} Upload{}", m_user.uploads, (m_user.uploads == 1) ? "" : "s").c_str(), "bigFont.fnt");
                 uploadsLabel->limitLabelWidth(90.F, 1.0F, 0.2F);
                 uploadsLabel->setAnchorPoint({0, 0.5});
@@ -513,29 +525,61 @@ void ObjectWorkshop::load() {
             auto isError = jsonRes.try_get<std::string>("error");
             if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
             if (!value->ok()) return Notification::create("An unknown error occured.", NotificationIcon::Error)->show();
-            auto array = jsonRes.get<matjson::Array>("results");
+            auto arrayRes = jsonRes.try_get<matjson::Array>("results");
+            matjson::Array array;
+            if (arrayRes) {
+                array = arrayRes.value();
+            }
             for (auto item : array) {
                 auto obj = item;
-                auto cell = CCMenuItemSpriteExtra::create(ObjectItem::create({
-                    obj.get<int>("id"),
-                    obj.get<std::string>("name"),
-                    obj.get<std::string>("description"),
-                    obj.get<std::string>("account_name"),
-                    obj.get<double>("rating"),
-                    obj.get<int>("account_id"),
-                    obj.get<int>("downloads"),
-                    obj.get<int>("favorites"),
-                    obj.get<int>("rating_count"),
-                    obj.get<std::string>("data"),
-                    Utils::arrayIncludes(m_user.favorites, obj.get<int>("id")),
-                    Utils::arrayToUnorderedSet<std::string>(obj.get<matjson::Array>("tags")),
-                    obj.get<int>("status") == 0
-                }), this, menu_selector(ObjectWorkshop::onClickObject));
-                categoryItems->addChild(cell);
+                // soooo bad
+                auto o_id = obj.try_get<int>("id");
+                auto o_name = obj.try_get<std::string>("name");
+                auto o_desc = obj.try_get<std::string>("description");
+                auto o_acc_name = obj.try_get<std::string>("account_name");
+                auto o_rating = obj.try_get<double>("rating");
+                auto o_acc_id = obj.try_get<int>("account_id");
+                auto o_downloads = obj.try_get<int>("downloads");
+                auto o_favorites = obj.try_get<int>("favorites");
+                auto o_rating_count = obj.try_get<int>("rating_count");
+                auto o_data = obj.try_get<std::string>("data");
+                auto o_tags = obj.try_get<matjson::Array>("tags");
+                auto o_status = obj.try_get<int>("status");
+                if (
+                    o_id &&
+                    o_name && o_desc &&
+                    o_acc_name && o_acc_id &&
+                    o_rating && o_downloads && o_favorites && o_rating_count && 
+                    o_data && o_tags && o_status
+                ) {
+                    auto cell = CCMenuItemSpriteExtra::create(ObjectItem::create({
+                        o_id.value(),
+                        o_name.value(),
+                        o_desc.value(),
+                        o_acc_name.value(),
+                        o_rating.value(),
+                        o_acc_id.value(),
+                        o_downloads.value(),
+                        o_favorites.value(),
+                        o_rating_count.value(),
+                        o_data.value(),
+                        Utils::arrayIncludes(m_user.favorites, o_id.value()),
+                        Utils::arrayToUnorderedSet<std::string>(o_tags.value()),
+                        o_status.value() == 0
+                    }), this, menu_selector(ObjectWorkshop::onClickObject));
+                    categoryItems->addChild(cell);
+                } else {
+                    log::error("One of the cells could not be properly parsed! {}", obj.dump());
+                }
             }
             m_buttonMenu->removeChildByID("bottompage"_spr);
-            bottomPageLabel = CCLabelBMFont::create(fmt::format("Page {} of {} ({} Results found)", jsonRes.get<int>("page"), jsonRes.get<int>("pageAmount"), jsonRes.get<int>("total")).c_str(), "goldFont.fnt");
-            m_maxPage = jsonRes.get<int>("pageAmount");
+            auto o_page = jsonRes.try_get<int>("page");
+            auto o_pageAmount = jsonRes.try_get<int>("pageAmount");
+            auto o_total = jsonRes.try_get<int>("total");
+            if (o_page && o_pageAmount && o_total) {
+                bottomPageLabel = CCLabelBMFont::create(fmt::format("Page {} of {} ({} Results found)", o_page.value(), o_pageAmount.value(), o_total.value()).c_str(), "goldFont.fnt");
+                m_maxPage = o_pageAmount.value();
+            }
             bottomPageLabel->setScale(0.4F);
             bottomPageLabel->setID("bottompage"_spr);
             m_buttonMenu->addChildAtPosition(bottomPageLabel, Anchor::Bottom, {55, 17});
@@ -612,30 +656,57 @@ void ObjectWorkshop::load() {
             auto isError = jsonRes.try_get<std::string>("error");
             if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
             if (!value->ok()) return Notification::create("An unknown error occured.", NotificationIcon::Error)->show();
-            auto array = jsonRes.get<matjson::Array>("results");
+            auto arrayRes = jsonRes.try_get<matjson::Array>("results");
+            matjson::Array array;
+            if (arrayRes) {
+                array = arrayRes.value();
+            }
             if (array.size() > 0) {
                 myUploadsMenu->removeAllChildrenWithCleanup(true);
             }
             CCSize defaultContentSize;
             for (auto item : array) {
                 auto obj = item;
-                auto cell = CCMenuItemSpriteExtra::create(ObjectItem::create({
-                    obj.get<int>("id"),
-                    obj.get<std::string>("name"),
-                    obj.get<std::string>("description"),
-                    obj.get<std::string>("account_name"),
-                    obj.get<double>("rating"),
-                    obj.get<int>("account_id"),
-                    obj.get<int>("downloads"),
-                    obj.get<int>("favorites"),
-                    obj.get<int>("rating_count"),
-                    obj.get<std::string>("data"),
-                    Utils::arrayIncludes(m_user.favorites, obj.get<int>("id")),
-                    Utils::arrayToUnorderedSet<std::string>(obj.get<matjson::Array>("tags")),
-                    obj.get<int>("status") == 0
-                }), this, menu_selector(ObjectWorkshop::onClickObject));
-                defaultContentSize = cell->getContentSize();
-                myUploadsMenu->addChild(cell);
+                // soooo bad
+                auto o_id = obj.try_get<int>("id");
+                auto o_name = obj.try_get<std::string>("name");
+                auto o_desc = obj.try_get<std::string>("description");
+                auto o_acc_name = obj.try_get<std::string>("account_name");
+                auto o_rating = obj.try_get<double>("rating");
+                auto o_acc_id = obj.try_get<int>("account_id");
+                auto o_downloads = obj.try_get<int>("downloads");
+                auto o_favorites = obj.try_get<int>("favorites");
+                auto o_rating_count = obj.try_get<int>("rating_count");
+                auto o_data = obj.try_get<std::string>("data");
+                auto o_tags = obj.try_get<matjson::Array>("tags");
+                auto o_status = obj.try_get<int>("status");
+                if (
+                    o_id &&
+                    o_name && o_desc &&
+                    o_acc_name && o_acc_id &&
+                    o_rating && o_downloads && o_favorites && o_rating_count && 
+                    o_data && o_tags && o_status
+                ) {
+                    auto cell = CCMenuItemSpriteExtra::create(ObjectItem::create({
+                        o_id.value(),
+                        o_name.value(),
+                        o_desc.value(),
+                        o_acc_name.value(),
+                        o_rating.value(),
+                        o_acc_id.value(),
+                        o_downloads.value(),
+                        o_favorites.value(),
+                        o_rating_count.value(),
+                        o_data.value(),
+                        Utils::arrayIncludes(m_user.favorites, o_id.value()),
+                        Utils::arrayToUnorderedSet<std::string>(o_tags.value()),
+                        o_status.value() == 0
+                    }), this, menu_selector(ObjectWorkshop::onClickObject));
+                    defaultContentSize = cell->getContentSize();
+                    myUploadsMenu->addChild(cell);
+                } else {
+                    log::error("One of the cells could not be properly parsed! {}", obj.dump());
+                }
             }
             if (array.size() > 0) {
                 myUploadsMenu->setPosition({127,-36});
@@ -1119,7 +1190,13 @@ void ObjectWorkshop::onFavBtn(CCObject*) {
             auto jsonObj = jsonRes.as_object();
             auto isError = jsonRes.try_get<std::string>("error");
             if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
-            Notification::create(jsonRes.get<std::string>("message").c_str(), NotificationIcon::Success)->show();
+            auto message = jsonRes.try_get<std::string>("message");
+            if (message) {
+                Notification::create(message->c_str(), NotificationIcon::Success)->show();
+            } else {
+                log::error("Unknown response, expected message. {}", jsonRes.dump());
+                Notification::create("Got an unknown response, check logs for details.", NotificationIcon::Warning)->show();
+            }
             m_currentObject.favorited = !m_currentObject.favorited;
             if (m_currentObject.favorited) {
                 m_currentObject.favorites++;
@@ -1131,7 +1208,7 @@ void ObjectWorkshop::onFavBtn(CCObject*) {
                     m_user.favorites.erase(it); 
                 }
             }
-            favoritesLabel->setString(std::to_string(m_currentObject.favorites).c_str());
+            if (favoritesLabel != nullptr) favoritesLabel->setString(std::to_string(m_currentObject.favorites).c_str());
             return;
         } else if (web::WebProgress* progress = e->getProgress()) {
             // The request is still in progress...
@@ -1181,11 +1258,7 @@ void ObjectWorkshop::onDownloadBtn(CCObject*) {
                 auto jsonObj = jsonRes.as_object();
                 auto isError = jsonRes.try_get<std::string>("error");
                 if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
-                auto message = jsonRes.try_get<std::string>("message");
-                if (message) {
-                    log::info("{}", message);
-                }
-                downloadsLabel->setString(std::to_string(m_currentObject.downloads).c_str());
+                if (downloadsLabel != nullptr) downloadsLabel->setString(std::to_string(m_currentObject.downloads).c_str());
                 return;
             } else if (web::WebProgress* progress = e->getProgress()) {
                 // The request is still in progress...
@@ -1269,7 +1342,13 @@ void ObjectWorkshop::onTrashBtn(CCObject*) {
                         auto jsonObj = jsonRes.as_object();
                         auto isError = jsonRes.try_get<std::string>("error");
                         if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
-                        Notification::create(jsonRes.get<std::string>("message").c_str(), NotificationIcon::Success)->show();
+                        auto message = jsonRes.try_get<std::string>("message");
+                        if (message) {
+                            Notification::create(message->c_str(), NotificationIcon::Success)->show();
+                        } else {
+                            log::error("Unknown response, expected message. {}", jsonRes.dump());
+                            Notification::create("Got an unknown response, check logs for details.", NotificationIcon::Warning)->show();
+                        }
                         onBackBtn(nullptr);
                         RegenCategory();
                         return;
@@ -1310,7 +1389,13 @@ void ObjectWorkshop::onVerifyBtn(CCObject*) {
                         auto jsonObj = jsonRes.as_object();
                         auto isError = jsonRes.try_get<std::string>("error");
                         if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
-                        Notification::create(jsonRes.get<std::string>("message").c_str(), NotificationIcon::Success)->show();
+                        auto message = jsonRes.try_get<std::string>("message");
+                        if (message) {
+                            Notification::create(message->c_str(), NotificationIcon::Success)->show();
+                        } else {
+                            log::error("Unknown response, expected message. {}", jsonRes.dump());
+                            Notification::create("Got an unknown response, check logs for details.", NotificationIcon::Warning)->show();
+                        }
                         return;
                     } else if (web::WebProgress* progress = e->getProgress()) {
                         // The request is still in progress...
@@ -1346,7 +1431,13 @@ void ObjectWorkshop::onRejectBtn(CCObject*) {
                         auto jsonObj = jsonRes.as_object();
                         auto isError = jsonRes.try_get<std::string>("error");
                         if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
-                        Notification::create(jsonRes.get<std::string>("message").c_str(), NotificationIcon::Success)->show();
+                        auto message = jsonRes.try_get<std::string>("message");
+                        if (message) {
+                            Notification::create(message->c_str(), NotificationIcon::Success)->show();
+                        } else {
+                            log::error("Unknown response, expected message. {}", jsonRes.dump());
+                            Notification::create("Got an unknown response, check logs for details.", NotificationIcon::Warning)->show();
+                        }
                         onBackBtn(nullptr);
                         RegenCategory();
                         return;
