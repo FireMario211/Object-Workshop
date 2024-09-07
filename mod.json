@@ -8,7 +8,7 @@
 	},
 	"id": "firee.object-workshop",
 	"name": "Object Workshop",
-	"version": "v1.1.2",
+	"version": "v1.1.3",
 	"developer": "Firee",
 	"description": "Download, upload, or find custom objects made by other creators!",
     "resources": {
@@ -59,7 +59,7 @@
         },
         {
             "id": "alphalaneous.editortab_api",
-            "version": ">=v1.0.0-beta.2",
+            "version": ">=v1.0.0-beta.3",
             "importance": "required"
         }
     ]

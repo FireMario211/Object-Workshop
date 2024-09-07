@@ -21,7 +21,6 @@ bool ObjectWorkshop::setup(bool authenticated) {
             }
             auto jsonRes = value->json().unwrapOrDefault();
             if (jsonRes.is_object()) {
-                auto jsonObj = jsonRes.as_object();
                 auto isError = jsonRes.try_get<std::string>("error");
                 if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
                 log::error("{}", jsonRes.dump());
@@ -206,7 +205,6 @@ bool ObjectWorkshop::setup(bool authenticated) {
             if (web::WebResponse* value = e->getValue()) {
                 auto jsonRes = value->json().unwrapOrDefault();
                 if (!jsonRes.is_object()) return log::error("Response isn't object.");
-                auto jsonObj = jsonRes.as_object();
                 auto isError = jsonRes.try_get<std::string>("error");
                 if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
                 // i know its a lotta more lines but gotta check!
@@ -893,6 +891,7 @@ void ObjectWorkshop::onClickObject(CCObject* sender) {
     if (auto objectItem = typeinfo_cast<ObjectItem*>(menuItem->getChildren()->objectAtIndex(0))) {
         auto objectData = objectItem->getData();
         m_currentObject = objectData;
+        m_currentMenu = 2;
         rightBg->setVisible(false);
         bottomPageLabel->setVisible(false);
         obj_backBtn->setVisible(true);
@@ -1187,7 +1186,6 @@ void ObjectWorkshop::onFavBtn(CCObject*) {
         if (web::WebResponse* value = e->getValue()) {
             auto jsonRes = value->json().unwrapOrDefault();
             if (!jsonRes.is_object()) return log::error("Response isn't object.");
-            auto jsonObj = jsonRes.as_object();
             auto isError = jsonRes.try_get<std::string>("error");
             if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
             auto message = jsonRes.try_get<std::string>("message");
@@ -1208,7 +1206,7 @@ void ObjectWorkshop::onFavBtn(CCObject*) {
                     m_user.favorites.erase(it); 
                 }
             }
-            if (favoritesLabel != nullptr) favoritesLabel->setString(std::to_string(m_currentObject.favorites).c_str());
+            if (m_currentMenu == 2 && favoritesLabel != nullptr) favoritesLabel->setString(std::to_string(m_currentObject.favorites).c_str());
             return;
         } else if (web::WebProgress* progress = e->getProgress()) {
             // The request is still in progress...
@@ -1250,15 +1248,16 @@ void ObjectWorkshop::onDownloadBtn(CCObject*) {
             true
         );
     } else {
+        if (m_currentObject.pending) return actuallyDownload();
         m_downloadListener.getFilter().cancel();
         m_downloadListener.bind([this] (web::WebTask::Event* e) {
             if (web::WebResponse* value = e->getValue()) {
+                if (value->json().has_error()) return log::error("Response is not JSON.");
                 auto jsonRes = value->json().unwrapOrDefault();
                 if (!jsonRes.is_object()) return log::error("Response isn't object.");
-                auto jsonObj = jsonRes.as_object();
                 auto isError = jsonRes.try_get<std::string>("error");
                 if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
-                if (downloadsLabel != nullptr) downloadsLabel->setString(std::to_string(m_currentObject.downloads).c_str());
+                if (m_currentMenu == 2 && downloadsLabel != nullptr) downloadsLabel->setString(std::to_string(m_currentObject.downloads).c_str());
                 return;
             } else if (web::WebProgress* progress = e->getProgress()) {
                 // The request is still in progress...
@@ -1302,7 +1301,6 @@ void ObjectWorkshop::onRateBtn(CCObject* sender) {
         if (web::WebResponse* value = e->getValue()) {
             auto jsonRes = value->json().unwrapOrDefault();
             if (!jsonRes.is_object()) return log::error("Response isn't object.");
-            auto jsonObj = jsonRes.as_object();
             auto isError = jsonRes.try_get<std::string>("error");
             if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
             Notification::create("Rated!", NotificationIcon::Success)->show();
@@ -1339,7 +1337,6 @@ void ObjectWorkshop::onTrashBtn(CCObject*) {
                     if (web::WebResponse* value = e->getValue()) {
                         auto jsonRes = value->json().unwrapOrDefault();
                         if (!jsonRes.is_object()) return log::error("Response isn't object.");
-                        auto jsonObj = jsonRes.as_object();
                         auto isError = jsonRes.try_get<std::string>("error");
                         if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
                         auto message = jsonRes.try_get<std::string>("message");
@@ -1386,7 +1383,6 @@ void ObjectWorkshop::onVerifyBtn(CCObject*) {
                     if (web::WebResponse* value = e->getValue()) {
                         auto jsonRes = value->json().unwrapOrDefault();
                         if (!jsonRes.is_object()) return log::error("Response isn't object.");
-                        auto jsonObj = jsonRes.as_object();
                         auto isError = jsonRes.try_get<std::string>("error");
                         if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
                         auto message = jsonRes.try_get<std::string>("message");
@@ -1395,6 +1391,10 @@ void ObjectWorkshop::onVerifyBtn(CCObject*) {
                         } else {
                             log::error("Unknown response, expected message. {}", jsonRes.dump());
                             Notification::create("Got an unknown response, check logs for details.", NotificationIcon::Warning)->show();
+                        }
+                        if (m_currentMenu == 2) {
+                            onBackBtn(nullptr);
+                            RegenCategory();
                         }
                         return;
                     } else if (web::WebProgress* progress = e->getProgress()) {
@@ -1428,7 +1428,6 @@ void ObjectWorkshop::onRejectBtn(CCObject*) {
                     if (web::WebResponse* value = e->getValue()) {
                         auto jsonRes = value->json().unwrapOrDefault();
                         if (!jsonRes.is_object()) return log::error("Response isn't object.");
-                        auto jsonObj = jsonRes.as_object();
                         auto isError = jsonRes.try_get<std::string>("error");
                         if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
                         auto message = jsonRes.try_get<std::string>("message");
@@ -1438,8 +1437,10 @@ void ObjectWorkshop::onRejectBtn(CCObject*) {
                             log::error("Unknown response, expected message. {}", jsonRes.dump());
                             Notification::create("Got an unknown response, check logs for details.", NotificationIcon::Warning)->show();
                         }
-                        onBackBtn(nullptr);
-                        RegenCategory();
+                        if (m_currentMenu == 2) {
+                            onBackBtn(nullptr);
+                            RegenCategory();
+                        }
                         return;
                     } else if (web::WebProgress* progress = e->getProgress()) {
                         // The request is still in progress...
@@ -1464,7 +1465,9 @@ void ObjectWorkshop::onReportBtn(CCObject*) {
 }
 
 void ObjectWorkshop::onBackBtn(CCObject*) {
+    if (m_currentMenu == 0) return;
     if (bottomPageLabel != nullptr) bottomPageLabel->setVisible(true);
+    m_currentMenu = 0;
     rightBg->setVisible(true);
     obj_backBtn->setVisible(false);
     objectInfoNode->removeAllChildrenWithCleanup(true);
@@ -1529,6 +1532,7 @@ int getSnappedYPosition(float contentYPos, int baseY = 380) {
 
 void ObjectWorkshop::onUploadBtn(CCObject*) {
     m_filterTags.clear();
+    m_currentMenu = 1;
     rightBg->setVisible(false);
     bottomPageLabel->setVisible(false);
     obj_backBtn->setVisible(true);
@@ -1565,24 +1569,30 @@ void ObjectWorkshop::onUploadBtn(CCObject*) {
     m_objName->setScale(0.8);
     m_objName->setMaxCharCount(64);
     bottomBg->addChildAtPosition(m_objName, Anchor::Top, {0, -20});
-    
+#ifndef GEODE_IS_ANDROID32
     auto textArea = TextArea::create("", "chatFont.fnt", 1.0F, 270.0F, {0.5, 0.5}, 20.0F, true);
     //             TextArea::create(&local_64,"chatFont.fnt",,0x439d8000,this_03,0x41a00000,1);
+#endif
     m_objDesc = TextInput::create(270.0F, "Description [Optional]", "chatFont.fnt");
+#ifndef GEODE_IS_ANDROID32
     m_objDesc->getInputNode()->addTextArea(textArea);
+    m_objDesc->getInputNode()->m_cursor->setOpacity(0);
+#endif
     m_objDesc->getBGSprite()->setContentSize({520.0F, 100.0F});
     m_objDesc->setMaxCharCount(300);
-    m_objDesc->getInputNode()->m_cursor->setOpacity(0);
     m_objDesc->setCommonFilter(CommonFilter::Any);
     bottomBg->addChildAtPosition(m_objDesc, Anchor::Center, {0, -3});
+#ifndef GEODE_IS_ANDROID32
     m_objDesc->setCallback(
         [this, textArea](std::string p0) {
             m_objDesc->getInputNode()->m_placeholderLabel->setOpacity((p0.empty()) ? 255 : 0);
             textArea->setScale(Utils::calculateScale(p0, 50, 300, 1.0F, 0.35F));
             textArea->m_width = 220.0F / Utils::calculateScale(p0, 50, 300, 1.0F, 0.32F);
-            textArea->setString(p0.data());
+            textArea->setString(m_objDesc->getInputNode()->getString());
+            //textArea->setString(p0.data());
         }
     );
+#endif
     auto rulesSpr = ButtonSprite::create("Rules", "bigFont.fnt", "GJ_button_03.png");
     rulesSpr->setScale(0.8F);
     auto uploadSpr = ButtonSprite::create("Upload", "bigFont.fnt", "GJ_button_01.png");
@@ -1762,11 +1772,11 @@ void ObjectWorkshop::onUpload(CCObject*) {
             m_buttonMenu->setEnabled(false);
             m_uploadListener.bind([this] (web::WebTask::Event* e) {
                 if (web::WebResponse* value = e->getValue()) {
+                    m_currentMenu = 0;
                     rightBg->setVisible(true);
                     bottomPageLabel->setVisible(true);
                     auto jsonRes = value->json().unwrapOrDefault();
                     if (!jsonRes.is_object()) return log::error("Response isn't object.");
-                    auto jsonObj = jsonRes.as_object();
                     auto isError = jsonRes.try_get<std::string>("error");
                     if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
                     Notification::create("Uploaded Object! It is now pending!", NotificationIcon::Success)->show();
@@ -1776,6 +1786,7 @@ void ObjectWorkshop::onUpload(CCObject*) {
                 } else if (web::WebProgress* progress = e->getProgress()) {
                     // The request is still in progress...
                 } else if (e->isCancelled()) {
+                    m_currentMenu = 0;
                     log::error("Request was cancelled.");
                     rightBg->setVisible(true);
                     bottomPageLabel->setVisible(true);

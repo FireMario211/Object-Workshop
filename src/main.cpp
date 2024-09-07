@@ -9,11 +9,6 @@ using namespace geode::prelude;
 #include <alphalaneous.editortab_api/include/EditorTabs.hpp>
 
 // 13 = custom objects
-void CustomObjects::setupCustomMenu(EditButtonBar* bar, bool hideItems) {
-    if (!Mod::get()->getSettingValue<bool>("enabled")) return;
-    
-}
-
 void CustomObjects::onWorkshop(CCObject*) {
     int authServer = Mod::get()->getSettingValue<int64_t>("auth-server");
     if (authServer != -1) {
@@ -101,9 +96,8 @@ bool CustomObjects::init(LevelEditorLayer* editorLayer) {
         m_fields->menu->setID("ow-menu"_spr);
         auto label = CCLabelBMFont::create("Custom Objects", "goldFont.fnt");
         label->setScale(0.525F);
-        m_fields->customObjsLabel = CCMenuItemSpriteExtra::create(label, this, nullptr);
-        m_fields->menu->addChildAtPosition(m_fields->customObjsLabel, Anchor::Top, {0, -9});
-
+        auto customObjsLabel = CCMenuItemSpriteExtra::create(label, this, nullptr);
+        m_fields->menu->addChildAtPosition(customObjsLabel, Anchor::Top, {0, -9});
 
         m_fields->myObjsLabel = CCLabelBMFont::create("• My Objects", "bigFont.fnt");
         m_fields->myObjsLabel->setScale(0.4F);

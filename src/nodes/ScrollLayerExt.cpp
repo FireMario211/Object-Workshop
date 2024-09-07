@@ -57,7 +57,7 @@ void ScrollLayerExt::ccTouchMoved(cocos2d::CCTouch *touch, cocos2d::CCEvent *eve
     if (touch == m_touchStart) {
         m_touchPosition2 = m_touchPosition2 - touchPoint;
     }
-    if (fabsf(touchPoint.y - m_touchLastY) <= 10.0F) {
+    if (fabsf(touchPoint.y - m_touchLastY) >= 10.F) {
         m_touchLastY = touchPoint.y;
         cancelAndStoleTouch(touch, event);
     }

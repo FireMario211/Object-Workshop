@@ -13,29 +13,33 @@ bool EditPopup::setup(ObjectData obj, std::unordered_set<std::string> availableT
     m_objName->setString(obj.name);
     m_mainLayer->addChildAtPosition(m_objName, Anchor::Center, {0, 35});
     
+    m_objDesc = TextInput::create(270.0F, "Description [Optional]", "chatFont.fnt");
+#ifndef GEODE_IS_ANDROID32
     auto textArea = TextArea::create("", "chatFont.fnt", 1.0F, 270.0F, {0.5, 0.5}, 20.0F, true);
     //             TextArea::create(&local_64,"chatFont.fnt",,0x439d8000,this_03,0x41a00000,1);
-    m_objDesc = TextInput::create(270.0F, "Description [Optional]", "chatFont.fnt");
     m_objDesc->getInputNode()->addTextArea(textArea);
+    m_objDesc->getInputNode()->m_cursor->setOpacity(0);
+#endif
     m_objDesc->getBGSprite()->setContentSize({520.0F, 100.0F});
     m_objDesc->setMaxCharCount(300);
-    m_objDesc->getInputNode()->m_cursor->setOpacity(0);
     m_objDesc->setCommonFilter(CommonFilter::Any);
     m_mainLayer->addChildAtPosition(m_objDesc, Anchor::Center, {0, -5});
     
     m_objDesc->setString(obj.description);
+#ifndef GEODE_IS_ANDROID32
     m_objDesc->getInputNode()->m_placeholderLabel->setOpacity((obj.description.length() == 0) ? 255 : 0);
     textArea->setScale(Utils::calculateScale(obj.description, 50, 300, 1.0F, 0.35F));
     textArea->m_width = 220.0F / Utils::calculateScale(obj.description, 50, 300, 1.0F, 0.32F);
     textArea->setString(obj.description);
     m_objDesc->setCallback(
         [this, textArea](std::string p0) {
-            m_objDesc->getInputNode()->m_placeholderLabel->setOpacity((p0.length() == 0) ? 255 : 0);
+            m_objDesc->getInputNode()->m_placeholderLabel->setOpacity((p0.empty()) ? 255 : 0);
             textArea->setScale(Utils::calculateScale(p0, 50, 300, 1.0F, 0.35F));
             textArea->m_width = 220.0F / Utils::calculateScale(p0, 50, 300, 1.0F, 0.32F);
-            textArea->setString(p0.data());
+            textArea->setString(m_objDesc->getInputNode()->getString());
         }
     );
+#endif
 
     auto filterSpr = ButtonSprite::create(
         CCSprite::createWithSpriteFrameName("GJ_filterIcon_001.png"),

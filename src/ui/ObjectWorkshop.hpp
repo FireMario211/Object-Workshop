@@ -29,10 +29,7 @@ struct CustomObjects : Modify<CustomObjects, EditorUI> {
         bool m_hasMade = false;
     };
     bool init(LevelEditorLayer* editorLayer);
-    void setupCustomMenu(EditButtonBar* bar, bool hideItems);
-    void onBackLbl(CCObject*);
     void onWorkshop(CCObject*);
-    //void onCreateButton(CCObject*);
 };
 
 // since for whatever reason this isnt in headers...
@@ -114,6 +111,7 @@ protected:
     void showProfile(int userID, bool self);
     void RegenCategory();
     void load();
+    int m_currentMenu = 0; // 0 = objects, 1 = uploading, 2 = in object
 
     void onUploadBtn(CCObject*);
     void onRetryBtn(CCObject*);
