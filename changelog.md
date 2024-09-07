@@ -2,7 +2,6 @@
 - Changed Android32 to NOT use TextArea (geode needs to fix gd::string!) basically setting a description is now fixed with a few caviats
 - Made downloading pending objects not send a request.
 - Updated Editor Tab API dependency ver
-- Added debug logs because why not
 - Made scroll layer cancelling touches less sensitive
 - Fixed issue with downloading/favoriting objects sometimes causing a crash when you exit too quickly
 # v1.1.2
