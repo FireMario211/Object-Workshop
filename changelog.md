@@ -1,3 +1,5 @@
+# v1.2.1
+- Fixed bug with attempting to render invalid icons crashing
 # v1.2.0
 - Improved on the UI for clicking on objects (Thanks Rue!) - It will be overhauled again next major update.
 - Allowed updating an object rather then needing to delete and reupload

@@ -35,16 +35,19 @@ bool OWCommentCell::init(CommentData data, ObjectData obj, UserData user, utils:
     
     // icon,playerColor,playerColor2,playerColorGlow,glow
     if (auto gm = GameManager::sharedState()) {
-        if (auto glm = GameLevelManager::sharedState()) {
-            SimplePlayer* pIcon = SimplePlayer::create(m_data.icon[0].as_int());
-            pIcon->setScale(0.45f);
+        SimplePlayer* pIcon;
+        if (m_data.icon.size() != 5) {
+            pIcon = SimplePlayer::create(1);
+        } else {
+            pIcon = SimplePlayer::create(m_data.icon[0].as_int());
             pIcon->setColor(gm->colorForIdx(m_data.icon[1].as_int()));
             pIcon->setSecondColor(gm->colorForIdx(m_data.icon[2].as_int()));
             pIcon->setGlowOutline(gm->colorForIdx(m_data.icon[3].as_int()));
             pIcon->m_hasGlowOutline = m_data.icon[4].as_int() == 1;
             pIcon->updateColors();
-            bgSpr->addChildAtPosition(pIcon, Anchor::TopLeft, {11, -10});
         }
+        pIcon->setScale(0.45f);
+        bgSpr->addChildAtPosition(pIcon, Anchor::TopLeft, {11, -10});
     }
     //m_data.content = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
     auto commentText = TextArea::create(
