@@ -17,6 +17,13 @@ struct ObjectData {
     bool favorited = false;
     std::unordered_set<std::string> tags;
     bool pending = false;
+
+    std::string created;
+    std::string updated;
+    int version = 1;
+
+    int commentPage = 1;
+    int maxCommentPage = 1;
 };
 
 class ObjectItem : public CCScale9Sprite {

@@ -1,5 +1,5 @@
 {
-	"geode": "3.4.0",
+	"geode": "3.7.0",
 	"gd": {
 		"win": "2.206",
 		"android": "2.206",
@@ -8,7 +8,7 @@
 	},
 	"id": "firee.object-workshop",
 	"name": "Object Workshop",
-	"version": "v1.1.3",
+	"version": "v1.2.0",
 	"developer": "Firee",
 	"description": "Download, upload, or find custom objects made by other creators!",
     "resources": {
@@ -22,12 +22,6 @@
     },
     "tags": ["online", "utility", "content", "editor", "interface"],
     "settings": {
-        "enabled": {
-            "name": "Enabled",
-            "description": "Whether or not the mod should replace your Custom Objects screen. Disabling this won't allow you to use the workshop.",
-            "type": "bool",
-            "default": true
-        },
         "token": {
             "name": "Auth Token",
             "description": "Authentication Token (DO NOT CHANGE)",
@@ -41,6 +35,12 @@
             "default": -1,
             "min": -1,
             "max": 2
+        },
+        "object-bypass": {
+            "name": "Custom Object Bypass",
+            "description": "Removes the limit for 1000 objects and removes the limit of 750 maximum custom objects.",
+            "default": true,
+            "type": "bool"
         },
         "render-objects": {
             "name": "Render Objects",

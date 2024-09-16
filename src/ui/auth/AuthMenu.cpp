@@ -4,6 +4,9 @@
 #include <fig.authentication/include/authentication.hpp>
 
 EventListener<web::WebTask> m_authListener;
+EventListener<web::WebTask> m_iconListener;
+
+bool hasEmitted = false;
 
 bool AuthMenu::setup() {
     this->setTitle("Authentication");
@@ -45,7 +48,13 @@ void AuthMenu::onDashAuth(CCObject*) {
 }
 
 void AuthMenu::testAuth(std::string token, utils::MiniFunction<void(int)> callback) {
-    m_authListener.bind([callback] (web::WebTask::Event* e) {
+    m_iconListener.bind([] (web::WebTask::Event* e) {
+        if (web::WebResponse* value = e->getValue()) {
+            hasEmitted = true;
+            log::info("Updated Icon");
+        }
+    });
+    m_authListener.bind([callback, token] (web::WebTask::Event* e) {
         if (web::WebResponse* value = e->getValue()) {
             if (value->json().has_error() && !value->ok() && value->code() >= 500) {
                 std::string err = value->string().unwrapOrDefault();
@@ -61,6 +70,23 @@ void AuthMenu::testAuth(std::string token, utils::MiniFunction<void(int)> callba
                     log::error("{}", jsonRes.dump());
                     callback(0);
                 } else {
+                    if (!hasEmitted) {
+                        web::WebRequest req = web::WebRequest();
+                        if (auto gm = GameManager::sharedState()) {
+                            auto myjson = matjson::Value();
+                            matjson::Array iconSet;
+                            iconSet.push_back(gm->getPlayerFrame());
+                            iconSet.push_back(gm->getPlayerColor());
+                            iconSet.push_back(gm->getPlayerColor2());
+                            iconSet.push_back(gm->getPlayerGlowColor());
+                            iconSet.push_back(static_cast<int>(gm->getPlayerGlow()));
+                            myjson.set("token", token);
+                            myjson.set("icon", iconSet);
+                            req.header("Content-Type", "application/json");
+                            req.bodyJSON(myjson);
+                            m_iconListener.setFilter(req.post(fmt::format("{}/icon", HOST_URL)));
+                        }
+                    }
                     log::info("The token provided is valid!");
                     callback(1);
                 }

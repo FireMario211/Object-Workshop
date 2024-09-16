@@ -1,6 +1,6 @@
 import { getCache } from '../postgres';
 import { Router, Request, Response } from 'express';
-import { body, query, validationResult } from 'express-validator';
+import { body, CustomValidator, query, validationResult } from 'express-validator';
 import crypto from 'crypto'
 import axios from 'axios';
 import { UserData } from '@/Components/User';
@@ -26,13 +26,11 @@ export async function verifyToken(pool: PoolClient, token: string): Promise<Veri
         const result = await pool.query("SELECT * FROM user_tokens WHERE token = $1", [token]);
         if (result.rows.length == 0) return { valid: false, expired: false, message: 'Invalid token.' };
         const userToken = result.rows[0];
-
         const currentTime = new Date();
         if (userToken.expiration < currentTime) {
             await pool.query("DELETE FROM user_tokens WHERE token_id = $1", [userToken.token_id]);
             return { valid: false, expired: true, message: 'Token expired.' };
         }
-
         const userResult = await pool.query("SELECT * FROM users WHERE account_id = $1", [userToken.account_id]);
         if (userResult.rows.length == 0) return { valid: false, expired: false, message: 'User not found.' };
         const user = userResult.rows[0];
@@ -115,6 +113,50 @@ uRouter.post('/verify',
     }
 );
 
+const areValidIcon: CustomValidator = (iconSet: string[]) => {
+    return iconSet.length == 5 && iconSet.map(x => !isNaN(parseInt(x)));
+};
+
+// icon,playerColor,playerColor2,playerColorGlow,glow
+uRouter.post('/icon',
+    body('token').notEmpty().isString().withMessage("Token is required"),
+    body('icon').notEmpty().isArray().custom(areValidIcon),
+    body('icon.*').isInt({min: 0, max: 100000}),
+    async (req: Request, res: Response) => {
+        const result = validationResult(req);
+        if (!result.isEmpty()) return res.status(400).json({ errors: result.array() })
+        const token = req.body.token as string;
+        let icon = req.body.icon as Array<number>;
+        if (!icon || !icon.length) icon = [];
+        if (icon.length > 5) return res.status(413).json({error: "You can only add a maximum of 5 icons!"});
+        getCache().then(pool => {
+            verifyToken(pool, token).then(async verifyRes => {
+                if (!verifyRes.valid && verifyRes.expired) {
+                    return res.status(410).json({ error: verifyRes.message });
+                } else if (!verifyRes.valid) {
+                    return res.status(401).json({ error: verifyRes.message });
+                }
+                if (!verifyRes.user) return res.sendStatus(500);
+                try {
+                    await pool.query(
+                        `UPDATE users SET icon = $1 WHERE account_id = $2`,
+                        [icon, verifyRes.user.account_id]
+                    );
+                    res.status(200).json({ message: "Updated icon" });
+                } catch (e) {
+                    console.error(e);
+                    res.status(500).json({ error: 'Internal server error' });
+                }
+            }).catch(() => {
+                res.status(500).json({ error: 'Internal server error' });
+            })
+        }).catch(e => {
+            console.error(e);
+            res.sendStatus(500);
+        });
+    }
+);
+
 uRouter.post('/gdauth',
     body('token').notEmpty().isUUID(4),
     async (req: Request, res: Response) => {
@@ -125,7 +167,9 @@ uRouter.post('/gdauth',
             // ok WHY DOES FIGS SERVER NOT ALLOW JSON!?!? so dumb that i have to do this!
             axios.post("https://gd.figm.io/authentication/validate", `sessionID=${token}`).then(axiosRes => {
                 const data = axiosRes.data as GDAuth;
-                console.log("[GDAuth]", data);
+                if (!process.env.PRODUCTION) {
+                    console.log("[GDAuth]", data);
+                }
                 if (axiosRes.data == "-1") return res.status(403).json({error: "Invalid token."});
                 pool.query("INSERT INTO users (auth_method, account_id, name) VALUES ($1, $2, $3) ON CONFLICT (account_id) DO NOTHING RETURNING *;", ["gdauth", data.accountID, data.username]).then(async userResult => {
                     let user = userResult.rows[0];
@@ -138,7 +182,7 @@ uRouter.post('/gdauth',
                     }
                     if (!user) return res.status(500).json({ error: "Unable to retrieve or create user." });
                     const authToken = generateAuthToken(user.account_id);
-                    const expiration = new Date(Date.now() + ((60 * 60 * 1000) * 24) * 3); // 3 days
+                    const expiration = new Date(Date.now() + ((60 * 60 * 1000) * 24) * 7); // 1 week
                     await pool.query(
                         `INSERT INTO user_tokens (account_id, token, expiration)
                          VALUES ($1, $2, $3);`,

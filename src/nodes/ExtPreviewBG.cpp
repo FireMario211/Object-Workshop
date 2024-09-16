@@ -70,6 +70,10 @@ void ExtPreviewBG::updateZoom(float amount) {
     if (!(m_currentZoom < 0) && m_currentZoom < 25) m_currentZoom += amount;
     objSprite->setScale(m_oldScale * m_currentZoom);
 };
+void ExtPreviewBG::resetZoom() {
+    m_currentZoom = 1.0F;
+    objSprite->setScale(m_oldScale * m_currentZoom);
+};
 
 ExtPreviewBG* ExtPreviewBG::create(std::string data) {
     auto pRet = new ExtPreviewBG();

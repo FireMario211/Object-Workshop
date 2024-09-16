@@ -169,11 +169,14 @@ ScrollLayerExt* ScrollLayerExt::create(CCSize const& size, bool scroll, bool ver
 }
 
 void ScrollLayerExt::fixTouchPrio() {
+    auto oldThis = this;
     if (auto delegate = typeinfo_cast<CCTouchDelegate*>(this)) {
         if (auto handler = CCTouchDispatcher::get()->findHandler(delegate)) {
-            Loader::get()->queueInMainThread([this, handler, delegate]() {
-                if (auto dispatcher = CCTouchDispatcher::get()) {
-                    dispatcher->setPriority(handler->m_nPriority - 2, delegate);
+            Loader::get()->queueInMainThread([this, handler, delegate, oldThis]() {
+                if (oldThis != nullptr) {
+                    if (auto dispatcher = CCTouchDispatcher::get()) {
+                        dispatcher->setPriority(handler->m_nPriority - 2, delegate);
+                    }
                 }
             });
         }

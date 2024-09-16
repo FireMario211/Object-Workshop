@@ -17,5 +17,6 @@ class ExtPreviewBG : public CCLayer {
         void ccTouchMoved(CCTouch*, CCEvent*) override;
     public:
         void updateZoom(float amount);
+        void resetZoom();
         static ExtPreviewBG* create(std::string objData);
 };

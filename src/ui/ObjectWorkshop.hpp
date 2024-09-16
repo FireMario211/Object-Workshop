@@ -101,7 +101,6 @@ protected:
     bool isSearching = false;
 
     bool setup(bool authenticated) override;
-    void onInfoBtn(CCObject*);
     void onSearchBtn(CCObject*);
     void onFilterBtn(CCObject*);
     void onReloadBtn(CCObject*);
@@ -116,6 +115,10 @@ protected:
     void onUploadBtn(CCObject*);
     void onRetryBtn(CCObject*);
     void onClickObject(CCObject*);
+    void onLoadComments(CCObject*);
+    void onLeftCommentPage(CCObject*);
+    void onRightCommentPage(CCObject*);
+
     void onBackBtn(CCObject*);
 
     CCScale9Sprite* rightBg;
@@ -131,14 +134,19 @@ protected:
     EventListener<web::WebTask> m_editListener;
     EventListener<web::WebTask> m_deleteListener;
     EventListener<web::WebTask> m_reviewListener;
+    EventListener<web::WebTask> m_commentListener; // TODO
+    EventListener<web::WebTask> m_topCommentsListener; // TODO
+    EventListener<web::WebTask> m_commentsListener; // TODO
     
     CCLabelBMFont* downloadsLabel;
     CCLabelBMFont* favoritesLabel;
+    CCLabelBMFont* commentsLabel;
 
     void onRateBtn(CCObject*);
     void actuallyDownload();
     void onDownloadBtn(CCObject*);
     void onFavBtn(CCObject*);
+    void onCommentBtn(CCObject*);
     void onDescBtn(CCObject*);
     void onTrashBtn(CCObject*);
     void onEditBtn(CCObject*);
@@ -149,6 +157,7 @@ protected:
     ExtPreviewBG* previewBG;
     void onZoomIn(CCObject*);
     void onZoomOut(CCObject*);
+    void onResetZoom(CCObject*);
 
     std::unordered_set<std::string> m_filterTags;
     void onUpload(CCObject*);

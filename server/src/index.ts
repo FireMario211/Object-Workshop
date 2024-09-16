@@ -15,7 +15,9 @@ app.set("trust proxy", 1);
 
 app.use(express.raw({ limit: '40mb' }));
 
-app.use(morgan('combined'));
+if (!process.env.PRODUCTION) {
+    app.use(morgan('combined'));
+}
 
 app.all("/", (_, res) => {
     res.sendStatus(200)
@@ -26,7 +28,7 @@ const limiter = rateLimit({
 	limit: 500,
 	standardHeaders: 'draft-7',
 	legacyHeaders: false,
-    message: { error: "You are ratelimited!" }
+    message: { error: "You are ratelimited! Please wait 3 minutes." }
 })
 
 app.use(limiter)

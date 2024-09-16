@@ -6,8 +6,9 @@ import { Router, Request, Response } from 'express'
 import { query, body, param, validationResult, CustomValidator } from 'express-validator';
 import { verifyToken } from './user';
 import axios from 'axios';
+import moment from 'moment'
 
-const allowedTags = ["Font", "Decoration", "Gameplay", "Art", "Structure", "Custom", "Icon", "Meme", "Technical", "Particles", "Triggers", "SFX", "Effects"];
+const allowedTags = ["Font", "Decoration", "Gameplay", "Art", "Structure", "Custom", "Icon", "Meme", "Technical", "Particles", "Triggers", "SFX", "Effects", "Auto Build"];
 
 const oRouter = Router();
 
@@ -29,7 +30,8 @@ function convertRowToObject(row: any): ObjectData {
         id: row.id,
         account_id: row.account_id,
         account_name: row.account_name,
-        timestamp: new Date(row.timestamp),
+        created: moment(row.timestamp).fromNow(),
+        updated: moment(row.updated_at).fromNow(),
         name: row.name,
         description: row.description,
         downloads: row.downloads,
@@ -38,8 +40,79 @@ function convertRowToObject(row: any): ObjectData {
         rating: parseFloat(row.rating.toString()),
         tags: row.tags,
         status: row.status,
+        version: row.version,
         data: row.data
     };
+}
+
+enum ReviewStatus {
+    Pending = 0,
+    Updated = 1,
+    Approved = 2,
+    Rejected = 3
+}
+
+interface WebhookObjData {
+    account_name: string;
+    name: string;
+    description: string;
+    tags: Array<string>;
+    version: number;
+    data: string;
+};
+
+function sendWebhook(object: WebhookObjData, status: ReviewStatus, reviewer?: string) {
+    const embeds = {
+        "content": null,
+        "embeds": [
+            {
+                "title": ["Object Uploaded!", `Object Updated! (Version ${object.version})`, "Object Approved!", "Object Rejected!"][status],
+                "color": [0x00AAFF, 0x00AAFF, 0x00FF00, 0xFF0000][status],
+                "fields": [
+                    {
+                        "name": "Name",
+                        "value": object.name,
+                        "inline": true
+                    },
+                    {
+                        "name": "Author",
+                        "value": object.account_name,
+                        "inline": true
+                    },
+                    {
+                        "name": "Description",
+                        "value": object.description
+                    },
+                    {
+                        "name": "Objects",
+                        "value": object.data.split(";").length,
+                        "inline": true
+                    },
+                    {
+                        "name": "Tags",
+                        "value": object.tags.join(", "),
+                        "inline": true
+                    },
+                ],
+                "timestamp": new Date()
+            }
+        ],
+        "attachments": []
+    }
+    if (reviewer) {
+        embeds.embeds[0].fields.push({
+            "name": (status == ReviewStatus.Approved) ? "Approved by" : "Rejected by",
+            "value": reviewer
+        })
+    }
+    const webhookURL = [process.env.DISCORD_PENDING_WEBHOOK,process.env.DISCORD_PENDING_WEBHOOK,process.env.DISCORD_APPROVE_WEBHOOK,process.env.DISCORD_REJECT_WEBHOOK][status]
+    axios({url: webhookURL, method: "POST", headers: {"Content-Type": "application/json"}, data: embeds}).then((response) => {
+        console.log("Webhook delivered successfully");
+        return response;
+    }).catch((error) => {
+        console.log(error);
+        return error;
+    });
 }
 
 function convertRowsToObjects(rows: any): Array<ObjectData> {
@@ -89,16 +162,18 @@ oRouter.post('/objects/upload',
                     return res.status(401).json({ error: verifyRes.message });
                 }
                 if (!verifyRes.user) return res.status(404).json({error: "Couldn't retrieve user."});
-                if (verifyRes.user.role == -1) return res.status(403).json({error: "You are banned!"});
+                if (verifyRes.user.role == -1) return res.status(403).json({error: "You are banned! Reason: " + verifyRes.user.ban_reason});
                 try {
                     const dupCheck = await pool.query("SELECT id FROM objects WHERE data = $1 LIMIT 1;", [data]);
                     if (dupCheck.rowCount != null && dupCheck.rowCount > 0) return res.status(409).json({error: "You cannot upload an object that already exists!"});
+                    const uploadedCheck = await pool.query("SELECT COUNT(*) as count FROM objects WHERE account_id = $1 AND status = 0;", [verifyRes.user.account_id]);
+                    if (uploadedCheck.rows[0].count >= 10) return res.status(413).json({error: "Please wait until at least 10 of your objects have been reviewed!"});
                     const insertQuery = `
                         INSERT INTO objects (account_id, name, description, tags, status, data)
                         VALUES ($1, $2, $3, $4, $5, $6)
                         RETURNING id, timestamp;
                     `;
-                    const insertResult = await pool.query(insertQuery, [verifyRes.user.account_id, name, description, tags, (verifyRes.user.role == 1) ? 1 : 0, data]);
+                    const insertResult = await pool.query(insertQuery, [verifyRes.user.account_id, name, description, tags, (verifyRes.user.role >= 1) ? 1 : 0, data]);
                     if (insertResult.rowCount === 1) {
                         const object = insertResult.rows[0];
                         res.status(200).json({
@@ -108,53 +183,84 @@ oRouter.post('/objects/upload',
                             tags,
                             timestamp: object.timestamp
                         });
-                        const embeds = {
-                            "content": null,
-                            "embeds": [
-                                {
-                                    "title": "Object Uploaded!",
-                                    "color": 0x00AAFF,
-                                    "fields": [
-                                        {
-                                            "name": "Name",
-                                            "value": name,
-                                            "inline": true
-                                        },
-                                        {
-                                            "name": "Author",
-                                            "value": verifyRes.user.name,
-                                            "inline": true
-                                        },
-                                        {
-                                          "name": "Description",
-                                          "value": description
-                                        },
-                                        {
-                                          "name": "Objects",
-                                          "value": data.split(";").length,
-                                          "inline": true
-                                        },
-                                        {
-                                          "name": "Tags",
-                                          "value": tags.join(", "),
-                                          "inline": true
-                                        }
-                                    ],
-                                    "timestamp": new Date()
-                                }
-                            ],
-                            "attachments": []
-                        }
-                        axios({url: process.env.DISCORD_PENDING_WEBHOOK, method: "POST", headers: {"Content-Type": "application/json"}, data: embeds}).then((response) => {
-                            console.log("Webhook delivered successfully");
-                            return response;
-                        }).catch((error) => {
-                            console.log(error);
-                            return error;
-                        });
+                        sendWebhook({
+                            name,
+                            description,
+                            tags,
+                            account_name: verifyRes.user.name,
+                            data,
+                            version: 1
+                        }, ReviewStatus.Pending);
                     } else {
                         res.status(500).json({ error: "Failed to upload object." });
                     }
+                } catch (e) {
+                    console.error(e)
+                    res.status(500).json({error: "Something went wrong when uploading."})
+                }
+            }).catch(() => {
+                res.status(500).json({ error: 'Internal server error' });
+            })
+        }).catch(e => {
+            console.error(e);
+            res.status(500).json({ error: 'Internal server error' });
+        });
+    }
+);
+
+
+oRouter.post('/objects/:id/overwrite',
+    param('id').isInt({min: 0, max: 2147483647}).notEmpty(),
+    body('token').notEmpty().isString(),
+    body('data').notEmpty().isString().custom(isAscii),
+    async (req: Request, res: Response) => {
+        const result = validationResult(req);
+        if (!result.isEmpty()) return res.status(400).json({ errors: result.array() })
+        const objectID = req.params.id;
+        const { token, data } = req.body;
+        const splitData: Array<string> = data.split(";");
+        if (splitData.length > 50000) return res.status(413).json({error: "You cannot upload a custom object with more than 50,000 objects!"})
+        const hasBlacklistedIDs = splitData.find(objStr => {
+            //`1,3993,2,-105,3,105,128,13.066,129,13.066;`
+            const splitObj = objStr.split(',');
+            if (splitObj.length == 1) return true;
+            if (blacklistedObjectIDs.includes(parseInt(splitObj[1]))) return true;
+            return false;
+        })
+        if (hasBlacklistedIDs) return res.status(403).json({error: "Blacklisted IDs are not allowed."});
+        if (data.length == 1) return res.status(400).json({error: "hi my name is firee"});
+        if (data.length == 2) return res.status(400).json({error: "hola me llamo firee"});
+        if (data.length == 3) return res.status(400).json({error: "salut jm'appelle firee"});
+        if (data.length == 4) return res.status(400).json({error: "...what are"});
+        if (data.length == 5) return res.status(400).json({error: "you doing!?"});
+        getCache().then(pool => { // returns a PoolClient
+            verifyToken(pool, token).then(async verifyRes => {
+                if (!verifyRes.valid && verifyRes.expired) {
+                    return res.status(410).json({ error: verifyRes.message });
+                } else if (!verifyRes.valid) {
+                    return res.status(401).json({ error: verifyRes.message });
+                }
+                if (!verifyRes.user) return res.status(404).json({error: "Couldn't retrieve user."});
+                if (verifyRes.user.role == -1) return res.status(403).json({error: "You are banned! Reason: " + verifyRes.user.ban_reason});
+                try {
+                    const query = await pool.query("SELECT * FROM objects WHERE id = $1 AND status != 3", [objectID])
+                    if (!query.rows.length) return res.status(404).json({error: "Object not found."});
+                    const objData: ObjectData = query.rows[0];
+                    if (objData.account_id != verifyRes.user.account_id) return res.status(403).json({error: "This is not your object!"});
+                    if (verifyRes.user.role == 0) {
+                        await pool.query("UPDATE objects SET data = $1, status = 0, updated_at = $2, version = version + 1 WHERE id = $3", [data, new Date(), objectID]);
+                    } else {
+                        await pool.query("UPDATE objects SET data = $1, updated_at = $2, version = version + 1 WHERE id = $3", [data, new Date(), objectID]);
+                    }
+                    res.status(200).json({ message: "Object updated!" });
+                    sendWebhook({
+                        name: objData.name,
+                        description: objData.description,
+                        tags: objData.tags,
+                        account_name: verifyRes.user.name,
+                        data,
+                        version: objData.version + 1
+                    }, ReviewStatus.Updated);
                 } catch (e) {
                     console.error(e)
                     res.status(500).json({error: "Something went wrong when uploading."})
@@ -207,7 +313,7 @@ oRouter.get('/objects/:id', param("id").isInt({min: 0, max: 2147483647}).notEmpt
 oRouter.post('/objects/:id/rate',
     param('id').isInt({min: 0, max: 2147483647}).notEmpty(),
     body('token').notEmpty().isString(),
-    body('stars').notEmpty().isInt({min: 0, max: 2147483647}),
+    body('stars').notEmpty().isInt({min: 1, max: 5}),
     (req: Request, res: Response) => {
         const result = validationResult(req);
         if (!result.isEmpty()) return res.status(400).json({ errors: result.array() })
@@ -225,7 +331,7 @@ oRouter.post('/objects/:id/rate',
                     return res.status(401).json({ error: verifyRes.message });
                 }
                 const accountID = verifyRes.user?.account_id;
-                if (verifyRes.user?.role == -1) return res.status(403).json({error: "You are banned!"});
+                if (verifyRes.user?.role == -1) return res.status(403).json({error: "You are banned! Reason: " + verifyRes.user.ban_reason});
                 try {
                     const objExists = await pool.query("SELECT EXISTS (SELECT 1 FROM objects WHERE id = $1 AND status = 1)", [objectID])
                     if (!objExists.rows[0].exists) return res.status(404).json({error: "Object not found."}); 
@@ -237,6 +343,195 @@ oRouter.post('/objects/:id/rate',
                     `;
                     await pool.query(query, [objectID, accountID, stars]);
                     res.status(200).json({ message: `Sent rating of ${stars} stars!`});
+                } catch (e) {
+                    console.error(e);
+                    res.status(500).json({ error: 'Internal server error' });
+                }
+            }).catch(() => {
+                res.status(500).json({ error: 'Internal server error' });
+            })
+        }).catch(e => {
+            console.error(e);
+            res.status(500).json({ error: 'Internal server error' });
+        });
+    }
+)
+
+oRouter.post('/objects/:id/comment',
+    param('id').isInt({min: 0, max: 2147483647}).notEmpty(),
+    body('token').notEmpty().isString(),
+    body('data').notEmpty().isString(),
+    (req: Request, res: Response) => {
+        const result = validationResult(req);
+        if (!result.isEmpty()) return res.status(400).json({ errors: result.array() })
+        const token = req.body.token as string;
+        const data = req.body.data as string;
+        if (data.length > 100) return res.status(413).json({error: "The comment cannot be more than 100 characters long!"});
+        const objectID = req.params.id;
+        getCache().then(pool => {
+            verifyToken(pool, token).then(async verifyRes => {
+                if (!verifyRes.valid && verifyRes.expired) {
+                    return res.status(410).json({ error: verifyRes.message });
+                } else if (!verifyRes.valid) {
+                    return res.status(401).json({ error: verifyRes.message });
+                }
+                const accountID = verifyRes.user?.account_id;
+                if (verifyRes.user?.role == -1) return res.status(403).json({error: "You are banned! Reason: " + verifyRes.user.ban_reason});
+                try {
+                    const objExists = await pool.query("SELECT EXISTS (SELECT 1 FROM objects WHERE id = $1 AND status = 1)", [objectID])
+                    if (!objExists.rows[0].exists) return res.status(404).json({error: "Object not found."}); 
+                    await pool.query("INSERT INTO comments (object_id, account_id, content) VALUES ($1, $2, $3)", [objectID, accountID, data]);
+                    res.status(200).json({ message: `Sent!`});
+                } catch (e) {
+                    console.error(e);
+                    res.status(500).json({ error: 'Internal server error' });
+                }
+            }).catch(() => {
+                res.status(500).json({ error: 'Internal server error' });
+            })
+        }).catch(e => {
+            console.error(e);
+            res.status(500).json({ error: 'Internal server error' });
+        });
+    }
+)
+
+oRouter.post('/objects/:id/comments/:commentid/pin',
+    param('id').isInt({min: 0, max: 2147483647}).notEmpty(),
+    body('token').notEmpty().isString(),
+    param('commentid').notEmpty().isInt({min: 0, max: 2147483647}),
+    (req: Request, res: Response) => {
+        const result = validationResult(req);
+        if (!result.isEmpty()) return res.status(400).json({ errors: result.array() })
+        const token = req.body.token as string;
+        const commentID = parseInt(req.params.commentid);
+        const objectID = req.params.id;
+        getCache().then(pool => {
+            verifyToken(pool, token).then(async verifyRes => {
+                if (!verifyRes.valid && verifyRes.expired) {
+                    return res.status(410).json({ error: verifyRes.message });
+                } else if (!verifyRes.valid) {
+                    return res.status(401).json({ error: verifyRes.message });
+                }
+                const accountID = verifyRes.user?.account_id;
+                if (verifyRes.user?.role == -1) return res.status(403).json({error: "You are banned! Reason: " + verifyRes.user.ban_reason});
+                try {
+                    if (verifyRes.user && verifyRes.user.role == 3) {
+                        const objExists = await pool.query("SELECT EXISTS (SELECT 1 FROM objects WHERE id = $1)", [objectID])
+                        if (!objExists.rows[0].exists) return res.status(404).json({error: "Object not found."}); 
+                    } else {
+                        const objExists = await pool.query("SELECT EXISTS (SELECT 1 FROM objects WHERE id = $1 AND account_id = $2)", [objectID, accountID])
+                        if (!objExists.rows[0].exists) return res.status(404).json({error: "Object not found."}); 
+                    } 
+                    await pool.query("UPDATE comments SET pinned = FALSE WHERE object_id = $1", [objectID]);
+                    await pool.query("UPDATE comments SET pinned = TRUE WHERE id = $1", [commentID]);
+                    res.status(200).json({ message: `Pinned!`});
+                } catch (e) {
+                    console.error(e);
+                    res.status(500).json({ error: 'Internal server error' });
+                }
+            }).catch(() => {
+                res.status(500).json({ error: 'Internal server error' });
+            })
+        }).catch(e => {
+            console.error(e);
+            res.status(500).json({ error: 'Internal server error' });
+        });
+    }
+)
+
+oRouter.post('/objects/:id/comments/:commentid/vote',
+    param('id').isInt({min: 0, max: 2147483647}).notEmpty(),
+    body('token').notEmpty().isString(),
+    body('like').notEmpty().isInt({min: 0, max: 1}),
+    (req: Request, res: Response) => {
+        const result = validationResult(req);
+        if (!result.isEmpty()) return res.status(400).json({ errors: result.array() })
+        const token = req.body.token as string;
+        const like = parseInt(req.body.like as string);
+        const commentID = parseInt(req.params.commentid);
+        const objectID = req.params.id;
+        getCache().then(pool => {
+            verifyToken(pool, token).then(async verifyRes => {
+                if (!verifyRes.valid && verifyRes.expired) {
+                    return res.status(410).json({ error: verifyRes.message });
+                } else if (!verifyRes.valid) {
+                    return res.status(401).json({ error: verifyRes.message });
+                }
+                const accountID = verifyRes.user?.account_id;
+                if (!verifyRes.user) return res.status(403).json({error: "...waht"});
+                try {
+                    const objExists = await pool.query("SELECT EXISTS (SELECT 1 FROM objects WHERE id = $1 AND status = 1)", [objectID])
+                    if (!objExists.rows[0].exists) return res.status(404).json({error: "Object not found."}); 
+                    const commentExists = await pool.query("SELECT EXISTS (SELECT 1 FROM comments WHERE id = $1)", [commentID])
+                    if (!commentExists.rows[0].exists) return res.status(404).json({error: "Comment not found."}); 
+                    if (verifyRes.user.c_likes.includes(commentID) || verifyRes.user.c_dislikes.includes(commentID)) {
+                        if ((verifyRes.user.c_likes.includes(commentID) && like == 1) || (verifyRes.user.c_dislikes.includes(commentID) && like == 0)) return res.status(400).json({ error: "You already voted this comment." });
+                        await pool.query("UPDATE users SET c_likes = ARRAY_REMOVE(c_likes, $1) WHERE account_id = $2", [commentID, accountID]);
+                        await pool.query("UPDATE users SET c_dislikes = ARRAY_REMOVE(c_dislikes, $1) WHERE account_id = $2", [commentID, accountID]);
+                        if (like == 0) { // dislike
+                            await pool.query("UPDATE users SET c_dislikes = ARRAY_APPEND(c_dislikes, $1) WHERE account_id = $2", [commentID, accountID]);
+                            await pool.query("UPDATE comments SET likes = likes - 2 WHERE id = $1", [commentID]);
+                        } else { // like
+                            await pool.query("UPDATE users SET c_likes = ARRAY_APPEND(c_likes, $1) WHERE account_id = $2", [commentID, accountID]);
+                            await pool.query("UPDATE comments SET likes = likes + 2 WHERE id = $1", [commentID]);
+                        }
+                        res.status(200).json({ message: "Voted!" });
+                    } else {
+                        if (like == 0) { // dislike
+                            await pool.query("UPDATE users SET c_dislikes = ARRAY_APPEND(c_dislikes, $1) WHERE account_id = $2", [commentID, accountID]);
+                            await pool.query("UPDATE comments SET likes = likes - 1 WHERE id = $1", [commentID]);
+                        } else { // like
+                            await pool.query("UPDATE users SET c_likes = ARRAY_APPEND(c_likes, $1) WHERE account_id = $2", [commentID, accountID]);
+                            await pool.query("UPDATE comments SET likes = likes + 1 WHERE id = $1", [commentID]);
+                        }
+                        res.status(200).json({ message: "Voted!" });
+                    }
+                } catch (e) {
+                    console.error(e);
+                    res.status(500).json({ error: 'Internal server error' });
+                }
+            }).catch(() => {
+                res.status(500).json({ error: 'Internal server error' });
+            })
+        }).catch(e => {
+            console.error(e);
+            res.status(500).json({ error: 'Internal server error' });
+        });
+    }
+)
+
+oRouter.post('/objects/:id/comments/:commentid/delete',
+    param('id').isInt({min: 0, max: 2147483647}).notEmpty(),
+    body('token').notEmpty().isString(),
+    param('commentid').notEmpty().isInt({min: 0, max: 2147483647}),
+    (req: Request, res: Response) => {
+        const result = validationResult(req);
+        if (!result.isEmpty()) return res.status(400).json({ errors: result.array() })
+        const token = req.body.token as string;
+        const commentID = parseInt(req.params.commentid);
+        const objectID = req.params.id;
+        getCache().then(pool => {
+            verifyToken(pool, token).then(async verifyRes => {
+                if (!verifyRes.valid && verifyRes.expired) {
+                    return res.status(410).json({ error: verifyRes.message });
+                } else if (!verifyRes.valid) {
+                    return res.status(401).json({ error: verifyRes.message });
+                }
+                const accountID = verifyRes.user?.account_id;
+                if (verifyRes.user?.role == -1) return res.status(403).json({error: "You are banned! Reason: " + verifyRes.user.ban_reason});
+                try {
+                    const query = await pool.query("SELECT * FROM objects WHERE id = $1 AND status = 1", [objectID])
+                    if (!query.rows.length) return res.status(404).json({error: "Object not found."});
+                    if (verifyRes.user && (verifyRes.user.role == 3 || (query.rows[0] as ObjectData).account_id == verifyRes.user.account_id)) {
+                        const commentExists = await pool.query("SELECT EXISTS (SELECT 1 FROM comments WHERE id = $1)", [commentID])
+                        if (!commentExists.rows[0].exists) return res.status(404).json({error: "Comment not found."}); 
+                    } else {
+                        const commentExists = await pool.query("SELECT EXISTS (SELECT 1 FROM comments WHERE id = $1 AND account_id = $2)", [commentID, accountID])
+                        if (!commentExists.rows[0].exists) return res.status(404).json({error: "Comment not found."}); 
+                    } 
+                    await pool.query("DELETE FROM comments WHERE id = $1", [commentID]);
+                    res.status(200).json({ message: `Deleted!`});
                 } catch (e) {
                     console.error(e);
                     res.status(500).json({ error: 'Internal server error' });
@@ -271,7 +566,7 @@ oRouter.post('/objects/:id/report',
                     return res.status(401).json({ error: verifyRes.message });
                 }
                 const accountID = verifyRes.user?.account_id;
-                if (verifyRes.user?.role == -1) return res.status(403).json({error: "You are banned!"});
+                if (verifyRes.user?.role == -1) return res.status(403).json({error: "You are banned! Reason: " + verifyRes.user.ban_reason});
                 try {
                     const objExists = await pool.query("SELECT EXISTS (SELECT 1 FROM objects WHERE id = $1 AND status = 1)", [objectID])
                     if (!objExists.rows[0].exists) return res.status(404).json({error: "Object not found."}); 
@@ -496,7 +791,9 @@ oRouter.post('/objects/:id/accept',
                 } else if (!verifyRes.valid) {
                     return res.status(401).json({ error: verifyRes.message });
                 }
+                if (!verifyRes.user) return res.status(403).json({error: "...what"});
                 if (verifyRes.user && verifyRes.user.role < 2) return res.status(403).json({ error: "No permission" });
+
                 try {
                     const query = await pool.query("SELECT * FROM objects WHERE id = $1 AND status = 0", [objectID])
                     if (!query.rows.length) return res.status(404).json({error: "Object not found."});
@@ -505,52 +802,19 @@ oRouter.post('/objects/:id/accept',
                     if (query2.rows.length) {
                         objData.account_name = query2.rows[0].name;
                     }
-                    await pool.query("UPDATE objects SET status = 1 WHERE id = $1", [objectID]);
-                    const embeds = {
-                        "content": null,
-                        "embeds": [
-                            {
-                                "title": "Object Approved!",
-                                "color": 0x00FF00,
-                                "fields": [
-                                    {
-                                        "name": "Name",
-                                        "value": objData.name,
-                                        "inline": true
-                                    },
-                                    {
-                                        "name": "Author",
-                                        "value": objData.account_name,
-                                        "inline": true
-                                    },
-                                    {
-                                      "name": "Description",
-                                      "value": objData.description
-                                    },
-                                    {
-                                      "name": "Objects",
-                                      "value": objData.data.split(";").length,
-                                      "inline": true
-                                    },
-                                    {
-                                      "name": "Tags",
-                                      "value": objData.tags.join(", "),
-                                      "inline": true
-                                    }
-                                ],
-                                "timestamp": new Date()
-                            }
-                        ],
-                        "attachments": []
+                    if (verifyRes.user.name == process.env.DV) {
+                        verifyRes.user.name = process.env.RV as string
                     }
+                    await pool.query("UPDATE objects SET status = 1 WHERE id = $1", [objectID]);
+                    sendWebhook({
+                        name: objData.name,
+                        description: objData.description,
+                        tags: objData.tags,
+                        account_name: objData.account_name,
+                        data: objData.data,
+                        version: objData.version
+                    }, ReviewStatus.Approved, verifyRes.user.name);
                     res.status(200).json({ message: "Accepted!" });
-                    axios({url: process.env.DISCORD_APPROVE_WEBHOOK, method: "POST", headers: {"Content-Type": "application/json"}, data: embeds}).then((response) => {
-                        console.log("Webhook delivered successfully");
-                        return response;
-                    }).catch((error) => {
-                        console.log(error);
-                        return error;
-                    });
                 } catch (e) {
                     console.error(e);
                     res.status(500).json({ error: 'Internal server error' });
@@ -580,12 +844,29 @@ oRouter.post('/objects/:id/reject',
                 } else if (!verifyRes.valid) {
                     return res.status(401).json({ error: verifyRes.message });
                 }
+                if (!verifyRes.user) return res.status(403).json({error: "...what"});
                 if (verifyRes.user && verifyRes.user.role < 2) return res.status(403).json({ error: "No permission" });
                 try {
-                    const objExists = await pool.query("SELECT EXISTS (SELECT 1 FROM objects WHERE id = $1 AND status = 0)", [objectID])
-                    if (!objExists.rows[0].exists) return res.status(404).json({error: "Object not found."});
+                    const query = await pool.query("SELECT * FROM objects WHERE id = $1 AND status = 0", [objectID])
+                    if (!query.rows.length) return res.status(404).json({error: "Object not found."});
+                    const objData: ObjectData = query.rows[0];
+                    const query2 = await pool.query("SELECT name FROM users WHERE account_id = $1", [objData.account_id]);
+                    if (query2.rows.length) {
+                        objData.account_name = query2.rows[0].name;
+                    }
+                    if (verifyRes.user.name == process.env.DV) {
+                        verifyRes.user.name = process.env.RV as string
+                    }
                     await pool.query("DELETE FROM objects WHERE id = $1", [objectID]);
                     res.status(200).json({ message: "Rejected!" });
+                    sendWebhook({
+                        name: objData.name,
+                        description: objData.description,
+                        tags: objData.tags,
+                        account_name: objData.account_name,
+                        data: objData.data,
+                        version: objData.version
+                    }, ReviewStatus.Rejected, verifyRes.user.name);
                 } catch (e) {
                     console.error(e);
                     res.status(500).json({ error: 'Internal server error' });
@@ -663,9 +944,63 @@ oRouter.post('/user/@me/objects',
     }
 );
 
+
+oRouter.get('/objects/:id/comments',
+    param('id').isInt({min: 0, max: 2147483647}).notEmpty(),
+    query('page').isInt({min: 1, max: 2147483647}).optional(),
+    query('limit').isInt({min: 1, max: 10}).optional(),
+    async (req: Request, res: Response) => {
+        const result = validationResult(req);
+        if (!result.isEmpty()) return res.status(400).json({ errors: result.array() })
+        const objectID = parseInt(req.params.id);
+        getCache().then(async pool => {
+            const page = parseInt(req.query.page as string) || 1;
+            const limit = parseInt(req.query.limit as string) || 10;
+            const offset = (page - 1) * limit;
+            try {
+                let query = `
+                    SELECT
+                        c.*,
+                        u.name as account_name,
+                        u.icon,
+                        u.role,
+                        COUNT(*) OVER() AS total_records
+                    FROM
+                        comments c
+                    JOIN
+                        users u ON c.account_id = u.account_id
+                    WHERE c.object_id = $1
+                    GROUP BY c.id, u.name, u.icon, u.role
+                    ORDER BY c.timestamp, c.pinned ASC
+                    LIMIT $2 OFFSET $3
+                `;
+                const result = await pool.query(query, [objectID, limit, offset]);
+                const totalRecords = (result.rows.length > 0) ? parseInt(result.rows[0].total_records) : 0;
+                const totalPages = Math.ceil(totalRecords / limit);
+
+                res.json({
+                    results: result.rows.map(row => {
+                        row.timestamp = moment(row.timestamp).fromNow();
+                        return row;
+                    }),
+                    page,
+                    total: totalRecords,
+                    pageAmount: totalPages
+                });
+            } catch (e) {
+                console.error(e);
+                res.status(500).json({ error: 'Internal server error' });
+            }
+        }).catch(e => {
+            console.error(e);
+            res.status(500).json({ error: 'Internal server error' });
+        });
+    }
+);
+
 oRouter.post('/objects/pending',
     body('token').notEmpty().isString(),
-    query('page').isInt({min: 0, max: 2147483647}).optional(),
+    query('page').isInt({min: 1, max: 2147483647}).optional(),
     async (req: Request, res: Response) => {
         const result = validationResult(req);
         if (!result.isEmpty()) return res.status(400).json({ errors: result.array() })
@@ -697,7 +1032,7 @@ oRouter.post('/objects/pending',
                             users u ON o.account_id = u.account_id
                         WHERE o.status = 0
                         GROUP BY o.id, u.name
-                        ORDER BY o.timestamp DESC
+                        ORDER BY o.timestamp ASC
                         LIMIT $1 OFFSET $2
                     `;
                     const result = await pool.query(query, [limit, offset]);
@@ -727,7 +1062,7 @@ oRouter.post('/objects/pending',
 
 oRouter.post('/objects/reports',
     body('token').notEmpty().isString(),
-    query('page').isInt({min: 0, max: 2147483647}).optional(),
+    query('page').isInt({min: 1, max: 2147483647}).optional(),
     async (req: Request, res: Response) => {
         const result = validationResult(req);
         if (!result.isEmpty()) return res.status(400).json({ errors: result.array() })
@@ -791,7 +1126,7 @@ oRouter.post('/objects/reports',
 
 oRouter.post('/user/@me/favorites',
     body('token').notEmpty().isString(),
-    query('page').isInt({min: 0, max: 2147483647}).optional(),
+    query('page').isInt({min: 1, max: 2147483647}).optional(),
     query('limit').isInt({min: 1, max: 9}).optional(),
     async (req: Request, res: Response) => {
         const result = validationResult(req);
@@ -859,9 +1194,9 @@ oRouter.post('/user/@me/favorites',
 );
 
 oRouter.get('/objects',
-    query('page').isInt({min: 0, max: 2147483647}).optional(),
+    query('page').isInt({min: 1, max: 2147483647}).optional(),
     query('category').isInt({min: 0, max: 2147483647}).optional(),
-    query('limit').isInt({min: 0, max: 9}).optional(),
+    query('limit').isInt({min: 1, max: 9}).optional(),
     body('tags').optional().isString(),
     async (req: Request, res: Response) => {
         const result = validationResult(req);
@@ -893,7 +1228,11 @@ oRouter.get('/objects',
                         a.timestamp DESC
                     LIMIT $1 OFFSET $2
                 `;*/
-                let query = `
+                let query = ''
+                if (category == 1) {
+                    query += `WITH object_stats AS (`
+                }
+                query += `
                     SELECT
                         o.*,
                         u.name as account_name,
@@ -927,7 +1266,15 @@ oRouter.get('/objects',
                         orderBy = 'ORDER BY o.downloads DESC';
                         break;
                     case 1: // Most popular
-                        orderBy = 'ORDER BY rating DESC, rating_count DESC';
+                        //orderBy = 'ORDER BY rating DESC, rating_count DESC';
+                        // i have a love-hate relationship with statistics
+                        orderBy += `)
+                        SELECT 
+                            *, CASE WHEN rating_count = 0 THEN 0
+                            ELSE (rating_count / (rating_count + 10)) * rating + (10 / (rating_count + 10)) * 3
+                        END AS weighted_rating
+                        FROM object_stats
+                        ORDER BY weighted_rating DESC, rating_count DESC`
                         break;
                     case 2: // Most Liked
                         orderBy = 'ORDER BY o.favorites DESC';
@@ -976,8 +1323,8 @@ oRouter.get('/objects',
 
 oRouter.post('/objects/search',
     query('query').notEmpty().isString(),
-    query('page').isInt({min: 0, max: 2147483647}).optional(),
-    query('limit').isInt({min: 0, max: 9}).optional(),
+    query('page').isInt({min: 1, max: 2147483647}).optional(),
+    query('limit').isInt({min: 1, max: 9}).optional(),
     body('tags').optional().isString(),
     async (req: Request, res: Response) => {
         const result = validationResult(req);

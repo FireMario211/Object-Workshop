@@ -7,4 +7,7 @@ export interface UserData {
     timestamp: Date | number;
     role: number;
     uploads: number;
+    ban_reason: string;
+    c_likes: Array<number>;
+    c_dislikes: Array<number>;
 };

@@ -1,8 +1,10 @@
 #include "../config.hpp"
 #include "ObjectWorkshop.hpp"
+#include "Geode/ui/ListView.hpp"
 #include "popups/includes.h"
 #include "../nodes/CategoryButton.hpp"
 #include "../utils.hpp"
+#include "../nodes/CommentCell.hpp"
 //#include <dashauth.hpp>
 
 int currentMenuIndexGD = 2;
@@ -28,6 +30,7 @@ bool ObjectWorkshop::setup(bool authenticated) {
             }
             matjson::Array jsonArr = jsonRes.as_array();
             m_availableTags = Utils::arrayToUnorderedSet<std::string>(jsonArr);
+            log::debug("Current available tags: {}", m_availableTags);
         } else if (web::WebProgress* progress = e->getProgress()) {
             // The request is still in progress...
         } else if (e->isCancelled()) {
@@ -40,24 +43,15 @@ bool ObjectWorkshop::setup(bool authenticated) {
     objectInfoNode->setContentSize({295, 225});
 
     auto backSpr = CCSprite::createWithSpriteFrameName("GJ_arrow_01_001.png");
-    backSpr->setScale(0.55F);
+    backSpr->setScale(0.5F);
     obj_backBtn = CCMenuItemSpriteExtra::create(
         backSpr,
         this,
         menu_selector(ObjectWorkshop::onBackBtn)
     );
-    m_buttonMenu->addChildAtPosition(obj_backBtn, Anchor::Top, {-88, -40});
+    m_buttonMenu->addChildAtPosition(obj_backBtn, Anchor::Top, {-88, -18});
     obj_backBtn->setVisible(false);
 
-    auto infoSpr = CCSprite::createWithSpriteFrameName("GJ_infoIcon_001.png");
-    infoSpr->setScale(1.25F);
-    auto infoBtn = CCMenuItemSpriteExtra::create(
-        infoSpr,
-        this,
-        menu_selector(ObjectWorkshop::onInfoBtn)
-    );
-    //m_buttonMenu->addChildAtPosition(infoBtn, Anchor::TopLeft);
-    //m_closeBtn->updateAnchoredPosition(Anchor::TopRight, { -5.f, -5.f });
     m_closeBtn->setZOrder(1);
 
     auto titleLabel = CCLabelBMFont::create("Custom Object Workshop", "goldFont.fnt");
@@ -223,6 +217,7 @@ bool ObjectWorkshop::setup(bool authenticated) {
                         r_uploads.value(),
                         r_role.value()
                     };
+                    log::debug("Set user information.");
                 } else {
                     log::error("Something went wrong when getting keys from the users object. {}", jsonRes.dump());
                     Notification::create("Couldn't parse user object.", NotificationIcon::Warning)->show();
@@ -285,6 +280,7 @@ bool ObjectWorkshop::setup(bool authenticated) {
     RegenCategory();
 
     this->setID("objectworkshop"_spr);
+    log::debug("Finished with setup!");
     //cocos::handleTouchPriority(m_scrollLayer);
     return true;
 }
@@ -344,6 +340,7 @@ void ObjectWorkshop::textInputClosed(CCTextInputNode* input) {
 void ObjectWorkshop::RegenCategory() {
     int myItems = 0;
     int items = 0;
+    log::debug("RegenCategory ({},{})", currentMenuIndexGD, m_currentPage);
 
     loadingCircle = LoadingCircle::create();
     m_buttonMenu->removeChildByID("retrybtn"_spr);
@@ -491,6 +488,7 @@ void ObjectWorkshop::onRetryBtn(CCObject*) {
 }
 
 void ObjectWorkshop::load() {
+    log::debug("Loading objects...");
     web::WebRequest request = web::WebRequest();
     m_listener1.getFilter().cancel();
     m_listener2.getFilter().cancel();
@@ -498,6 +496,7 @@ void ObjectWorkshop::load() {
     myUploadsMenu->setVisible(false);
     m_listener1.bind([this] (web::WebTask::Event* e) {
         if (web::WebResponse* value = e->getValue()) {
+            log::debug("Finished request for listener 1.");
             if (!value->ok()) {
                 auto errorText = value->string()->c_str();
                 log::error("Failed to retrieve data from server: {}", errorText);
@@ -514,7 +513,7 @@ void ObjectWorkshop::load() {
                 //m_buttonMenu->addChildAtPosition(retryBtn, Anchor::Center, {132, 50});
                 m_buttonMenu->addChildAtPosition(retryBtn, Anchor::Center, {55, 10});
                 m_content->addChildAtPosition(detailsLabel, Anchor::Center, {132, 30});
-                loadingCircle->fadeAndRemove();
+                if (loadingCircle != nullptr) loadingCircle->fadeAndRemove();
                 m_scrollLayer->moveToTop();
                 return;
             }
@@ -543,12 +542,15 @@ void ObjectWorkshop::load() {
                 auto o_data = obj.try_get<std::string>("data");
                 auto o_tags = obj.try_get<matjson::Array>("tags");
                 auto o_status = obj.try_get<int>("status");
+                auto o_created = obj.try_get<std::string>("created");
+                auto o_updated = obj.try_get<std::string>("updated");
+                auto o_version = obj.try_get<int>("version");
                 if (
                     o_id &&
                     o_name && o_desc &&
                     o_acc_name && o_acc_id &&
                     o_rating && o_downloads && o_favorites && o_rating_count && 
-                    o_data && o_tags && o_status
+                    o_data && o_tags && o_status && o_created && o_updated && o_version
                 ) {
                     auto cell = CCMenuItemSpriteExtra::create(ObjectItem::create({
                         o_id.value(),
@@ -563,7 +565,10 @@ void ObjectWorkshop::load() {
                         o_data.value(),
                         Utils::arrayIncludes(m_user.favorites, o_id.value()),
                         Utils::arrayToUnorderedSet<std::string>(o_tags.value()),
-                        o_status.value() == 0
+                        o_status.value() == 0,
+                        o_created.value(),
+                        o_updated.value(),
+                        o_version.value()
                     }), this, menu_selector(ObjectWorkshop::onClickObject));
                     categoryItems->addChild(cell);
                 } else {
@@ -622,7 +627,7 @@ void ObjectWorkshop::load() {
                 myUploadsBar->updateLayout();
                 categoryBar->updateLayout();
                 categoryItems->updateLayout();
-                loadingCircle->fadeAndRemove();
+                if (loadingCircle != nullptr) loadingCircle->fadeAndRemove();
                 cocos::handleTouchPriority(m_content);
                 m_scrollLayer->fixTouchPrio();
                 categoryItems->setVisible(true);
@@ -649,6 +654,7 @@ void ObjectWorkshop::load() {
     });
     m_listener2.bind([this] (web::WebTask::Event* e) {
         if (web::WebResponse* value = e->getValue()) {
+            log::debug("Finished request for listener 2.");
             auto jsonRes = value->json().unwrapOrDefault();
             if (!jsonRes.is_object()) return log::error("Response isn't object.");
             auto isError = jsonRes.try_get<std::string>("error");
@@ -678,12 +684,15 @@ void ObjectWorkshop::load() {
                 auto o_data = obj.try_get<std::string>("data");
                 auto o_tags = obj.try_get<matjson::Array>("tags");
                 auto o_status = obj.try_get<int>("status");
+                auto o_created = obj.try_get<std::string>("created");
+                auto o_updated = obj.try_get<std::string>("updated");
+                auto o_version = obj.try_get<int>("version");
                 if (
                     o_id &&
                     o_name && o_desc &&
                     o_acc_name && o_acc_id &&
                     o_rating && o_downloads && o_favorites && o_rating_count && 
-                    o_data && o_tags && o_status
+                    o_data && o_tags && o_status && o_created && o_updated && o_version
                 ) {
                     auto cell = CCMenuItemSpriteExtra::create(ObjectItem::create({
                         o_id.value(),
@@ -698,7 +707,10 @@ void ObjectWorkshop::load() {
                         o_data.value(),
                         Utils::arrayIncludes(m_user.favorites, o_id.value()),
                         Utils::arrayToUnorderedSet<std::string>(o_tags.value()),
-                        o_status.value() == 0
+                        o_status.value() == 0,
+                        o_created.value(),
+                        o_updated.value(),
+                        o_version.value()
                     }), this, menu_selector(ObjectWorkshop::onClickObject));
                     defaultContentSize = cell->getContentSize();
                     myUploadsMenu->addChild(cell);
@@ -791,7 +803,7 @@ void ObjectWorkshop::load() {
             categoryItems->updateLayout();
             cocos::handleTouchPriority(m_content);
             m_scrollLayer->fixTouchPrio();
-            loadingCircle->fadeAndRemove();
+            if (loadingCircle != nullptr) loadingCircle->fadeAndRemove();
             m_scrollLayer->moveToTop();
         } else if (web::WebProgress* progress = e->getProgress()) {
             // The request is still in progress...
@@ -804,13 +816,18 @@ void ObjectWorkshop::load() {
         if (m_filterTags.empty()) {
             m_listener1.setFilter(request.post(fmt::format("{}/objects/search?query={}&limit={}&page={}", HOST_URL, query, RESULT_LIMIT, m_currentPage)));
         } else {
-            std::ostringstream oss;
-            std::copy(m_filterTags.begin(), m_filterTags.end(), 
-                      std::ostream_iterator<std::string>(oss, ","));
-            std::string tagsString = oss.str();
-            
-            if (!tagsString.empty()) tagsString.pop_back();
-            m_listener1.setFilter(request.post(fmt::format("{}/objects/search?query={}&page={}&limit={}&tags={}", HOST_URL, query, m_currentPage, RESULT_LIMIT, tagsString)));
+            m_listener1.setFilter(
+                request.post(
+                    fmt::format(
+                        "{}/objects/search?query={}&page={}&limit={}&tags={}",
+                        HOST_URL,
+                        query,
+                        m_currentPage,
+                        RESULT_LIMIT,
+                        fmt::join(m_filterTags, ",")
+                    )
+                )
+            );
         }
         return;
     }
@@ -837,13 +854,18 @@ void ObjectWorkshop::load() {
         if (m_filterTags.empty()) {
             m_listener1.setFilter(request.get(fmt::format("{}/objects?page={}&category={}&limit={}", HOST_URL, m_currentPage, currentMenuIndexGD - 2, RESULT_LIMIT)));
         } else {
-            std::ostringstream oss;
-            std::copy(m_filterTags.begin(), m_filterTags.end(), 
-                      std::ostream_iterator<std::string>(oss, ","));
-            std::string tagsString = oss.str();
-            
-            if (!tagsString.empty()) tagsString.pop_back();
-            m_listener1.setFilter(request.get(fmt::format("{}/objects?page={}&category={}&tags={}&limit={}", HOST_URL, m_currentPage, currentMenuIndexGD - 2, tagsString, RESULT_LIMIT)));
+            m_listener1.setFilter(
+                request.get(
+                    fmt::format(
+                        "{}/objects?page={}&category={}&tags={}&limit={}",
+                        HOST_URL,
+                        m_currentPage,
+                        currentMenuIndexGD - 2,
+                        fmt::join(m_filterTags, ","),
+                        RESULT_LIMIT
+                    )
+                )
+            );
         }
     }
 }
@@ -887,6 +909,7 @@ void ObjectWorkshop::createCategoryBtn(const char* string, int menuIndex) {
 }
 
 void ObjectWorkshop::onClickObject(CCObject* sender) {
+    m_topCommentsListener.getFilter().cancel();
     auto menuItem = static_cast<CCMenuItemSpriteExtra*>(sender); // how could this go wrong
     if (auto objectItem = typeinfo_cast<ObjectItem*>(menuItem->getChildren()->objectAtIndex(0))) {
         auto objectData = objectItem->getData();
@@ -895,24 +918,14 @@ void ObjectWorkshop::onClickObject(CCObject* sender) {
         rightBg->setVisible(false);
         bottomPageLabel->setVisible(false);
         obj_backBtn->setVisible(true);
-        auto topBg = CCScale9Sprite::create("square02_small.png");
-        topBg->setOpacity(25);
-        topBg->setScale(0.65F);
-        topBg->setAnchorPoint({1, 0.5});
-        topBg->setContentSize({435, 27});
-        objectInfoNode->addChildAtPosition(topBg, Anchor::TopRight, {0, -4});
-
-        auto backLabel = CCLabelBMFont::create("Back To Workshop", "bigFont.fnt");
-        backLabel->setScale(0.375F);
-        objectInfoNode->addChildAtPosition(backLabel, Anchor::Top, {5, -4});
 
         auto middleBg = CCScale9Sprite::create("square02_small.png");
         middleBg->setOpacity(25);
-        middleBg->setContentSize({295, 220});
-        objectInfoNode->addChildAtPosition(middleBg, Anchor::Center, {0, -17});
+        middleBg->setContentSize({295, 245});
+        objectInfoNode->addChildAtPosition(middleBg, Anchor::Center, {0, -8});
 
         auto menu = CCMenu::create();
-        menu->setPosition({10, 195});
+        menu->setPosition({10, 218});
         auto infoSpr = CCSprite::createWithSpriteFrameName("GJ_infoIcon_001.png");
         infoSpr->setScale(0.7F);
         auto infoBtn = CCMenuItemSpriteExtra::create(
@@ -933,12 +946,19 @@ void ObjectWorkshop::onClickObject(CCObject* sender) {
         auto zoomOutBtn = CCMenuItemSpriteExtra::create(
             zoomOutSpr, this, menu_selector(ObjectWorkshop::onZoomOut)
         );
+        auto resetZoomSpr = CCSprite::createWithSpriteFrameName("GJ_updateBtn_001.png");
+        resetZoomSpr->setScale(0.35F);
+        auto resetZoomBtn = CCMenuItemSpriteExtra::create(
+            resetZoomSpr, this, menu_selector(ObjectWorkshop::onResetZoom)
+        );
 
-        zoomInBtn->setPosition({122, -84});
-        zoomOutBtn->setPosition({136, -84});
+        zoomInBtn->setPosition({108, -84});
+        zoomOutBtn->setPosition({122, -84});
+        resetZoomBtn->setPosition({136, -84});
 
         menu->addChild(zoomInBtn);
         menu->addChild(zoomOutBtn);
+        menu->addChild(resetZoomBtn);
 
         objectInfoNode->addChild(menu);
     
@@ -969,8 +989,8 @@ void ObjectWorkshop::onClickObject(CCObject* sender) {
             reportSpr, this, menu_selector(ObjectWorkshop::onReportBtn)
         );
         if (m_user.account_id == m_currentObject.authorAccId || m_user.role == 3) {
+            menu2->addChild(editBtn);
             menu2->addChild(trashBtn);
-            menu2->addChild(editBtn); 
         }
         if (m_user.role >= 2 && m_currentObject.pending) {
             menu2->addChild(acceptBtn);
@@ -981,8 +1001,7 @@ void ObjectWorkshop::onClickObject(CCObject* sender) {
         }
 
         menu2->setContentSize({18, 80});
-        //menu2->setPosition({7, 115});
-        menu2->setPosition({16, 155});
+        menu2->setPosition({16, 177});
         objectInfoNode->addChild(menu2);
 
         menu2->setLayout(
@@ -991,6 +1010,7 @@ void ObjectWorkshop::onClickObject(CCObject* sender) {
                 ->setCrossAxisAlignment(AxisAlignment::End)
                 ->setAutoScale(true)
                 ->setCrossAxisOverflow(false)
+                ->setDefaultScaleLimits(.1f, 1.f)
                 ->setGap(3)
                 ->setGrowCrossAxis(true)
         );
@@ -1002,57 +1022,37 @@ void ObjectWorkshop::onClickObject(CCObject* sender) {
         leftSideBG1->setContentSize({ 27.F, 82.F });
 
         previewBG = ExtPreviewBG::create(objectData.objectString);
-        /*auto previewBG = CCScale9Sprite::create("square02_small.png");
-        previewBG->setOpacity(60);
-        previewBG->setContentSize({ 124.F, 82.F });
-        auto previewLabel = CCLabelBMFont::create("Preview", "goldFont.fnt");
-        previewLabel->setScale(0.425F);
-        previewBG->addChildAtPosition(previewLabel, Anchor::Top, {0,-8});
-
-        CCLayerColor* mask = CCLayerColor::create({255, 255, 255});
-        mask->setContentSize(previewBG->getContentSize());
-        auto clippingNode = CCClippingNode::create();
-        clippingNode->setContentSize(previewBG->getContentSize());
-        clippingNode->setAnchorPoint({0.5, 0.5});
-
-        if (auto editorUI = EditorUI::get() && objectData.objectString.length() > 0) {
-            auto renderLimit = Mod::get()->getSettingValue<int64_t>("render-objects");
-            auto smartBlock = CCArray::create();
-            CCSprite* sprite = EditorUI::get()->spriteFromObjectString(objectData.objectString, false, false, renderLimit, smartBlock, (CCArray *)0x0,(GameObject *)0x0);
-            LevelEditorLayer::get()->updateObjectColors(smartBlock);
-            sprite->setScale((previewBG->getContentSize().height - 20) / sprite->getContentSize().height);
-            clippingNode->addChildAtPosition(sprite, Anchor::Center, {0, -5});
-        }
-        clippingNode->setStencil(mask);
-        //m_clippingNode->setAlphaThreshold(0.05F);
-        clippingNode->setZOrder(1);
-        middleBg->addChildAtPosition(clippingNode, Anchor::TopLeft, {89, -50});*/
         middleBg->addChildAtPosition(previewBG, Anchor::TopLeft, {90, -50});
-        //cocos::handleTouchPriority(previewBG);
-
         middleBg->addChildAtPosition(leftSideBG1, Anchor::TopLeft, {16, -50 });
 
         auto rightSideBG1 = CCScale9Sprite::create("square02_small.png");
         rightSideBG1->setOpacity(25);
-        rightSideBG1->setContentSize({128, 40});
-        middleBg->addChildAtPosition(rightSideBG1, Anchor::TopRight, {-72, -30});
+        rightSideBG1->setContentSize({128, 82});
+        middleBg->addChildAtPosition(rightSideBG1, Anchor::TopRight, {-72, -50});
 
         auto objTitleLabel = CCLabelBMFont::create(objectData.name.c_str(), "bigFont.fnt");
         auto objAuthorLabel = CCLabelBMFont::create(fmt::format("By {}", objectData.authorName).c_str(), "goldFont.fnt");
-        objTitleLabel->limitLabelWidth(110.0F, 0.8F, 0.25F);
-        objAuthorLabel->limitLabelWidth(80.0F, 0.8F, 0.25F);
+        objTitleLabel->limitLabelWidth(70.0F, 0.7F, 0.25F);
+        objAuthorLabel->limitLabelWidth(80.0F, 0.7F, 0.25F);
+
+        auto textAreaDesc = MDTextArea::create(objectData.description, {240, 80});
+        textAreaDesc->setScale(0.5F);
+        auto vLine1 = CCSprite::createWithSpriteFrameName("edit_vLine_001.png");
+        vLine1->setRotation(90);
 
         rightSideBG1->addChildAtPosition(objTitleLabel, Anchor::Top, {0, -10});
-        rightSideBG1->addChildAtPosition(objAuthorLabel, Anchor::Bottom, {0, 13});
+        rightSideBG1->addChildAtPosition(objAuthorLabel, Anchor::Top, {0, -20});
+        rightSideBG1->addChildAtPosition(textAreaDesc, Anchor::Bottom, {0, 25});
+        rightSideBG1->addChildAtPosition(vLine1, Anchor::Center, { 0, 10 });
 
         auto rightSideBG2 = CCScale9Sprite::create("square02_small.png");
         rightSideBG2->setOpacity(25);
-        rightSideBG2->setContentSize({128, 80});
-        middleBg->addChildAtPosition(rightSideBG2, Anchor::Right, {-72, 18});
+        rightSideBG2->setContentSize({128, 55});
+        middleBg->addChildAtPosition(rightSideBG2, Anchor::Right, {-72, -42});
 
         auto rateItLbl = CCLabelBMFont::create("Rate It!", "bigFont.fnt");
         rateItLbl->setScale(0.35F);
-        rightSideBG2->addChildAtPosition(rateItLbl, Anchor::Top, {3, -10});
+        rightSideBG2->addChildAtPosition(rateItLbl, Anchor::Top, {0, -10});
 
         auto starsNode = ObjectItem::createClickableStars(this, menu_selector(ObjectWorkshop::onRateBtn));
         starsNode->setLayout(
@@ -1064,13 +1064,12 @@ void ObjectWorkshop::onClickObject(CCObject* sender) {
                 ->setGrowCrossAxis(true)
         );
         starsNode->updateLayout();
-        starsNode->setScale(1.225F);
-        //rightSideBG2->addChildAtPosition(starsNode, Anchor::TopLeft, {-5, -39});
-        rightSideBG2->addChildAtPosition(starsNode, Anchor::TopLeft, {50, -27});
+        starsNode->setScale(1.55F);
+        rightSideBG2->addChildAtPosition(starsNode, Anchor::TopLeft, {64, -33});
 
         std::ostringstream oss;
         oss << std::fixed << std::setprecision(2) << objectData.rating;
-        auto ratingLbl = CCLabelBMFont::create(oss.str().c_str(), "bigFont.fnt");
+        auto ratingLbl = CCLabelBMFont::create(fmt::format("{} ({})", oss.str(), objectData.ratingCount).c_str(), "bigFont.fnt");
 
         ccColor3B ratingColor = { 255, 255, 0 };
         // yes i used chat jippity because i cant think at 2 am
@@ -1096,18 +1095,57 @@ void ObjectWorkshop::onClickObject(CCObject* sender) {
                 ratingColor = {255, static_cast<GLubyte>(70 * t), 0};
             }
         }
-        ratingLbl->setColor(ratingColor);
+        for (int i = 0; i < 4; i++) {
+            // why doesnt CCFontSprite EXIST!?
+            auto fontSpr = static_cast<CCSprite*>(ratingLbl->getChildren()->objectAtIndex(i));
+            fontSpr->setColor(ratingColor);
+        }
 
-        auto ratingCountLbl = CCLabelBMFont::create(fmt::format("({})", objectData.ratingCount).c_str(), "bigFont.fnt");
-        ratingCountLbl->setAnchorPoint({0,0.5});
         ratingLbl->setScale(0.275F);
-        ratingCountLbl->limitLabelWidth(25.0F, 0.3F, 0.1F); // 0.25
-        rightSideBG2->addChildAtPosition(ratingLbl, Anchor::Right, {-26, 18});
-        rightSideBG2->addChildAtPosition(ratingCountLbl, Anchor::Right, {-34, 10});
+        rightSideBG2->addChildAtPosition(ratingLbl, Anchor::Bottom, {3, 10});
+        //rightSideBG2->addChildAtPosition(ratingCountLbl, Anchor::Right, {-34, 10});
 
-        auto vLine = CCSprite::createWithSpriteFrameName("edit_vLine_001.png");
-        vLine->setRotation(90);
-        rightSideBG2->addChildAtPosition(vLine, Anchor::Center);
+        auto vLine2 = CCSprite::createWithSpriteFrameName("edit_vLine_001.png");
+        vLine2->setRotation(90);
+        rightSideBG2->addChildAtPosition(vLine2, Anchor::Top, {0, -20});
+
+        auto leftSideBG2 = CCScale9Sprite::create("square02_small.png");
+        leftSideBG2->setOpacity(25);
+        leftSideBG2->setContentSize({145, 36});
+        middleBg->addChildAtPosition(leftSideBG2, Anchor::Left, {80, 10});
+        
+        //std::count(str.begin(), str.end(), ';');
+        
+        auto tagsLabel = CCLabelBMFont::create("Tags:", "goldFont.fnt");
+        auto tagsNode = FiltersPopup::createTags(m_currentObject.tags);
+        tagsLabel->setScale(0.41F);
+        tagsLabel->setAnchorPoint({0, 0.5});
+        leftSideBG2->addChildAtPosition(tagsLabel, Anchor::Left, {6, 7});
+        //leftSideBG2->addChildAtPosition(tagsNode, Anchor::Left, {35, 6});
+        leftSideBG2->addChildAtPosition(tagsNode, Anchor::Left, {35, 0});
+        
+        auto rightSideBG3 = CCScale9Sprite::create("square02_small.png");
+        rightSideBG3->setOpacity(25);
+        rightSideBG3->setContentSize({125, 36});
+        auto infoLabels = CCLabelBMFont::create(
+            fmt::format(
+                "Objects: {}\nVersion: {}\n{}",
+                std::count(m_currentObject.objectString.begin(), m_currentObject.objectString.end(), ';'),
+                m_currentObject.version,
+                (m_currentObject.pending) ? "Status: PENDING" : ""
+                ).c_str(),
+            "bigFont.fnt"
+        );
+        infoLabels->setContentHeight(100);
+        infoLabels->setAnchorPoint({0, 1.0});
+        infoLabels->setScale(0.31F);
+        rightSideBG3->addChildAtPosition(infoLabels, Anchor::TopLeft, {3, -2});
+        middleBg->addChildAtPosition(rightSideBG3, Anchor::Right, {-72, 10});
+
+        auto bottomRightBG = CCScale9Sprite::create("square02_small.png");
+        bottomRightBG->setOpacity(25);
+        bottomRightBG->setContentSize({125, 36});
+        middleBg->addChildAtPosition(bottomRightBG, Anchor::Bottom, {75, 30});
 
         auto downloadSpr = CCSprite::createWithSpriteFrameName("GJ_downloadBtn_001.png");
         downloadSpr->setScale(0.6F);
@@ -1115,61 +1153,215 @@ void ObjectWorkshop::onClickObject(CCObject* sender) {
         unfavSpr->setScale(0.8F);
         auto favSpr = CCSprite::createWithSpriteFrameName("gj_heartOn_001.png");
         favSpr->setScale(0.8F);
+        auto commentSpr = CCSprite::createWithSpriteFrameName("GJ_chatBtn_001.png");
+        commentSpr->setScale(0.5F);
 
         auto favBtn = CCMenuItemToggler::create(unfavSpr, favSpr, this, menu_selector(ObjectWorkshop::onFavBtn));
         favBtn->toggle(Utils::arrayIncludes(m_user.favorites, m_currentObject.id));
 
         auto downloadBtn = CCMenuItemSpriteExtra::create(downloadSpr, this, menu_selector(ObjectWorkshop::onDownloadBtn));
+        
+        auto commentBtn = CCMenuItemSpriteExtra::create(commentSpr, this, menu_selector(ObjectWorkshop::onCommentBtn));
 
+        commentBtn->setID("commentbtn"_spr);
         favBtn->setID("favbtn"_spr);
         downloadBtn->setID("downloadbtn"_spr);
-        m_buttonMenu->addChildAtPosition(favBtn, Anchor::Right, {-63, -19});
-        m_buttonMenu->addChildAtPosition(downloadBtn, Anchor::Right, {-100, -19});
+        m_buttonMenu->addChildAtPosition(favBtn, Anchor::BottomRight, {-85, 45}); // -63
+        m_buttonMenu->addChildAtPosition(downloadBtn, Anchor::BottomRight, {-125, 45}); // -100
+        m_buttonMenu->addChildAtPosition(commentBtn, Anchor::BottomRight, {-45, 45});
 
         downloadsLabel = CCLabelBMFont::create(std::to_string(m_currentObject.downloads).c_str(), "bigFont.fnt");
         favoritesLabel = CCLabelBMFont::create(std::to_string(m_currentObject.favorites).c_str(), "bigFont.fnt");
+        commentsLabel = CCLabelBMFont::create("N/A", "bigFont.fnt");
+        downloadsLabel->setAnchorPoint({0.5, 1});
+        favoritesLabel->setAnchorPoint({0.5, 1});
+        commentsLabel->setAnchorPoint({0.5, 1});
         downloadsLabel->limitLabelWidth(25.0F, 0.3F, 0.1F);
         favoritesLabel->limitLabelWidth(25.0F, 0.3F, 0.1F);
+        commentsLabel->limitLabelWidth(25.0F, 0.3F, 0.1F);
 
-        rightSideBG2->addChildAtPosition(downloadsLabel, Anchor::Bottom, {-15,8});
-        rightSideBG2->addChildAtPosition(favoritesLabel, Anchor::Bottom, {22,8});
+        bottomRightBG->addChildAtPosition(downloadsLabel, Anchor::Bottom, {-40,11});
+        bottomRightBG->addChildAtPosition(favoritesLabel, Anchor::Bottom, {0,11});
+        bottomRightBG->addChildAtPosition(commentsLabel, Anchor::Bottom, {40,11});
 
-        auto leftSideBG2 = CCScale9Sprite::create("square02_small.png");
-        leftSideBG2->setOpacity(25);
-        leftSideBG2->setContentSize({145, 36});
-        middleBg->addChildAtPosition(leftSideBG2, Anchor::Left, {80, -4});
+        auto bottomLeftBG1 = CCScale9Sprite::create("square02_small.png");
+        bottomLeftBG1->setOpacity(25);
+        bottomLeftBG1->setContentSize({145, 95});
         
-        //std::count(str.begin(), str.end(), ';');
+        auto commentLabel = CCLabelBMFont::create("Comments (N/A)", "bigFont.fnt");
+        commentLabel->setAnchorPoint({0.5, 1.0});
+        commentLabel->limitLabelWidth(180.F, 0.4F, 0.3F);
         
-        auto tagsLabel = CCLabelBMFont::create("Tags:", "goldFont.fnt");
-        auto tagsNode = FiltersPopup::createTags(m_currentObject.tags);
-        auto objectCountLabel = CCLabelBMFont::create(
-            fmt::format(
-                "Objects: {}{}",
-                std::count(m_currentObject.objectString.begin(), m_currentObject.objectString.end(), ';'),
-                (m_currentObject.pending) ? "; PENDING" : ""
-                ).c_str(),
-            "bigFont.fnt"
+        auto vLine3 = CCSprite::createWithSpriteFrameName("edit_vLine_001.png");
+        vLine3->setRotation(90);
+
+        bottomLeftBG1->addChildAtPosition(commentLabel, Anchor::Top, {0, -1});
+        bottomLeftBG1->addChildAtPosition(vLine3, Anchor::Top, {0, -17});
+
+        middleBg->addChildAtPosition(bottomLeftBG1, Anchor::Bottom, {-68, 60});
+
+        auto loadCommentsSpr = ButtonSprite::create("Load Comments", 180.F, 0, 0.6F, true, "bigFont.fnt", "GJ_button_01.png", 25.F);
+        loadCommentsSpr->setScale(0.6F);
+        auto loadCommentsBtn = CCMenuItemSpriteExtra::create(
+            loadCommentsSpr,
+            this,
+            menu_selector(ObjectWorkshop::onLoadComments)
         );
-        tagsLabel->setScale(0.41F);
-        tagsLabel->setAnchorPoint({0, 0.5});
-        objectCountLabel->setAnchorPoint({0, 0.5});
-        objectCountLabel->setScale(0.31F);
-        leftSideBG2->addChildAtPosition(tagsLabel, Anchor::Left, {6, 7});
-        leftSideBG2->addChildAtPosition(tagsNode, Anchor::Left, {35, 6});
-        leftSideBG2->addChildAtPosition(objectCountLabel, Anchor::Left, {6, -6});
+        loadCommentsBtn->setID("loadcomments"_spr);
+        m_buttonMenu->addChildAtPosition(loadCommentsBtn, Anchor::Bottom, {-15, 70});
 
-        auto bottomBG = CCScale9Sprite::create("square02_small.png");
-        bottomBG->setOpacity(25);
-        bottomBG->setContentSize({280, 75});
-        middleBg->addChildAtPosition(bottomBG, Anchor::Bottom, {0, 47});
+        auto leftArrowSpr = CCSprite::createWithSpriteFrameName("GJ_arrow_01_001.png");
+        auto rightArrowSpr = CCSprite::createWithSpriteFrameName("GJ_arrow_01_001.png");
+        rightArrowSpr->setFlipX(true);
+        leftArrowSpr->setScale(0.4F);
+        rightArrowSpr->setScale(0.4F);
+        auto leftArrowBtn = CCMenuItemSpriteExtra::create(leftArrowSpr, this, menu_selector(ObjectWorkshop::onLeftCommentPage));
+        auto rightArrowBtn = CCMenuItemSpriteExtra::create(rightArrowSpr, this, menu_selector(ObjectWorkshop::onRightCommentPage));
+        leftArrowBtn->setPosition({7, -137});
+        rightArrowBtn->setPosition({132, -137});
+        menu->addChild(leftArrowBtn);
+        menu->addChild(rightArrowBtn);
 
-        auto commentsLabel = CCLabelBMFont::create("Comments are coming in\na future update!", "bigFont.fnt");
-        commentsLabel->setAlignment(CCTextAlignment::kCCTextAlignmentCenter);
-        commentsLabel->setScale(0.65F);
-        objectInfoNode->addChildAtPosition(commentsLabel, Anchor::Bottom, {0, 35});
+        leftArrowBtn->setEnabled(false);
+        rightArrowBtn->setEnabled(false);
 
+        auto pageLabel = CCLabelBMFont::create("", "goldFont.fnt");
+        pageLabel->setScale(0.4F);
+        bottomLeftBG1->addChildAtPosition(pageLabel, Anchor::Bottom, {0, -5});
+
+        m_topCommentsListener.bind([this, commentLabel, bottomLeftBG1, leftArrowBtn, rightArrowBtn, pageLabel] (web::WebTask::Event* e) {
+            bottomLeftBG1->removeChildByID("commentscroll"_spr);
+            if (web::WebResponse* value = e->getValue()) {
+                if (m_currentMenu == 2) {
+                    if (value->code() >= 500 && !value->ok()) {
+                        Notification::create("A server error occured. Check logs for info.", NotificationIcon::Error)->show();
+                        log::error("{}", value->string().unwrapOrDefault());
+                        return;
+                    }
+                    auto jsonRes = value->json().unwrapOrDefault();
+                    auto isError = jsonRes.try_get<std::string>("error");
+                    leftArrowBtn->setEnabled(false);
+                    rightArrowBtn->setEnabled(false);
+                    if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
+                    leftArrowBtn->setEnabled(true);
+                    rightArrowBtn->setEnabled(true);
+                    auto arrayRes = jsonRes.try_get<matjson::Array>("results");
+                    auto c_total = jsonRes.try_get<int>("total");
+                    auto c_page = jsonRes.try_get<int>("page");
+                    auto c_pageAmount = jsonRes.try_get<int>("pageAmount");
+                    matjson::Array array;
+                    if (arrayRes) {
+                        array = arrayRes.value();
+                    }
+                    if (c_total) {
+                        commentLabel->setString(fmt::format("Comments ({})", c_total.value()).c_str());
+                        commentsLabel->setString(std::to_string(c_total.value()).c_str());
+                    }
+                    if (c_page) {
+                        m_currentObject.commentPage = c_page.value();
+                    }
+                    if (c_pageAmount) {
+                        m_currentObject.maxCommentPage = c_pageAmount.value();
+                    }
+                    commentLabel->limitLabelWidth(180.F, 0.4F, 0.3F);
+                    auto nodeArray = CCArray::create();
+                    
+                    auto scrollLayer = ScrollLayerExt::create({ 0, 0, 145.0F, 75.F }, true);
+                    auto content = CCMenu::create();
+                    content->setZOrder(2);
+                    content->setContentWidth(145.0F);
+                    scrollLayer->m_contentLayer->setContentSize({
+                        content->getContentSize().width,
+                        50.F * array.size()
+                    });
+                    content->setContentHeight(scrollLayer->m_contentLayer->getContentHeight());
+                    content->registerWithTouchDispatcher();
+                    
+                    scrollLayer->m_contentLayer->addChild(content);
+                    scrollLayer->setTouchEnabled(true);
+                    for (auto item : array) {
+                        auto obj = item;
+                        auto o_id = obj.try_get<int>("id");
+                        auto o_object_id = obj.try_get<int>("object_id");
+                        auto o_acc_name = obj.try_get<std::string>("account_name");
+                        auto o_acc_id = obj.try_get<int>("account_id");
+                        auto o_likes = obj.try_get<int>("likes");
+                        auto o_content = obj.try_get<std::string>("content");
+                        auto o_timestamp = obj.try_get<std::string>("timestamp");
+                        auto o_icon = obj.try_get<matjson::Array>("icon");
+                        auto o_pinned = obj.try_get<bool>("pinned");
+                        auto o_role = obj.try_get<int>("role");
+                        if (
+                            o_id && o_object_id &&
+                            o_acc_name && o_acc_id &&
+                            o_likes && o_content &&
+                            o_timestamp && o_icon
+                        ) {
+                            content->addChild(OWCommentCell::create({
+                                o_id.value(),
+                                o_object_id.value(),
+                                o_acc_name.value(),
+                                o_acc_id.value(),
+                                o_timestamp.value(),
+                                o_content.value(),
+                                o_likes.value(),
+                                o_pinned.value(),
+                                o_icon.value(),
+                                o_role.value()
+                            }, m_currentObject, m_user, [this]() {
+                                ObjectWorkshop::onLoadComments(nullptr);
+                            }));
+                        }
+                    }
+                    if (array.size() <= 1) {
+                        scrollLayer->setTouchEnabled(false);
+                    }
+                    content->setLayout(
+                        ColumnLayout::create()
+                            ->setAxisAlignment(AxisAlignment::End)
+                            ->setCrossAxisOverflow(false)
+                            ->setGap(5)
+                            ->setGrowCrossAxis(true)
+                            ->setAxisReverse(true)
+                    );
+                    content->setAnchorPoint({0.5, 0});
+                    content->setPosition({72, 0});
+                    //auto listView = static_cast<BoomListView*>(CustomListView::create(nodeArray,BoomListType::Comment,75.F,145.F)); // 7
+                    //bottomLeftBG1->addChildAtPosition(listView, Anchor::BottomLeft);
+                    scrollLayer->setID("commentscroll"_spr);
+                    bottomLeftBG1->addChildAtPosition(scrollLayer, Anchor::BottomLeft);
+                    scrollLayer->moveToTop();
+                    scrollLayer->fixTouchPrio();
+                    pageLabel->setString(fmt::format("Page {} of {}", m_currentObject.commentPage, m_currentObject.maxCommentPage).c_str());
+                }
+            } else if (web::WebProgress* progress = e->getProgress()) {
+                // The request is still in progress...
+            } else if (e->isCancelled()) {
+                log::error("Request was cancelled.");
+            }
+        });
     }
+}
+
+void ObjectWorkshop::onLeftCommentPage(CCObject* sender) {
+    if (m_currentObject.commentPage > 1) {
+        m_currentObject.commentPage--;
+        //m_pageInput->setString(std::to_string(m_currentPage).c_str());
+        ObjectWorkshop::onLoadComments(sender);
+    }
+}
+void ObjectWorkshop::onRightCommentPage(CCObject* sender) {
+    if ((m_currentObject.commentPage + 1) <= m_currentObject.maxCommentPage) {
+        m_currentObject.commentPage++;
+        //m_pageInput->setString(std::to_string(m_currentPage).c_str());
+        ObjectWorkshop::onLoadComments(sender);
+    }
+}
+
+void ObjectWorkshop::onLoadComments(CCObject*) {
+    m_buttonMenu->removeChildByID("loadcomments"_spr);
+    web::WebRequest req = web::WebRequest();
+    m_topCommentsListener.setFilter(req.get(fmt::format("{}/objects/{}/comments?limit=10&page={}", HOST_URL, m_currentObject.id, m_currentObject.commentPage)));
 }
 
 void ObjectWorkshop::onZoomIn(CCObject*) {
@@ -1177,6 +1369,15 @@ void ObjectWorkshop::onZoomIn(CCObject*) {
 }
 void ObjectWorkshop::onZoomOut(CCObject*) {
     if (previewBG != nullptr) previewBG->updateZoom(-0.2F);
+}
+void ObjectWorkshop::onResetZoom(CCObject*) {
+    if (previewBG != nullptr) previewBG->resetZoom();
+}
+
+void ObjectWorkshop::onCommentBtn(CCObject*) {
+    CommentPopup::create(m_currentObject, [this]() {
+        ObjectWorkshop::onLoadComments(nullptr);
+    })->show();
 }
 
 void ObjectWorkshop::onFavBtn(CCObject*) {
@@ -1321,7 +1522,19 @@ void ObjectWorkshop::onRateBtn(CCObject* sender) {
 }
 
 void ObjectWorkshop::onDescBtn(CCObject*) {
-    DescPopup::create(m_currentObject)->show();
+    FLAlertLayer::create(
+        "Object Info",
+        fmt::format(
+            "<cp>ID</c>: {}\n<cg>Uploader</c>: {}\n<cy>Uploaded</c>: {}\n<cy>Updated</c>: {}\n<cl>Version</c>: {}\n<co>Tags</c>: {}",
+            m_currentObject.id,
+            m_currentObject.authorName,
+            m_currentObject.created,
+            m_currentObject.updated,
+            m_currentObject.version,
+            fmt::join(m_currentObject.tags, ", ")
+        ).c_str(),
+        "OK"
+    )->show();
 }
 
 void ObjectWorkshop::onTrashBtn(CCObject*) {
@@ -1368,7 +1581,7 @@ void ObjectWorkshop::onTrashBtn(CCObject*) {
     );
 }
 void ObjectWorkshop::onEditBtn(CCObject*) {
-    EditPopup::create(m_currentObject, m_availableTags)->show();
+    EditPopup::create(m_currentObject, m_availableTags, m_user)->show();
 }
 void ObjectWorkshop::onVerifyBtn(CCObject*) {
     geode::createQuickPopup(
@@ -1472,11 +1685,13 @@ void ObjectWorkshop::onBackBtn(CCObject*) {
     obj_backBtn->setVisible(false);
     objectInfoNode->removeAllChildrenWithCleanup(true);
     m_buttonMenu->removeChildByID("favbtn"_spr);
+    m_buttonMenu->removeChildByID("commentbtn"_spr);
     m_buttonMenu->removeChildByID("downloadbtn"_spr);
     m_buttonMenu->removeChildByID("loadmorebtn"_spr);
     m_buttonMenu->removeChildByID("uploadbtn"_spr);
     m_buttonMenu->removeChildByID("rulesbtn"_spr);
     m_buttonMenu->removeChildByID("tagbtn"_spr);
+    m_buttonMenu->removeChildByID("loadcomments"_spr);
 }
 
 template <typename T>
@@ -1487,70 +1702,17 @@ T* clonePointer(const T* original) {
     return new T(*original);  // Use the copy constructor to create a new object.
 }
 
-
-// ai generated because idfk how to even think of this
-//
-/**
--220 = (380, 325)
--190 = (325, 290)
--160 = (290, 245)
-
-increments of 30 for the contentYPos part, and increments of 35 for the ranges part
-**/
-struct Range {
-    int lower;
-    int upper;
-};
-
-bool isInScrollSnapRange(int contentYPos, int x) {
-    // Define the base values
-    const int baseX = -220;
-    const int baseY1 = 380;
-    const int baseY2 = 325;
-    const int xIncrement = 30;
-    const int yIncrement = 35;
-
-    // Calculate the number of steps from the base X
-    int steps = std::round(static_cast<double>(x - baseX) / xIncrement);
-
-    // Calculate the expected range
-    Range expectedRange = {
-        baseY2 - steps * yIncrement,
-        baseY1 - steps * yIncrement
-    };
-
-    // Check if contentYPos is within the expected range
-    return (contentYPos >= expectedRange.lower && contentYPos <= expectedRange.upper);
-}
-
-int getSnappedYPosition(float contentYPos, int baseY = 380) {
-    const int yIncrement = 35;
-    int steps = std::round((baseY - contentYPos) / yIncrement);
-    return baseY - steps * yIncrement;
-}
-
-
 void ObjectWorkshop::onUploadBtn(CCObject*) {
     m_filterTags.clear();
     m_currentMenu = 1;
     rightBg->setVisible(false);
     bottomPageLabel->setVisible(false);
     obj_backBtn->setVisible(true);
-    auto topBg = CCScale9Sprite::create("square02_small.png");
-    topBg->setOpacity(25);
-    topBg->setScale(0.65F);
-    topBg->setAnchorPoint({1, 0.5});
-    topBg->setContentSize({435, 27});
-    objectInfoNode->addChildAtPosition(topBg, Anchor::TopRight, {0, -4});
-    
-    auto backLabel = CCLabelBMFont::create("Back To Workshop", "bigFont.fnt");
-    backLabel->setScale(0.375F);
-    objectInfoNode->addChildAtPosition(backLabel, Anchor::Top, {5, -4});
 
     auto middleBg = CCScale9Sprite::create("square02_small.png");
     middleBg->setOpacity(25);
     middleBg->setContentSize({295, 220});
-    objectInfoNode->addChildAtPosition(middleBg, Anchor::Center, {0, -17});
+    objectInfoNode->addChildAtPosition(middleBg, Anchor::Center, {0, 5});
 
     auto previewBG = CCScale9Sprite::create("square02_small.png");
     previewBG->setOpacity(60);
@@ -1586,7 +1748,7 @@ void ObjectWorkshop::onUploadBtn(CCObject*) {
     m_objDesc->setCallback(
         [this, textArea](std::string p0) {
             m_objDesc->getInputNode()->m_placeholderLabel->setOpacity((p0.empty()) ? 255 : 0);
-            textArea->setScale(Utils::calculateScale(p0, 50, 300, 1.0F, 0.35F));
+            textArea->setScale(Utils::calculateScale(p0, 50, 300, 0.9F, 0.35F));
             textArea->m_width = 220.0F / Utils::calculateScale(p0, 50, 300, 1.0F, 0.32F);
             textArea->setString(m_objDesc->getInputNode()->getString());
             //textArea->setString(p0.data());
@@ -1627,9 +1789,9 @@ void ObjectWorkshop::onUploadBtn(CCObject*) {
     );
     filterBtn->setID("tagbtn"_spr);
 
-    m_buttonMenu->addChildAtPosition(filterBtn, Anchor::Bottom, {-60, 35});
-    m_buttonMenu->addChildAtPosition(uploadBtn, Anchor::BottomRight, {-85, 35});
-    m_buttonMenu->addChildAtPosition(rulesBtn, Anchor::BottomRight, {-195, 35});
+    m_buttonMenu->addChildAtPosition(filterBtn, Anchor::Bottom, {-60, 57});
+    m_buttonMenu->addChildAtPosition(uploadBtn, Anchor::BottomRight, {-85, 57});
+    m_buttonMenu->addChildAtPosition(rulesBtn, Anchor::BottomRight, {-195, 57});
     //bottomBg->addChildAtPosition(textArea, Anchor::Center, {0, -20});
     if (auto editor = CustomObjects::get()) {
         auto scrollLayer = ScrollLayerExt::create({ 0, 0, 275.0F, 280.0F }, true);
@@ -1685,7 +1847,7 @@ void ObjectWorkshop::onUploadBtn(CCObject*) {
                     float contentYPos = scrollLayer->m_contentLayer->getPositionY();
                     float childYPos = (child->getPositionY());
 
-                    child->setEnabled(!isInScrollSnapRange(contentYPos, childYPos));
+                    child->setEnabled(!Utils::isInScrollSnapRange(contentYPos, childYPos));
 
                     //float index = -(contentYPos + 220) / 30.F;
                     //float lower_bound = 380.F + index * 35.F;
@@ -1696,7 +1858,9 @@ void ObjectWorkshop::onUploadBtn(CCObject*) {
                     // 60 
                 }
             }
-            scrollLayer->m_contentLayer->setPositionY(getSnappedYPosition(scrollLayer->m_contentLayer->getPositionY(), 300)); // or 290
+            if (scrollLayer->m_contentLayer->getPositionY() > -220.F) {
+                scrollLayer->m_contentLayer->setPositionY(Utils::getSnappedYPosition(scrollLayer->m_contentLayer->getPositionY(), 300)); // or 290
+            }
         });
     }
 }
@@ -1758,6 +1922,8 @@ void ObjectWorkshop::onUpload(CCObject*) {
             obj_backBtn->setVisible(false);
             objectInfoNode->removeAllChildrenWithCleanup(true);
             m_buttonMenu->removeChildByID("favbtn"_spr);
+            m_buttonMenu->removeChildByID("loadcomments"_spr);
+            m_buttonMenu->removeChildByID("commentbtn"_spr);
             m_buttonMenu->removeChildByID("downloadbtn"_spr);
             m_buttonMenu->removeChildByID("loadmorebtn"_spr);
             m_buttonMenu->removeChildByID("uploadbtn"_spr);
@@ -1780,7 +1946,7 @@ void ObjectWorkshop::onUpload(CCObject*) {
                     auto isError = jsonRes.try_get<std::string>("error");
                     if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
                     Notification::create("Uploaded Object! It is now pending!", NotificationIcon::Success)->show();
-                    loadingCircle->fadeAndRemove();
+                    if (loadingCircle != nullptr) loadingCircle->fadeAndRemove();
                     m_buttonMenu->setEnabled(true);
                     return;
                 } else if (web::WebProgress* progress = e->getProgress()) {
@@ -1791,7 +1957,7 @@ void ObjectWorkshop::onUpload(CCObject*) {
                     rightBg->setVisible(true);
                     bottomPageLabel->setVisible(true);
                     m_buttonMenu->setEnabled(true);
-                    loadingCircle->fadeAndRemove();
+                    if (loadingCircle != nullptr) loadingCircle->fadeAndRemove();
                 }
             });
             m_filterTags.clear();
@@ -1821,18 +1987,14 @@ void ObjectWorkshop::onClose(CCObject* sender) {
     m_reviewListener.getFilter().cancel();
     m_uploadListener.getFilter().cancel();
     m_tagsListener.getFilter().cancel();
+
+    m_commentListener.getFilter().cancel();
+    m_commentsListener.getFilter().cancel();
+    m_topCommentsListener.getFilter().cancel();
     this->setKeypadEnabled(false);
     this->setTouchEnabled(false);
     this->removeFromParentAndCleanup(true);
     Popup::onClose(sender);
-}
-
-void ObjectWorkshop::onInfoBtn(CCObject*) {
-    FLAlertLayer::create(
-        "About", // Title
-        "This mod was made with most of the hard work done by me! <cp>Firee</c>!\nThank you to <cj>Midair</c> for the mod idea, <cy>Alphalaneous</c> for the extra mod ui design / feedback, and <cy>Zidnes</c> for creating the ui concept!", // Description
-        "OK" // Not having another button will only show this one button.
-    )->show();
 }
 
 void ObjectWorkshop::keyDown(cocos2d::enumKeyCodes key) {

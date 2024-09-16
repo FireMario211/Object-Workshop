@@ -1,3 +1,12 @@
+# v1.2.0
+- Improved on the UI for clicking on objects (Thanks Rue!) - It will be overhauled again next major update.
+- Allowed updating an object rather then needing to delete and reupload
+- Added a "reset zoom" button
+- Added comments
+- Added info button
+- Added Custom Object Bypass
+- Removed the "Enabled" setting as its useless
+- Fixed bug searching with too many tags
 # v1.1.3
 - Changed Android32 to NOT use TextArea (geode needs to fix gd::string!) basically setting a description is now fixed with a few caviats
 - Made downloading pending objects not send a request.

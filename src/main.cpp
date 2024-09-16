@@ -77,7 +77,6 @@ class $modify(LevelEditorLayer) {
 
 bool CustomObjects::init(LevelEditorLayer* editorLayer) {
     if (!EditorUI::init(editorLayer)) return false;
-    if (!Mod::get()->getSettingValue<bool>("enabled")) return true;
     EditorTabs::addTab(this, TabType::BUILD, "workshop"_spr, [this](EditorUI* ui, CCMenuItemToggler* toggler) -> CCNode* { //create the tab
         auto arr = CCArray::create();
         auto folder = CCSprite::createWithSpriteFrameName("gj_folderBtn_001.png");
@@ -199,3 +198,55 @@ bool CustomObjects::init(LevelEditorLayer* editorLayer) {
 
     return true;
 }
+
+class $modify(ObjectBypass, EditorUI) {
+    void onNewCustomItem(CCObject* pSender) {
+        if (!Mod::get()->getSettingValue<bool>("object-bypass")) return EditorUI::onNewCustomItem(pSender);
+        if (m_selectedObjects && m_selectedObjects->count() > 0) {
+            if (auto gameManager = GameManager::sharedState()) {
+                CCArray* newSelectedObjs;
+                if (m_selectedObjects->count() == 0) {
+                    newSelectedObjs = cocos2d::CCArray::create();
+                    newSelectedObjs->addObject(m_selectedObject);
+                } else {
+                    newSelectedObjs = this->m_selectedObjects;
+                }
+                gameManager->addNewCustomObject(copyObjects(newSelectedObjs, false, false));
+                m_selectedObjectIndex = 0;
+                reloadCustomItems();
+            }
+        } else {
+            EditorUI::onNewCustomItem(pSender);
+        }
+    }
+    /*
+  if ((this->m_selectedObjects == (CCArray *)0x0) ||
+     (uVar1 = cocos2d::CCArray::count(this->m_selectedObjects), uVar1 < 0x3e9)) {
+    pGVar2 = GameManager::sharedState();
+    uVar1 = cocos2d::CCDictionary::count(*(CCDictionary **)(pGVar2 + 0x134));
+    if (uVar1 < 200) {
+      if (((this->m_selectedObject == (GameObject *)0x0) &&
+          (uVar1 = cocos2d::CCArray::count(this->m_selectedObjects), uVar1 == 0)) ||
+         ((this->m_selectedObject != (GameObject *)0x0 &&
+          (*(int *)((int)&(this->m_selectedObject->GameObject_data).offset_0x100 + 4) == 0x2ed))))
+      goto LAB_003a366e;
+      uVar1 = cocos2d::CCArray::count(this->m_selectedObjects);
+      if (uVar1 == 0) {
+        this_00 = cocos2d::CCArray::create();
+        cocos2d::CCArray::addObject(this_00,(CCObject *)this->m_selectedObject);
+      }
+      else {
+        this_00 = this->m_selectedObjects;
+      }
+      pGVar3 = copyObjects((EditorUI *)&local_24,(CCArray *)this,false,false);
+      if ((*(int *)(local_24 + -0xc) != 0) &&
+         (uVar1 = cocos2d::CCArray::count(this->m_selectedObjects), uVar1 < 1001)) {
+        pGVar2 = GameManager::sharedState();
+        GameManager::addNewCustomObject(pGVar2,(basic_string)pGVar3);
+        this->m_selectedObjectIndex = 0;
+        reloadCustomItems(this);
+      }
+    }
+
+    */
+};

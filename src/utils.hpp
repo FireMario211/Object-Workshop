@@ -1,7 +1,6 @@
 #pragma once
 
 class Utils {
-
     public:
     // honestly matjson needs this tbh!
     template <typename T>
@@ -115,6 +114,47 @@ class Utils {
             float scale = minScale - ((length - minLength) * (minScale - maxScale) / (maxLength - minLength));
             return scale;
         }
+    }
+
+    
+    // ai generated because idk how to even think of this
+    //
+    /**
+    -220 = (380, 325)
+    -190 = (325, 290)
+    -160 = (290, 245)
+
+    increments of 30 for the contentYPos part, and increments of 35 for the ranges part
+    **/
+    static bool isInScrollSnapRange(int contentYPos, int x) {
+        // Define the base values
+        const int baseX = -220;
+        const int baseY1 = 380;
+        const int baseY2 = 325;
+        const int xIncrement = 30;
+        const int yIncrement = 35;
+
+        // Calculate the number of steps from the base X
+        int steps = std::round(static_cast<double>(x - baseX) / xIncrement);
+
+        struct Range {
+            int lower;
+            int upper;
+        };
+        // Calculate the expected range
+        Range expectedRange = {
+            baseY2 - steps * yIncrement,
+            baseY1 - steps * yIncrement
+        };
+
+        // Check if contentYPos is within the expected range
+        return (contentYPos >= expectedRange.lower && contentYPos <= expectedRange.upper);
+    }
+
+    static int getSnappedYPosition(float contentYPos, int baseY = 380) {
+        const int yIncrement = 35;
+        int steps = std::round((baseY - contentYPos) / yIncrement);
+        return baseY - steps * yIncrement;
     }
 
 
