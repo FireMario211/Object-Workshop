@@ -46,39 +46,46 @@ bool CommentPopup::setup(ObjectData obj, utils::MiniFunction<void()> callback) {
 }
 
 void CommentPopup::textChanged(CCTextInputNode* input) {
+    if (m_closed) return;
     updateDescText(input->getString());
 }
 void CommentPopup::textInputClosed(CCTextInputNode* input) {
+    if (input == nullptr || m_closed) return;
     m_descText = input->getString();
     updateDescText(m_descText);
 }
 void CommentPopup::updateDescText(std::string string) {
+    if (m_closed) return;
     m_descText = string;
     updateCharCountLabel();
 }
 
 void CommentPopup::updateCharCountLabel() {
+    if (m_closed) return;
     if (m_charCountLabel != nullptr) m_charCountLabel->setString(std::to_string(100 - m_descText.length()).c_str());
+}
+
+void CommentPopup::onClose(CCObject* sender) {
+    m_closed = true;
+    Popup::onClose(sender);
 }
 
 void CommentPopup::onSubmit(CCObject*) {
     if (m_descText.empty()) return;
+    if (m_closed) return;
     m_mainLayer->setVisible(false);
     auto token = Mod::get()->getSettingValue<std::string>("token");
     m_listener.getFilter().cancel();
-    auto notif = Notification::create("Sending...", NotificationIcon::Loading);
-    notif->show();
-    m_listener.bind([this, notif, token] (web::WebTask::Event* e) {
+    m_listener.bind([this] (web::WebTask::Event* e) {
         if (web::WebResponse* value = e->getValue()) {
             auto jsonRes = value->json().unwrapOrDefault();
             if (!jsonRes.is_object()) return log::error("Response isn't object.");
             auto isError = jsonRes.try_get<std::string>("error");
-            if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
-            notif->hide();
+            if (isError) return Notification::create(isError.value(), NotificationIcon::Error)->show();
             auto message = jsonRes.try_get<std::string>("message");
             if (message) {
                 this->onClose(nullptr);
-                Notification::create(message->c_str(), NotificationIcon::Success)->show();
+                Notification::create(message.value(), NotificationIcon::Success)->show();
                 m_submitCallback();
             } else {
                 log::error("Unknown response, expected message. {}", jsonRes.dump());

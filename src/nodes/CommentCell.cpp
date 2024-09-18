@@ -111,7 +111,38 @@ bool OWCommentCell::init(CommentData data, ObjectData obj, UserData user, utils:
 }
 
 void OWCommentCell::onVote(CCObject*) {
-    VotePopup::create(m_data, m_forceRefresh)->show();
+    VotePopup::create("Vote", [this](bool like) {
+        auto token = Mod::get()->getSettingValue<std::string>("token");
+        m_listener.getFilter().cancel();
+        m_listener.bind([this, token] (web::WebTask::Event* e) {
+            if (web::WebResponse* value = e->getValue()) {
+                auto jsonRes = value->json().unwrapOrDefault();
+                if (!jsonRes.is_object()) return log::error("Response isn't object.");
+                auto isError = jsonRes.try_get<std::string>("error");
+                if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
+                auto message = jsonRes.try_get<std::string>("message");
+                if (message) {
+                    m_forceRefresh();
+                    Notification::create(message->c_str(), NotificationIcon::Success)->show();
+                } else {
+                    log::error("Unknown response, expected message. {}", jsonRes.dump());
+                    Notification::create("Got an unknown response, check logs for details.", NotificationIcon::Warning)->show();
+                }
+                return;
+            } else if (web::WebProgress* progress = e->getProgress()) {
+                // The request is still in progress...
+            } else if (e->isCancelled()) {
+                log::error("Request was cancelled.");
+            }
+        });
+        web::WebRequest req = web::WebRequest();
+        auto myjson = matjson::Value();
+        myjson.set("token", token);
+        myjson.set("like", (int)like);
+        req.header("Content-Type", "application/json");
+        req.bodyJSON(myjson);
+        m_listener.setFilter(req.post(fmt::format("{}/objects/{}/comments/{}/vote", HOST_URL, m_data.objectID, m_data.id)));
+    })->show();
 }
 void OWCommentCell::onPin(CCObject*) {
     geode::createQuickPopup(

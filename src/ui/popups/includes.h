@@ -3,3 +3,5 @@
 #include "FiltersPopup.hpp"
 #include "ReportPopup.hpp"
 #include "CommentPopup.hpp"
+//#include "ObjectPopup.hpp"
+#include "VotePopup.hpp"

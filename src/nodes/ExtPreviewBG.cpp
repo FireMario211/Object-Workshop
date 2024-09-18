@@ -1,11 +1,12 @@
 #include "ExtPreviewBG.hpp"
-bool ExtPreviewBG::init(std::string data) {
+#include "../config.hpp"
+bool ExtPreviewBG::init(std::string data, CCSize contentSize) {
     if (!CCLayer::init()) return false;
-    this->setContentSize({ 124.F, 82.F });
+    this->setContentSize(contentSize);
     this->setAnchorPoint({0.5, 0.5});
     bg = CCScale9Sprite::create("square02_small.png");
     bg->setOpacity(60);
-    bg->setContentSize({ 124.F, 82.F });
+    bg->setContentSize(this->getContentSize());
 
     auto previewLabel = CCLabelBMFont::create("Preview", "goldFont.fnt");
     previewLabel->setScale(0.425F);
@@ -14,21 +15,22 @@ bool ExtPreviewBG::init(std::string data) {
 
     CCLayerColor* mask = CCLayerColor::create({255, 255, 255});
     mask->setContentSize(bg->getContentSize());
-    auto clippingNode = CCClippingNode::create();
-    clippingNode->setContentSize(bg->getContentSize());
-    clippingNode->setAnchorPoint({0.5, 0.5});
+    m_clippingNode = CCClippingNode::create();
+    m_clippingNode->setContentSize(bg->getContentSize());
+    m_clippingNode->setAnchorPoint({0.5, 0.5});
     if (auto editorUI = EditorUI::get() && data.length() > 0) {
         auto renderLimit = Mod::get()->getSettingValue<int64_t>("render-objects");
         auto smartBlock = CCArray::create();
         objSprite = EditorUI::get()->spriteFromObjectString(data, false, false, renderLimit, smartBlock, (CCArray *)0x0,(GameObject *)0x0);
         LevelEditorLayer::get()->updateObjectColors(smartBlock);
-        objSprite->setScale((clippingNode->getContentSize().height - 20) / objSprite->getContentSize().height);
+        objSprite->setScale((m_clippingNode->getContentSize().height - 20) / objSprite->getContentSize().height);
         m_oldScale = objSprite->getScale();
-        clippingNode->addChildAtPosition(objSprite, Anchor::Center, {0, -5});
+        m_clippingNode->addChildAtPosition(objSprite, Anchor::Center, {0, -5});
+        m_oldPos = objSprite->getPosition();
     }
-    clippingNode->setStencil(mask);
-    clippingNode->setZOrder(1);
-    this->addChildAtPosition(clippingNode, Anchor::Center);
+    m_clippingNode->setStencil(mask);
+    m_clippingNode->setZOrder(1);
+    this->addChildAtPosition(m_clippingNode, Anchor::Center);
 
     this->registerWithTouchDispatcher();
     this->setTouchEnabled(true);
@@ -67,18 +69,40 @@ void ExtPreviewBG::ccTouchMoved(CCTouch* touch, CCEvent* event) {
 }
 
 void ExtPreviewBG::updateZoom(float amount) {
-    if (!(m_currentZoom < 0) && m_currentZoom < 25) m_currentZoom += amount;
-    objSprite->setScale(m_oldScale * m_currentZoom);
+    float newZoom = m_currentZoom + amount;
+    if (newZoom >= MIN_ZOOM && newZoom <= 25.0f) {
+        float oldZoom = m_currentZoom;
+        m_currentZoom += amount;
+        float zoomFactor = m_currentZoom / oldZoom;
+        
+        auto relativePos = (m_oldPos - objSprite->getPosition()) / oldZoom;
+        objSprite->setScale(m_oldScale * m_currentZoom);
+        objSprite->setPosition(m_oldPos - (relativePos * m_currentZoom));
+    }
 };
+
+void ExtPreviewBG::setZoom(float amount) {
+    if (amount >= MIN_ZOOM && amount <= 25.0f) {
+        float oldZoom = m_currentZoom;
+        m_currentZoom = amount;
+        float zoomFactor = m_currentZoom / oldZoom;
+        
+        auto relativePos = (m_oldPos - objSprite->getPosition()) / oldZoom;
+        objSprite->setScale(m_oldScale * m_currentZoom);
+        objSprite->setPosition(m_oldPos - (relativePos * m_currentZoom));
+    }
+};
+
 void ExtPreviewBG::resetZoom() {
     m_currentZoom = 1.0F;
     objSprite->setScale(m_oldScale * m_currentZoom);
+    objSprite->setPosition(m_oldPos);
 };
 
-ExtPreviewBG* ExtPreviewBG::create(std::string data) {
+ExtPreviewBG* ExtPreviewBG::create(std::string data, CCSize contentSize) {
     auto pRet = new ExtPreviewBG();
     if (pRet) {
-        if (pRet->init(data)) {
+        if (pRet->init(data, contentSize)) {
             pRet->autorelease();
             return pRet;
         }

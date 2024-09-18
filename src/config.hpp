@@ -3,3 +3,5 @@
 //#define HOST_URL "http://localhost:3000"
 
 #define RESULT_LIMIT 9
+#define MAX_ZOOM 10
+#define MIN_ZOOM 0.01

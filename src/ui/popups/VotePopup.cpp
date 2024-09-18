@@ -1,10 +1,8 @@
 #include "VotePopup.hpp"
-#include "../../config.hpp"
 
-bool VotePopup::setup(CommentData obj, utils::MiniFunction<void()> callback) {
-    m_data = obj;
-    m_forceRefresh = callback;
-    auto title = CCLabelBMFont::create("Vote", "bigFont.fnt");
+bool VotePopup::setup(std::string title_str, utils::MiniFunction<void(bool)> callback) {
+    m_callback = callback;
+    auto title = CCLabelBMFont::create(title_str.c_str(), "bigFont.fnt");
     m_mainLayer->addChildAtPosition(title, Anchor::Top, {0, -20});
     auto likeSpr = CCSprite::createWithSpriteFrameName("GJ_likeBtn_001.png");
     likeSpr->setScale(1.2F);
@@ -21,54 +19,44 @@ bool VotePopup::setup(CommentData obj, utils::MiniFunction<void()> callback) {
     return true;
 }
 
-void VotePopup::sendVote(bool like) {
-    auto token = Mod::get()->getSettingValue<std::string>("token");
-    m_listener.getFilter().cancel();
-    this->setVisible(false);
-    m_listener.bind([this, token] (web::WebTask::Event* e) {
-        if (web::WebResponse* value = e->getValue()) {
-            auto jsonRes = value->json().unwrapOrDefault();
-            if (!jsonRes.is_object()) {
-                log::error("Response isn't object.");
-                this->onClose(nullptr);
-                return;
-            }
-            auto isError = jsonRes.try_get<std::string>("error");
-            if (isError) {
-                Notification::create(isError->c_str(), NotificationIcon::Error)->show();
-                this->onClose(nullptr);
-                return;
-            }
-            auto message = jsonRes.try_get<std::string>("message");
-            if (message) {
-                m_forceRefresh();
-                Notification::create(message->c_str(), NotificationIcon::Success)->show();
-                this->onClose(nullptr);
-            } else {
-                log::error("Unknown response, expected message. {}", jsonRes.dump());
-                Notification::create("Got an unknown response, check logs for details.", NotificationIcon::Warning)->show();
-                this->onClose(nullptr);
-            }
-            return;
-        } else if (web::WebProgress* progress = e->getProgress()) {
-            // The request is still in progress...
-        } else if (e->isCancelled()) {
-            log::error("Request was cancelled.");
-            this->onClose(nullptr);
-        }
-    });
-    web::WebRequest req = web::WebRequest();
-    auto myjson = matjson::Value();
-    myjson.set("token", token);
-    myjson.set("like", (int)like);
-    req.header("Content-Type", "application/json");
-    req.bodyJSON(myjson);
-    m_listener.setFilter(req.post(fmt::format("{}/objects/{}/comments/{}/vote", HOST_URL, m_data.objectID, m_data.id)));
+void VotePopup::setWarning(std::string message1, std::string message2) {
+    m_warningMessage1 = message1;
+    m_warningMessage2 = message2;
+    m_showWarning = true;
+}
+
+void VotePopup::onVote(bool vote) {
+    m_callback(vote);
+    this->onClose(nullptr);
 }
 
 void VotePopup::onLike(CCObject*) {
-    VotePopup::sendVote(true);
+    if (m_showWarning) {
+        geode::createQuickPopup(
+        "Warning",
+        m_warningMessage1,
+        "No",
+        "Yes",
+        [this](auto, bool btn2) {
+            if (btn2)
+                onVote(true);
+        });
+    } else {
+        onVote(true);
+    }
 }
 void VotePopup::onDislike(CCObject*) {
-    VotePopup::sendVote(false);
+    if (m_showWarning) {
+        geode::createQuickPopup(
+        "Warning",
+        m_warningMessage2,
+        "No",
+        "Yes",
+        [this](auto, bool btn2) {
+            if (btn2)
+                onVote(false);
+        });
+    } else {
+        onVote(false);
+    }
 }

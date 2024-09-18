@@ -147,7 +147,7 @@ oRouter.post('/objects/upload',
             return false;
         })
         if (hasBlacklistedIDs) return res.status(403).json({error: "Blacklisted IDs are not allowed."});
-        if (!tags || !tags.length) tags = [];
+        if (!tags || !tags.length) return res.status(400).json({error: "You need to add at least 1 tag!"});
         if (tags.length > 5) return res.status(413).json({error: "You can only add a maximum of 5 tags!"});
         if (data.length == 1) return res.status(400).json({error: "hi my name is firee"});
         if (data.length == 2) return res.status(400).json({error: "hola me llamo firee"});
@@ -747,7 +747,7 @@ oRouter.post('/objects/:id/update',
                 if (!verifyRes.user) return res.status(404).json({error: "Couldn't retrieve user."});
                 const accountID = verifyRes.user.account_id;
                 try {
-                    if (verifyRes.user && verifyRes.user.role == 3) {
+                    if (verifyRes.user && verifyRes.user.role == 2) {
                         const objExists = await pool.query("SELECT EXISTS (SELECT 1 FROM objects WHERE id = $1)", [objectID])
                         if (!objExists.rows[0].exists) return res.status(404).json({error: "Object not found."}); 
                     } else {
@@ -971,7 +971,7 @@ oRouter.get('/objects/:id/comments',
                         users u ON c.account_id = u.account_id
                     WHERE c.object_id = $1
                     GROUP BY c.id, u.name, u.icon, u.role
-                    ORDER BY c.timestamp, c.pinned ASC
+                    ORDER BY c.pinned DESC, c.timestamp DESC
                     LIMIT $2 OFFSET $3
                 `;
                 const result = await pool.query(query, [objectID, limit, offset]);

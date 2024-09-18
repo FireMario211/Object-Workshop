@@ -1,25 +1,24 @@
 #pragma once
 #include <Geode/Geode.hpp>
 #include <Geode/ui/Popup.hpp>
-#include "../../nodes/CommentCell.hpp"
-#include <Geode/utils/web.hpp>
 using namespace geode::prelude;
 
-class VotePopup : public geode::Popup<CommentData, utils::MiniFunction<void()>> {
+class VotePopup : public geode::Popup<std::string, utils::MiniFunction<void(bool)>> {
 protected:
-    EventListener<web::WebTask> m_listener;
-    utils::MiniFunction<void()> m_forceRefresh;
-    CommentData m_data;
+    utils::MiniFunction<void(bool)> m_callback;
+    std::string m_warningMessage1;
+    std::string m_warningMessage2;
+    bool m_showWarning = false;
 
-    bool setup(CommentData obj, utils::MiniFunction<void()> callback) override;
+    bool setup(std::string, utils::MiniFunction<void(bool)>) override;
     void onLike(CCObject*);
     void onDislike(CCObject*);
-    void sendVote(bool like);
-
+    void onVote(bool vote);
 public:
-    static VotePopup* create(CommentData obj, utils::MiniFunction<void()> callback) {
+    void setWarning(std::string message1, std::string message2);
+    static VotePopup* create(std::string title, utils::MiniFunction<void(bool)> callback) {
         auto ret = new VotePopup();
-        if (ret->initAnchored(200.f, 115.f, obj, callback)) {
+        if (ret->initAnchored(200.f, 115.f, title, callback)) {
             ret->autorelease();
             return ret;
         }

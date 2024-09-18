@@ -1,6 +1,5 @@
 #include "../config.hpp"
 #include "ObjectWorkshop.hpp"
-#include "Geode/ui/ListView.hpp"
 #include "popups/includes.h"
 #include "../nodes/CategoryButton.hpp"
 #include "../utils.hpp"
@@ -116,8 +115,9 @@ bool ObjectWorkshop::setup(bool authenticated) {
     m_searchInput = TextInput::create(110.0F, "Search...");
     m_searchInput->setMaxCharCount(64);
     m_searchInput->setScale(0.525F);
+    m_searchInput->setAnchorPoint({ 0, .5f });
     m_searchInput->setTextAlign(TextInputAlign::Left);
-    m_buttonMenu->addChildAtPosition(m_searchInput, Anchor::BottomLeft, { 38, 18 });
+    m_buttonMenu->addChildAtPosition(m_searchInput, Anchor::BottomLeft, { 8, 18 });
     m_buttonMenu->addChildAtPosition(m_categoryButtons, Anchor::Left, {55, 32});
 
     auto searchSpr = CCSprite::createWithSpriteFrameName("gj_findBtn_001.png");
@@ -988,8 +988,10 @@ void ObjectWorkshop::onClickObject(CCObject* sender) {
         auto reportBtn = CCMenuItemSpriteExtra::create(
             reportSpr, this, menu_selector(ObjectWorkshop::onReportBtn)
         );
-        if (m_user.account_id == m_currentObject.authorAccId || m_user.role == 3) {
+        if (m_user.account_id == m_currentObject.authorAccId || m_user.role == 2) {
             menu2->addChild(editBtn);
+        }
+        if (m_user.account_id == m_currentObject.authorAccId || m_user.role == 3) {
             menu2->addChild(trashBtn);
         }
         if (m_user.role >= 2 && m_currentObject.pending) {
@@ -1868,9 +1870,11 @@ void ObjectWorkshop::onUploadBtn(CCObject*) {
 void ObjectWorkshop::onSearchBtn(CCObject*) {
     if (m_searchInput != nullptr) {
         if (m_searchInput->getString().empty()) return FLAlertLayer::create("Error", "You must enter in a <cy>search query</c>!", "OK")->show();
+        if (currentMenuIndexGD < 2) return FLAlertLayer::create("Error", "You cannot search in <cy>My Objects</c> or <cy>Favorites</c>! Please select another category.", "OK")->show();
         isSearching = true;
         RegenCategory();
-    }
+    } 
+    //ObjectPopup::create(m_currentObject, m_user)->show();
 }
 
 void ObjectWorkshop::onReloadBtn(CCObject*) {
@@ -1903,6 +1907,7 @@ void ObjectWorkshop::onUploadFilterBtn(CCObject*) {
 void ObjectWorkshop::onUpload(CCObject*) {
     if (auto editor = EditorUI::get()) {
         if (auto gameManager = GameManager::sharedState()) {
+            if (m_filterTags.size() == 0) return FLAlertLayer::create("Error", "You must <cy>set a tag</c>! Click on the grey filter button to set one!", "OK")->show();
             if (m_filterTags.size() > 5) return FLAlertLayer::create("Error", "You cannot set more than <cy>5 tags</c>!", "OK")->show();
             if (m_objName == nullptr || m_objDesc == nullptr) return FLAlertLayer::create("Error", "Couldn't find <cy>input nodes</c>", "OK")->show();
             if (m_objName != nullptr && m_objName->getString().empty()) return FLAlertLayer::create("Error", "You must enter in the <cy>object name</c>!", "OK")->show();

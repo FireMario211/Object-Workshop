@@ -11,6 +11,9 @@ protected:
     ObjectData m_object;
     CCLabelBMFont* m_charCountLabel;
     std::string m_descText;
+
+    bool m_closed = false; // prevent unnecessary crash because for some reason this can happen
+
     bool setup(ObjectData obj, utils::MiniFunction<void()>) override;
     void onSubmit(CCObject*);
     void updateCharCountLabel();
@@ -20,6 +23,7 @@ protected:
     void textInputOpened(CCTextInputNode*) override {}
     void textChanged(CCTextInputNode*) override;
     void textInputClosed(CCTextInputNode*) override;
+    virtual void onClose(CCObject* sender) override;
 public:
     static CommentPopup* create(ObjectData obj, utils::MiniFunction<void()> callback) {
         auto ret = new CommentPopup();

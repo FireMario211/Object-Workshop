@@ -1,3 +1,10 @@
+# v1.2.2
+- Added a requirement for 1 tag to be added for uploading
+- Prevent searching in My Objects and Favorites
+- Fixed issue with Object Workshop button not centering in the Editor
+- Fixed the "reset zoom" button to also reset positioning
+- Fixed zooming to "act like zooming" (instead of scaling based on the center)
+- (hopefully) Fixed issue with crash on clicking on the cancel button of a comment popup
 # v1.2.1
 - Fixed bug with attempting to render invalid icons crashing
 # v1.2.0

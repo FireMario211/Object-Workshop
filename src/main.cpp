@@ -78,7 +78,6 @@ class $modify(LevelEditorLayer) {
 bool CustomObjects::init(LevelEditorLayer* editorLayer) {
     if (!EditorUI::init(editorLayer)) return false;
     EditorTabs::addTab(this, TabType::BUILD, "workshop"_spr, [this](EditorUI* ui, CCMenuItemToggler* toggler) -> CCNode* { //create the tab
-        auto arr = CCArray::create();
         auto folder = CCSprite::createWithSpriteFrameName("gj_folderBtn_001.png");
         folder->setScale(0.4F);
         auto labelC = CCLabelBMFont::create("C+", "bigFont.fnt");
@@ -140,9 +139,6 @@ bool CustomObjects::init(LevelEditorLayer* editorLayer) {
         m_fields->btn1 = CCMenuItemSpriteExtra::create(btn1Spr, this, menu_selector(CustomObjects::onWorkshop));
         m_fields->menu->addChildAtPosition(m_fields->btn1, Anchor::Center, {0, -7});
         m_fields->menu->setContentHeight(90.F);
-        //menu->setPositionY(45.F);
-
-        arr->addObject(m_fields->menu);
         m_fields->menu->updateLayout();
 
         auto token = Mod::get()->getSettingValue<std::string>("token");
@@ -186,14 +182,9 @@ bool CustomObjects::init(LevelEditorLayer* editorLayer) {
             req.bodyJSON(myjson);
             m_fields->m_listener.setFilter(req.post(fmt::format("{}/user/@me", HOST_URL)));
         }
-        //m_fields->menu->setPosition({-2, -112});
-        m_fields->menu->setPosition({285, 45});
-        //return EditorTabUtils::createEditButtonBar(arr, ui);
+        auto winSize = CCDirector::sharedDirector()->getWinSize();
+        m_fields->menu->setPosition({winSize.width / 2, 45});
         return m_fields->menu;
-    }, [this](EditorUI* ui, bool state, CCNode*) { //toggled the tab (activates on every tab click)
-        if (m_fields->menu != nullptr) {
-            //m_fields->menu->setPosition({-2, -112});
-        }
     });
 
     return true;
@@ -218,35 +209,31 @@ class $modify(ObjectBypass, EditorUI) {
         } else {
             EditorUI::onNewCustomItem(pSender);
         }
-    }
-    /*
-  if ((this->m_selectedObjects == (CCArray *)0x0) ||
-     (uVar1 = cocos2d::CCArray::count(this->m_selectedObjects), uVar1 < 0x3e9)) {
-    pGVar2 = GameManager::sharedState();
-    uVar1 = cocos2d::CCDictionary::count(*(CCDictionary **)(pGVar2 + 0x134));
-    if (uVar1 < 200) {
-      if (((this->m_selectedObject == (GameObject *)0x0) &&
-          (uVar1 = cocos2d::CCArray::count(this->m_selectedObjects), uVar1 == 0)) ||
-         ((this->m_selectedObject != (GameObject *)0x0 &&
-          (*(int *)((int)&(this->m_selectedObject->GameObject_data).offset_0x100 + 4) == 0x2ed))))
-      goto LAB_003a366e;
-      uVar1 = cocos2d::CCArray::count(this->m_selectedObjects);
-      if (uVar1 == 0) {
-        this_00 = cocos2d::CCArray::create();
-        cocos2d::CCArray::addObject(this_00,(CCObject *)this->m_selectedObject);
-      }
-      else {
-        this_00 = this->m_selectedObjects;
-      }
-      pGVar3 = copyObjects((EditorUI *)&local_24,(CCArray *)this,false,false);
-      if ((*(int *)(local_24 + -0xc) != 0) &&
-         (uVar1 = cocos2d::CCArray::count(this->m_selectedObjects), uVar1 < 1001)) {
-        pGVar2 = GameManager::sharedState();
-        GameManager::addNewCustomObject(pGVar2,(basic_string)pGVar3);
-        this->m_selectedObjectIndex = 0;
-        reloadCustomItems(this);
-      }
-    }
 
-    */
+/*
+        if (m_selectedObjects == nullptr || m_selectedObjects->count() <= 1000) {
+            if (auto gameManager = GameManager::sharedState()) {
+                if (gameManager->m_customObjectDict->count() < 200) {
+                    if ((m_selectedObject == nullptr && m_selectedObjects->count() == 0) || (m_selectedObject != nullptr && m_selectedObject->m_objectID == 0x2ed)) return;
+                    CCArray* newSelectedObjs;
+                    if (m_selectedObjects->count() == 0) {
+                        newSelectedObjs = cocos2d::CCArray::create();
+                        newSelectedObjs->addObject(m_selectedObject);
+                    } else {
+                        newSelectedObjs = this->m_selectedObjects;
+                    }
+                    gameManager->addNewCustomObject(copyObjects(newSelectedObjs, false, false));
+                    m_selectedObjectIndex = 0;
+                    reloadCustomItems();
+                } else {
+                    auto string = cocos2d::CCString::createWithFormat("You cannot create more than <cy>%i</c> custom objects.", 200);
+                    FLAlertLayer::create(nullptr, "Max Custom Objects", string->getCString(), "OK", nullptr)->show();
+                }
+            }
+        } else {
+            auto string = cocos2d::CCString::createWithFormat("A custom object cannot contain more than <cg>%i</c> objects.", 1000);
+            FLAlertLayer::create(nullptr, "Max Limit", string->getCString(), "OK", nullptr)->show();
+        }
+*/
+    }
 };
