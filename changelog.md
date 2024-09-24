@@ -1,3 +1,12 @@
+# v1.3.0
+- Added user profiles
+- Replaced Trending with Featured
+- Revamped Object UI
+- Added abbreviations for object items (Object Count and Download Count)
+- Fixed touch prio issues when filtering with tags, not being signed in, etc
+- Fixed tags with spaces (Like "Auto Build") not working when filtering
+- Fixed bug where you cannot go to the next page of "My Objects"
+- (if you have the mod and when doggo accepts my pr) Added support for Emojis in Comments
 # v1.2.2
 - Added a requirement for 1 tag to be added for uploading
 - Prevent searching in My Objects and Favorites

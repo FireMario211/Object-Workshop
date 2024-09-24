@@ -2,6 +2,7 @@
 #include "../config.hpp"
 #include "../utils.hpp"
 #include "../ui/popups/VotePopup.hpp"
+#include "Geode/utils/cocos.hpp"
 
 bool OWCommentCell::init(CommentData data, ObjectData obj, UserData user, utils::MiniFunction<void()> callback) {
     if (!CCScale9Sprite::init()) return false;
@@ -9,15 +10,14 @@ bool OWCommentCell::init(CommentData data, ObjectData obj, UserData user, utils:
     m_user = user;
     m_forceRefresh = callback;
     this->setAnchorPoint({ 0.5, 0.5 });
-    this->setContentSize({ 137.0f, 40.0f });
+    //this->setContentSize({ 137.0f, 40.0f });
+    this->setContentSize({ 200.0f, 40.0f });
+    this->setID("comment/cell"_spr);
 
     auto menu = CCMenu::create();
     menu->setAnchorPoint({0.5, 0.5});
     menu->setContentSize(this->getContentSize());
 
-    //square02c_001-uhd.png
-    //square02b_001.png
-    //square02_small.png
     auto bgSpr = cocos2d::extension::CCScale9Sprite::create("square02b_001.png");
     bgSpr->setContentSize(this->getContentSize());
     bgSpr->setColor({95, 53, 31});
@@ -32,6 +32,7 @@ bool OWCommentCell::init(CommentData data, ObjectData obj, UserData user, utils:
     auto authorName = CCLabelBMFont::create(data.accountName.c_str(), "goldFont.fnt");
     authorName->limitLabelWidth(80.0F, 0.45F, 0.1F); // 0.425
     authorName->setAnchorPoint({0, 0.5});
+    authorName->setID("comment/author"_spr);
     
     // icon,playerColor,playerColor2,playerColorGlow,glow
     if (auto gm = GameManager::sharedState()) {
@@ -52,27 +53,37 @@ bool OWCommentCell::init(CommentData data, ObjectData obj, UserData user, utils:
     //m_data.content = "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA";
     auto commentText = TextArea::create(
         m_data.content, "chatFont.fnt",
-        Utils::calculateScale(m_data.content, 16, 100, 0.5F, 0.3F),
-        120.F, { 0.0f, 0.5f }, // 1.0
-        Utils::calculateScale(m_data.content, 16, 100, 10.F, 5.F),
-        true);
+        Utils::calculateScale(m_data.content, 16, 100, 0.6F, 0.4F),
+        150.F, { 0.0f, 0.5f }, // 1.0
+        Utils::calculateScale(m_data.content, 16, 100, 15.F, 7.F),
+        true
+    );
+    commentText->setID("comment/area"_spr);
 	commentText->setAnchorPoint({ 0.0f, 0.5f });
+    ccColor3B textColor = {255, 255, 255};
     if (data.role == 2) {
-        commentText->colorAllCharactersTo({0, 255, 0});
+        textColor = {0, 255, 0};
     }
     if (data.role == 3) {
-        commentText->colorAllCharactersTo({221, 151, 254});
+        textColor = {221, 151, 254};
     }
     if (data.accountID == obj.authorAccId) {
-        commentText->colorAllCharactersTo({255, 255, 0});
+        textColor = {255, 255, 0};
     }
-    
+    commentText->colorAllCharactersTo(textColor);
+
+    auto invisLabel = CCLabelBMFont::create(m_data.content.c_str(), "chatFont.fnt");
+    invisLabel->setScale(0.F);
+    invisLabel->setVisible(false);
+    invisLabel->setColor(textColor);
+    invisLabel->setID("comment/content"_spr); // for emojis in comments or other mods
 
     auto timeAgo = CCLabelBMFont::create(m_data.timestamp.c_str(), "chatFont.fnt");
     timeAgo->setColor({0,0,0});
     timeAgo->setAnchorPoint({1, 0.5});
     timeAgo->setScale(0.35F);
     timeAgo->setOpacity(125);
+    timeAgo->setID("comment/timestamp"_spr);
 
     auto voteSpr = CCSprite::createWithSpriteFrameName((m_data.likes >= 0) ? "GJ_likesIcon_001.png" : "GJ_dislikesIcon_001.png");
     voteSpr->setScale(0.5F);
@@ -87,11 +98,13 @@ bool OWCommentCell::init(CommentData data, ObjectData obj, UserData user, utils:
     auto pinBtn = CCMenuItemSpriteExtra::create(pinSpr, this, menu_selector(OWCommentCell::onPin));
 
     auto votesLabel = CCLabelBMFont::create(std::to_string(m_data.likes).c_str(), "bigFont.fnt");
-    votesLabel->setScale(0.35F);
+    votesLabel->setScale(0.3F);
+    votesLabel->setID("comment/votes"_spr);
 
-    bgSpr->addChildAtPosition(commentText, Anchor::Left, {4, -2});
+    bgSpr->addChildAtPosition(invisLabel, Anchor::Left, {4, 0});
+    bgSpr->addChildAtPosition(commentText, Anchor::Left, {4, 0});
     bgSpr->addChildAtPosition(authorName, Anchor::TopLeft, {22, -9});
-    bgSpr->addChildAtPosition(timeAgo, Anchor::BottomRight, {-3, 5});
+    bgSpr->addChildAtPosition(timeAgo, Anchor::BottomRight, {-4, 5});
 
     menu->addChildAtPosition(voteBtn, Anchor::TopRight, {-25, -8});
     if (m_user.role >= 3 || m_user.account_id == obj.authorAccId || m_user.account_id == data.accountID) {
@@ -111,6 +124,7 @@ bool OWCommentCell::init(CommentData data, ObjectData obj, UserData user, utils:
 }
 
 void OWCommentCell::onVote(CCObject*) {
+    if (!m_user.authenticated) return FLAlertLayer::create("Error", "You cannot vote on comments as you are <cy>not authenticated!</c>", "OK")->show();
     VotePopup::create("Vote", [this](bool like) {
         auto token = Mod::get()->getSettingValue<std::string>("token");
         m_listener.getFilter().cancel();
@@ -140,6 +154,7 @@ void OWCommentCell::onVote(CCObject*) {
         myjson.set("token", token);
         myjson.set("like", (int)like);
         req.header("Content-Type", "application/json");
+        req.userAgent(USER_AGENT);
         req.bodyJSON(myjson);
         m_listener.setFilter(req.post(fmt::format("{}/objects/{}/comments/{}/vote", HOST_URL, m_data.objectID, m_data.id)));
     })->show();
@@ -181,6 +196,7 @@ void OWCommentCell::onPin(CCObject*) {
                 myjson.set("token", token);
                 req.header("Content-Type", "application/json");
                 req.bodyJSON(myjson);
+                req.userAgent(USER_AGENT);
                 m_listener.setFilter(req.post(fmt::format("{}/objects/{}/comments/{}/pin", HOST_URL, m_data.objectID, m_data.id)));
             }
         },
@@ -225,6 +241,7 @@ void OWCommentCell::onDelete(CCObject*) {
                 myjson.set("token", token);
                 req.header("Content-Type", "application/json");
                 req.bodyJSON(myjson);
+                req.userAgent(USER_AGENT);
                 m_listener.setFilter(req.post(fmt::format("{}/objects/{}/comments/{}/delete", HOST_URL, m_data.objectID, m_data.id)));
             }
         },

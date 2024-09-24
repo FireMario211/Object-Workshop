@@ -211,6 +211,7 @@ void EditPopup::onUpdateBtn(CCObject*) {
                             if (editor->m_selectedObjectIndex < 0) { // genius robert!
                                 m_object.objectString = gameManager->stringForCustomObject(editor->m_selectedObjectIndex);
                                 web::WebRequest req = web::WebRequest();
+                                req.userAgent(USER_AGENT);
                                 auto myjson = matjson::Value();
                                 myjson.set("token", token);
                                 myjson.set("data", m_object.objectString);
@@ -245,6 +246,7 @@ void EditPopup::onUpdateBtn(CCObject*) {
         m_object.description = m_objDesc->getString();
     }
     web::WebRequest req = web::WebRequest();
+    req.userAgent(USER_AGENT);
     auto myjson = matjson::Value();
     myjson.set("token", token);
     myjson.set("name", m_object.name);

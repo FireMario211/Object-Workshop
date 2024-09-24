@@ -1,5 +1,7 @@
 #pragma once
 
+#include <Geode/Geode.hpp>
+
 class Utils {
     public:
     // honestly matjson needs this tbh!
@@ -70,8 +72,10 @@ class Utils {
     }
     static std::string menuIndexToString(int menuIndex) {
         switch (menuIndex) {
-            case 0:
+            case -1:
             default:
+                return "Uploads";
+            case 0:
                 return "My Objects";
             case 1:
                 return "Favorites";
@@ -84,14 +88,21 @@ class Utils {
             case 4:
                 return "Most Liked";
             case 5:
-                return "Trending";
+                //return "Trending";
+                return "Featured";
             case 6:
                 return "Most Recent";
             case 7:
                 return "Pending";
             case 8:
                 return "Reports";
-
+        }
+    }
+    static int intToCategory(int menuIndex) {
+        if (menuIndex != 5) {
+            return menuIndex - 2;
+        } else {
+            return 5;
         }
     }
     static float calculateScale(const std::string& text, int minLength, int maxLength, float minScale, float maxScale) {
@@ -157,5 +168,18 @@ class Utils {
         return baseY - steps * yIncrement;
     }
 
-
+    static void forceFixPrio(cocos2d::CCNode* obj, int amount = 2) {
+        auto oldThis = obj;
+        if (auto delegate = geode::cast::typeinfo_cast<cocos2d::CCTouchDelegate*>(obj)) {
+            if (auto handler = cocos2d::CCTouchDispatcher::get()->findHandler(delegate)) {
+                geode::Loader::get()->queueInMainThread([obj, handler, delegate, oldThis, amount]() {
+                    if (oldThis != nullptr && handler != nullptr && delegate != nullptr) {
+                        if (auto dispatcher = cocos2d::CCTouchDispatcher::get()) {
+                            dispatcher->setPriority(handler->m_nPriority - amount, delegate);
+                        }
+                    }
+                });
+            }
+        }
+    }
 };

@@ -16,7 +16,7 @@ protected:
     void updateTags();
     virtual void onClose(CCObject* sender) override;
 public:
-    static CCNode* createTags(std::unordered_set<std::string> tags);
+    static CCNode* createTags(std::unordered_set<std::string> tags, CCSize contentSize = {105, 27}, CCPoint anchorPoint = {0, 0.5}, AxisAlignment alignment = AxisAlignment::Start);
     static FiltersPopup* create(std::unordered_set<std::string> tags, std::unordered_set<std::string> selectedTags, bool uploading, utils::MiniFunction<void(std::unordered_set<std::string>)> callback) {
         auto ret = new FiltersPopup();
         if (ret->initAnchored(350.f, 170.f, tags, selectedTags, uploading, callback)) {

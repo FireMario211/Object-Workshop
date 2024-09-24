@@ -7,6 +7,7 @@ import { query, body, param, validationResult, CustomValidator } from 'express-v
 import { verifyToken } from './user';
 import axios from 'axios';
 import moment from 'moment'
+import { UserData } from '@/Components/User';
 
 const allowedTags = ["Font", "Decoration", "Gameplay", "Art", "Structure", "Custom", "Icon", "Meme", "Technical", "Particles", "Triggers", "SFX", "Effects", "Auto Build"];
 
@@ -39,6 +40,7 @@ function convertRowToObject(row: any): ObjectData {
         rating_count: parseInt(row.rating_count.toString()),
         rating: parseFloat(row.rating.toString()),
         tags: row.tags,
+        featured: row.featured,
         status: row.status,
         version: row.version,
         data: row.data
@@ -747,20 +749,29 @@ oRouter.post('/objects/:id/update',
                 if (!verifyRes.user) return res.status(404).json({error: "Couldn't retrieve user."});
                 const accountID = verifyRes.user.account_id;
                 try {
-                    if (verifyRes.user && verifyRes.user.role == 2) {
-                        const objExists = await pool.query("SELECT EXISTS (SELECT 1 FROM objects WHERE id = $1)", [objectID])
-                        if (!objExists.rows[0].exists) return res.status(404).json({error: "Object not found."}); 
-                    } else {
-                        const objExists = await pool.query("SELECT EXISTS (SELECT 1 FROM objects WHERE id = $1 AND account_id = $2)", [objectID, accountID])
-                        if (!objExists.rows[0].exists) return res.status(404).json({error: "Object not found."}); 
-                    }
-                    const query = `
+                    let query = `
                         UPDATE objects SET
                         name = $1,
                         description = $2,
                         tags = $3 WHERE id = $4
                     `;
-                    await pool.query(query, [name, description, tags, objectID]);
+                    if (verifyRes.user && verifyRes.user.role >= 2) {
+                        const objExists = await pool.query("SELECT EXISTS (SELECT 1 FROM objects WHERE id = $1)", [objectID])
+                        if (!objExists.rows[0].exists) return res.status(404).json({error: "Object not found."}); 
+                        if (verifyRes.user.role == 3) {
+                            await pool.query(query, [name, description, tags, objectID]);
+                        } else {
+                            query = `
+                                UPDATE objects SET
+                                tags = $1 WHERE id = $2 AND status = 0
+                            `;
+                            await pool.query(query, [tags, objectID]);
+                        }
+                    } else {
+                        const objExists = await pool.query("SELECT EXISTS (SELECT 1 FROM objects WHERE id = $1 AND account_id = $2)", [objectID, accountID])
+                        if (!objExists.rows[0].exists) return res.status(404).json({error: "Object not found."}); 
+                        await pool.query(query, [name, description, tags, objectID]);
+                    }
                     return res.status(200).json({message: "Updated object!"});
                 } catch (e) {
                     console.error(e)
@@ -881,6 +892,138 @@ oRouter.post('/objects/:id/reject',
     }
 )
 
+oRouter.post('/objects/:id/feature',
+    param('id').isInt({min: 0, max: 2147483647}).notEmpty(),
+    body('token').notEmpty().isString(),
+    (req: Request, res: Response) => {
+        const result = validationResult(req);
+        if (!result.isEmpty()) return res.status(400).json({ errors: result.array() })
+        const token = req.body.token as string;
+        const objectID = req.params.id;
+        getCache().then(pool => {
+            verifyToken(pool, token).then(async verifyRes => {
+                if (!verifyRes.valid && verifyRes.expired) {
+                    return res.status(410).json({ error: verifyRes.message });
+                } else if (!verifyRes.valid) {
+                    return res.status(401).json({ error: verifyRes.message });
+                }
+                if (!verifyRes.user) return res.status(403).json({error: "...what"});
+                if (verifyRes.user && verifyRes.user.role < 3) return res.status(403).json({ error: "No permission" });
+                try {
+                    const query = await pool.query("SELECT * FROM objects WHERE id = $1", [objectID])
+                    if (!query.rows.length) return res.status(404).json({error: "Object not found."});
+                    const objData: ObjectData = query.rows[0];
+                    const query2 = await pool.query("SELECT name FROM users WHERE account_id = $1", [objData.account_id]);
+                    if (query2.rows.length) {
+                        objData.account_name = query2.rows[0].name;
+                    }
+                    if (objData.featured == 1) {
+                        await pool.query("UPDATE objects SET featured = 0 WHERE id = $1", [objectID]);
+                        res.status(200).json({ message: "Unfeatured!" });
+                    } else {
+                        await pool.query("UPDATE objects SET featured = 1 WHERE id = $1", [objectID]);
+                        res.status(200).json({ message: "Featured!" });
+                    }
+                } catch (e) {
+                    console.error(e);
+                    res.status(500).json({ error: 'Internal server error' });
+                }
+            }).catch(() => {
+                res.status(500).json({ error: 'Internal server error' });
+            })
+        }).catch(e => {
+            console.error(e);
+            res.status(500).json({ error: 'Internal server error' });
+        });
+    }
+)
+
+oRouter.get('/user/:id',
+    param('id').isInt({min: 0, max: 2147483647}).notEmpty(),
+    query('page').isInt({min: 0, max: 2147483647}).optional(),
+    async (req: Request, res: Response) => {
+        const result = validationResult(req);
+        if (!result.isEmpty()) return res.status(400).json({ errors: result.array() })
+        const userID = parseInt(req.params.id);
+        getCache().then(async pool => {
+            const userResult = await pool.query("SELECT account_id,name,timestamp,role,ban_reason,icon FROM users WHERE account_id = $1", [userID]);
+            if (userResult.rows.length == 0) return res.status(403).json({error: "User not found."});
+            const userData: UserData = userResult.rows[0];
+            const page = parseInt(req.query.page as string) || 1;
+            const limit = 6;
+            const offset = (page - 1) * limit;
+            try {
+                let query = `
+                    SELECT
+                        o.*,
+                        u.name as account_name,
+                        COALESCE(AVG(orate.stars), 0) as rating,
+                        COUNT(orate.stars) as rating_count,
+                        COUNT(*) OVER() AS total_records
+                    FROM
+                        objects o
+                    LEFT JOIN
+                        ratings orate ON o.id = orate.object_id
+                    JOIN
+                        users u ON o.account_id = u.account_id
+                    WHERE o.account_id = $1 AND o.status = 1
+                    GROUP BY o.id, u.name
+                    ORDER BY o.timestamp DESC
+                    LIMIT $2 OFFSET $3
+                `;
+                const result = await pool.query(query, [userData.account_id, limit, offset]);
+                const creatorPointsRes = await pool.query(`SELECT count(*) as points FROM objects WHERE account_id = $1 AND featured = 1`, [userData.account_id]);
+                const averageRes = await pool.query(`
+                    SELECT
+                        COALESCE(AVG(orate.stars), 0) AS average_rating,
+                        COUNT(orate.stars) AS total_rating_count
+                    FROM
+                        objects o
+                    LEFT JOIN
+                        ratings orate ON o.id = orate.object_id
+                    WHERE
+                        o.account_id = $1 AND o.status = 1;
+                `, [userData.account_id])
+                const totalRes = await pool.query(`
+                    SELECT
+                        SUM(downloads) AS total_downloads,
+                        SUM(favorites) AS total_favorites
+                    FROM
+                        objects
+                    WHERE
+                        account_id = $1 AND status = 1;
+                `, [userData.account_id])
+                const totalRecords = (result.rows.length > 0) ? parseInt(result.rows[0].total_records) : 0;
+                const totalPages = Math.ceil(totalRecords / limit);
+                userData.uploads = totalRecords;
+                userData.featured = parseInt(creatorPointsRes.rows[0].points);
+
+                const objectData = convertRowsToObjects(result.rows)
+                res.json({
+                    results: objectData,
+                    page,
+                    total: totalRecords,
+                    pageAmount: totalPages,
+                    user: userData,
+                    user_average: {
+                        average_rating: parseFloat(averageRes.rows[0].average_rating),
+                        total_rating_count: parseInt(averageRes.rows[0].total_rating_count)
+                    },
+                    user_total: {
+                        downloads: parseInt(totalRes.rows[0].total_downloads),
+                        favorites: parseInt(totalRes.rows[0].total_favorites)
+                    }
+                });
+            } catch (e) {
+                console.error(e);
+                res.status(500).json({ error: 'Internal server error' });
+            }
+        }).catch(e => {
+            console.error(e);
+            res.status(500).json({ error: 'Internal server error' });
+        });
+    }
+);
 
 oRouter.post('/user/@me/objects',
     body('token').notEmpty().isString(),
@@ -949,6 +1092,7 @@ oRouter.get('/objects/:id/comments',
     param('id').isInt({min: 0, max: 2147483647}).notEmpty(),
     query('page').isInt({min: 1, max: 2147483647}).optional(),
     query('limit').isInt({min: 1, max: 10}).optional(),
+    query('filter').isInt({min: 1, max: 2}).optional(),
     async (req: Request, res: Response) => {
         const result = validationResult(req);
         if (!result.isEmpty()) return res.status(400).json({ errors: result.array() })
@@ -956,6 +1100,7 @@ oRouter.get('/objects/:id/comments',
         getCache().then(async pool => {
             const page = parseInt(req.query.page as string) || 1;
             const limit = parseInt(req.query.limit as string) || 10;
+            const filter = parseInt(req.query.filter as string) || 2;
             const offset = (page - 1) * limit;
             try {
                 let query = `
@@ -971,7 +1116,7 @@ oRouter.get('/objects/:id/comments',
                         users u ON c.account_id = u.account_id
                     WHERE c.object_id = $1
                     GROUP BY c.id, u.name, u.icon, u.role
-                    ORDER BY c.pinned DESC, c.timestamp DESC
+                    ORDER BY c.pinned DESC, ${(filter == 1) ? "c.likes DESC, c.timestamp" : "c.timestamp"} DESC
                     LIMIT $2 OFFSET $3
                 `;
                 const result = await pool.query(query, [objectID, limit, offset]);
@@ -1285,6 +1430,12 @@ oRouter.get('/objects',
                         `;
                         orderBy = 'ORDER BY o.downloads DESC';
                         break;
+                    case 5: // Featured
+                        query += `
+                            AND o.featured = 1
+                        `
+                        orderBy = 'ORDER BY o.downloads DESC';
+                        break;
                     case 4: // Most recent
                     default:
                         orderBy = 'ORDER BY o.timestamp DESC';
@@ -1362,12 +1513,12 @@ oRouter.post('/objects/search',
 
                 if (tags.length > 0) {
                     query += `
-                        WHERE o.tags @> $4 AND o.status = 1 AND LOWER(o.name) LIKE LOWER('%' || $1 || '%')
+                        WHERE o.tags @> $4 AND o.status = 1 AND (LOWER(o.name) LIKE LOWER('%' || $1 || '%') OR o.id::text = $1)
                     `;
                     queryParams.push(tags);
                 } else {
                     query += `
-                        WHERE o.status = 1 AND LOWER(o.name) LIKE LOWER('%' || $1 || '%')
+                        WHERE o.status = 1 AND (LOWER(o.name) LIKE LOWER('%' || $1 || '%') OR o.id::text = $1)
                     `
                 }
 

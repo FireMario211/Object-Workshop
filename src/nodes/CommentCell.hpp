@@ -30,6 +30,7 @@ class OWCommentCell : public CCScale9Sprite {
         void onPin(CCObject*);
         void onDelete(CCObject*);
     public:
+        std::string getComment() { return m_data.content; };
         CommentData getData() { return m_data; };
         static OWCommentCell* create(CommentData, ObjectData, UserData, utils::MiniFunction<void()>);
 };

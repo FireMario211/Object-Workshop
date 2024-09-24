@@ -63,6 +63,9 @@ struct UserData {
     matjson::Array favorites;
     int uploads;
     int role;
+    bool authenticated = false;
+    matjson::Array icon;
+    int featured;
 };
 
 // do i really need a bunch of event listeners
@@ -76,7 +79,6 @@ protected:
     bool m_authenticated = false;
     int m_amountItems = 0;
     std::string m_token;
-    UserData m_user;
     CCMenu* m_categoryButtons;
 
     CCNode* myUploadsBar;
@@ -101,6 +103,7 @@ protected:
     bool isSearching = false;
 
     bool setup(bool authenticated) override;
+    void onProfileSelf(CCObject*);
     void onSearchBtn(CCObject*);
     void onFilterBtn(CCObject*);
     void onReloadBtn(CCObject*);
@@ -108,7 +111,6 @@ protected:
     void createCategoryBtn(const char* string, int menuIndex);
     void onSideButton(CCObject*);
     void showProfile(int userID, bool self);
-    void RegenCategory();
     void load();
     int m_currentMenu = 0; // 0 = objects, 1 = uploading, 2 = in object
 
@@ -118,6 +120,19 @@ protected:
     void onLoadComments(CCObject*);
     void onLeftCommentPage(CCObject*);
     void onRightCommentPage(CCObject*);
+    int m_currentUserID;
+    UserData m_currentUser;
+
+    void onReviewerInfoBtn(CCObject*) {
+        FLAlertLayer::create("About Reviewer", "This player is a <cg>Reviewer</c>!\n\nTheir job is to <cy>review</c> any <cl>pending objects</c> that other creators have uploaded to the workshop!", "OK")->show();
+    }
+    void onAdminInfoBtn(CCObject*) {
+        FLAlertLayer::create("About Admin", "This player is an <cr>Administrator</c> or <cp>Developer</c>!", "OK")->show();
+    }
+    void onGoProfileBtn(CCObject*) {
+        ProfilePage::create(m_currentUserID, false)->show();
+    }
+    void onAdminBtn(CCObject*);
 
     void onBackBtn(CCObject*);
 
@@ -128,15 +143,15 @@ protected:
     ObjectData m_currentObject;
     CCNode* objectInfoNode;
     CCMenuItemSpriteExtra* obj_backBtn;
+    EventListener<web::WebTask> m_userListener;
     EventListener<web::WebTask> m_rateListener;
     EventListener<web::WebTask> m_favoriteListener;
     EventListener<web::WebTask> m_downloadListener;
     EventListener<web::WebTask> m_editListener;
     EventListener<web::WebTask> m_deleteListener;
     EventListener<web::WebTask> m_reviewListener;
-    EventListener<web::WebTask> m_commentListener; // TODO
-    EventListener<web::WebTask> m_topCommentsListener; // TODO
-    EventListener<web::WebTask> m_commentsListener; // TODO
+    EventListener<web::WebTask> m_commentListener;
+    EventListener<web::WebTask> m_topCommentsListener;
     
     CCLabelBMFont* downloadsLabel;
     CCLabelBMFont* favoritesLabel;
@@ -179,6 +194,10 @@ protected:
     virtual void onClose(CCObject*) override;
 
 public:
+    UserData m_user;
+    void RegenCategory();
+    void onClickUser(int accountID);
+    std::unordered_set<std::string> getTags() { return m_availableTags; };
     static ObjectWorkshop* create(bool authenticated) {
         auto ret = new ObjectWorkshop();
         if (ret->initAnchored(425.f, 290.f, authenticated)) {

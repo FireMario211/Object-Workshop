@@ -81,11 +81,11 @@ bool FiltersPopup::setup(std::unordered_set<std::string> tags, std::unordered_se
     return true;
 }
 
-CCNode* FiltersPopup::createTags(std::unordered_set<std::string> tags) {
+CCNode* FiltersPopup::createTags(std::unordered_set<std::string> tags, CCSize contentSize, CCPoint anchorPoint, AxisAlignment alignment) {
     auto node = CCNode::create();
     //node->setContentSize({105, 15});
-    node->setContentSize({105, 27});
-    node->setAnchorPoint({0, 0.5});
+    node->setContentSize(contentSize);
+    node->setAnchorPoint(anchorPoint);
     for (auto& tag : tags) {
         auto spr = ButtonSprite::create(tag.c_str(), "bigFont.fnt", "geode.loader/white-square.png", .8f);
         spr->m_BGSprite->setColor(Utils::generateColorFromString(tag));
@@ -93,7 +93,7 @@ CCNode* FiltersPopup::createTags(std::unordered_set<std::string> tags) {
     }
     node->setLayout(
         RowLayout::create()
-            ->setAxisAlignment(AxisAlignment::Start)
+            ->setAxisAlignment(alignment)
             ->setAutoScale(true)
             ->setDefaultScaleLimits(0.1F, 0.5F)
             ->setCrossAxisOverflow(false)

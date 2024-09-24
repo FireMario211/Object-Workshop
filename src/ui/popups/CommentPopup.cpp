@@ -2,6 +2,8 @@
 #include "../../config.hpp"
 
 bool CommentPopup::setup(ObjectData obj, utils::MiniFunction<void()> callback) {
+    this->setID("CommentPopup"_spr);
+    auto winSize = CCDirector::sharedDirector()->getWinSize();
     m_object = obj;
     m_submitCallback = callback;
     auto titleLbl = CCLabelBMFont::create("Add Comment", "bigFont.fnt");
@@ -42,6 +44,9 @@ bool CommentPopup::setup(ObjectData obj, utils::MiniFunction<void()> callback) {
     m_mainLayer->addChildAtPosition(m_charCountLabel, Anchor::TopRight, {-10, -15});
     m_mainLayer->addChildAtPosition(commentBG, Anchor::Center, {0, 9});
     m_buttonMenu->addChildAtPosition(textInput, Anchor::Center, {0, 9});
+    /*m_mainLayer->setPositionY(winSize.height * 0.75F);
+    m_mainLayer->updateLayout();*/ 
+    // this causes text input to break for SOME reason
     return true;
 }
 
@@ -62,7 +67,16 @@ void CommentPopup::updateDescText(std::string string) {
 
 void CommentPopup::updateCharCountLabel() {
     if (m_closed) return;
-    if (m_charCountLabel != nullptr) m_charCountLabel->setString(std::to_string(100 - m_descText.length()).c_str());
+    if (m_charCountLabel != nullptr) {
+        int amount = 100 - m_descText.length();
+        if (amount < 0) {
+            m_charCountLabel->setColor({255,0,0});
+            m_charCountLabel->setString("Too much!");
+        } else {
+            m_charCountLabel->setColor({0,0,0});
+            m_charCountLabel->setString(std::to_string(100 - m_descText.length()).c_str());
+        }
+    }
 }
 
 void CommentPopup::onClose(CCObject* sender) {
@@ -73,6 +87,7 @@ void CommentPopup::onClose(CCObject* sender) {
 void CommentPopup::onSubmit(CCObject*) {
     if (m_descText.empty()) return;
     if (m_closed) return;
+    if (m_descText.length() > 100) return FLAlertLayer::create("what", "you arent supposed to be above 100 characters...", "WHAT")->show();
     m_mainLayer->setVisible(false);
     auto token = Mod::get()->getSettingValue<std::string>("token");
     m_listener.getFilter().cancel();
@@ -84,9 +99,9 @@ void CommentPopup::onSubmit(CCObject*) {
             if (isError) return Notification::create(isError.value(), NotificationIcon::Error)->show();
             auto message = jsonRes.try_get<std::string>("message");
             if (message) {
-                this->onClose(nullptr);
                 Notification::create(message.value(), NotificationIcon::Success)->show();
                 m_submitCallback();
+                this->onClose(nullptr);
             } else {
                 log::error("Unknown response, expected message. {}", jsonRes.dump());
                 Notification::create("Got an unknown response, check logs for details.", NotificationIcon::Warning)->show();
@@ -101,6 +116,7 @@ void CommentPopup::onSubmit(CCObject*) {
         }
     });
     web::WebRequest req = web::WebRequest();
+    req.userAgent(USER_AGENT);
     auto myjson = matjson::Value();
     myjson.set("token", token);
     myjson.set("data", m_descText);

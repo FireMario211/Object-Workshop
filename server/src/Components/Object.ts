@@ -9,6 +9,7 @@ export default interface ObjectData {
     rating: number;
     rating_count: number;
     tags: Array<string>;
+    featured: number;
     status: number;
     version: number;
     created: string;

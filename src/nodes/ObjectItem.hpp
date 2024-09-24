@@ -3,6 +3,13 @@
 
 using namespace geode::prelude;
 
+enum ObjectStatus {
+    PENDING = 0,
+    LISTED = 1,
+    UNLISTED = 2,
+    BANNED = 3
+};
+
 struct ObjectData {
     int id;
     std::string name;
@@ -16,7 +23,9 @@ struct ObjectData {
     std::string objectString;
     bool favorited = false;
     std::unordered_set<std::string> tags;
-    bool pending = false;
+    ObjectStatus status;
+
+    int featured = 0;
 
     std::string created;
     std::string updated;
@@ -36,5 +45,6 @@ class ObjectItem : public CCScale9Sprite {
         ObjectData getData() { return m_data; };
         static CCNode* createStars(double rating);
         static CCMenu* createClickableStars(CCObject* target, SEL_MenuHandler callback);
+        static ccColor3B starColor(double rating);
         static ObjectItem* create(ObjectData);
 };

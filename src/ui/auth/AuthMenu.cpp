@@ -72,6 +72,7 @@ void AuthMenu::testAuth(std::string token, utils::MiniFunction<void(int)> callba
                 } else {
                     if (!hasEmitted) {
                         web::WebRequest req = web::WebRequest();
+                        req.userAgent(USER_AGENT);
                         if (auto gm = GameManager::sharedState()) {
                             auto myjson = matjson::Value();
                             matjson::Array iconSet;
@@ -111,6 +112,7 @@ void AuthMenu::testAuth(std::string token, utils::MiniFunction<void(int)> callba
     myjson.set("token", token);
     req.header("Content-Type", "application/json");
     req.bodyJSON(myjson);
+    req.userAgent(USER_AGENT);
     m_authListener.setFilter(req.post(fmt::format("{}/verify", HOST_URL)));
 }
 void AuthMenu::genAuthToken(AuthMethod method, std::string token, bool showFLAlert, utils::MiniFunction<void(int)> callback) {
@@ -168,6 +170,7 @@ void AuthMenu::genAuthToken(AuthMethod method, std::string token, bool showFLAle
         auto myjson = matjson::Value();
         myjson.set("token", token);
         req.bodyJSON(myjson);
+        req.userAgent(USER_AGENT);
         m_authListener.setFilter(req.post(fmt::format("{}/gdauth", HOST_URL)));
     }
 }
@@ -196,7 +199,9 @@ void AuthMenu::onGDAuth(CCObject*) {
 }
 void AuthMenu::onDoLater(CCObject*) {
     this->onClose(nullptr);
-    ObjectWorkshop::create(false)->show();
+    Loader::get()->queueInMainThread([]() {
+        ObjectWorkshop::create(false)->show();
+    });
 }
 
 void AuthMenu::onInfoBtn(CCObject*) {

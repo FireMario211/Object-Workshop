@@ -54,6 +54,7 @@ void ReportPopup::onReportBtn(CCObject*) {
                     }
                 });
                 web::WebRequest req = web::WebRequest();
+                req.userAgent(USER_AGENT);
                 auto myjson = matjson::Value();
                 myjson.set("token", token);
                 myjson.set("reason", m_reportInput->getString());

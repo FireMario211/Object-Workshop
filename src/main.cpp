@@ -179,6 +179,7 @@ bool CustomObjects::init(LevelEditorLayer* editorLayer) {
             auto myjson = matjson::Value();
             myjson.set("token", token);
             req.header("Content-Type", "application/json");
+            req.userAgent(USER_AGENT);
             req.bodyJSON(myjson);
             m_fields->m_listener.setFilter(req.post(fmt::format("{}/user/@me", HOST_URL)));
         }

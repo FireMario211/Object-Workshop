@@ -28,6 +28,34 @@ CCNode* ObjectItem::createStars(double rating) {
     return node;
 }
 
+ccColor3B ObjectItem::starColor(double rating) {
+    ccColor3B ratingColor = { 255, 255, 0 };
+    // yes i used chat jippity because i cant think at 2 am
+    if (rating != 5.0) {
+        if (rating >= 5.0) {
+            // Yellow
+            ratingColor = {255, 255, 0};
+        } else if (rating >= 4.0) {
+            // Green to Yellow
+            double t = (rating - 4.0);
+            ratingColor = {static_cast<GLubyte>(255 * t), 255, 0};
+        } else if (rating >= 3.0) {
+            // Orange to Green
+            double t = (rating - 3.0);
+            ratingColor = {static_cast<GLubyte>(255 * (1 - t)), static_cast<GLubyte>(165 * (1 - t)), 0};
+        } else if (rating >= 2.0) {
+            // Reddish Orange to Orange
+            double t = (rating - 2.0);
+            ratingColor = {255, static_cast<GLubyte>(70 + 95 * t), 0};
+        } else {
+            // Red to Reddish Orange
+            double t = (rating - 1.0);
+            ratingColor = {255, static_cast<GLubyte>(70 * t), 0};
+        }
+    }
+    return ratingColor;
+}
+
 CCMenu* ObjectItem::createClickableStars(CCObject* target, SEL_MenuHandler callback) {
     auto node = CCMenu::create();
     node->setLayout(
@@ -66,8 +94,25 @@ bool ObjectItem::init(ObjectData data) {
     m_data = data;
     this->setContentSize({ 86.0f, 100.0f });
     
-    bgSpr = cocos2d::extension::CCScale9Sprite::create("redBG.png"_spr);
-    bgSpr->setContentSize({ 86.0f, 100.0f });
+    if (data.featured == 0) {
+        bgSpr = cocos2d::extension::CCScale9Sprite::create("redBG.png"_spr);
+        bgSpr->setContentSize(this->getContentSize());
+    } else {
+        bgSpr = cocos2d::extension::CCScale9Sprite::create("GJ_button_04.png");
+        bgSpr->setColor({255, 255, 170});
+        // 1,2065,2,195,3,135,155,24,156,25,145,51a-1a1a0.3a71a180a180a29a0a35a56a0a-214a22a0a0a0a5a1a17a0a1a0a0.886275a0a0.576471a0a1a0a3a1a0a0a1a0a0.74902a0a0.364706a0a1a0a0a0a0a0a44a0a57a0a-30a0a1a2a1a0a0a0a1a0a0a0a0a0a0a0a0a0a0a0a0a0a0;
+        // thanks jouca
+        // a40a50 posvarx and y
+        //CCPoint sizeParticle = {40,50};
+        CCPoint sizeParticle = {50,60};
+        int amountParticles = 4;
+        // ok its kinda hard to
+        auto particle_info = GameToolbox::particleFromString(fmt::format("30a-1a1.3a0.2a20a90a0a10a5a{}a{}a0a0a8a0a0a0a{}a1a0a0a1a0a0.968627a0a0.556863a0a1a0a1a1a0a0a1a0a0.858824a0a0.352941a0a1a0a0.27a0a0.27a0a0a0a0a0a0a0a0a2a1a0a0a0a0a0a0a0.25a0a0a0a0a0a0a0a0a0a0a0;", sizeParticle.x, sizeParticle.y, amountParticles), NULL, false);
+        //CCParticleSystemQuad* particle_info = GameToolbox::particleFromString("51a-1a1a0.3a71a180a180a29a0a35a56a0a-214a22a0a0a0a5a1a17a0a1a0a0.886275a0a0.576471a0a1a0a3a1a0a0a1a0a0.74902a0a0.364706a0a1a0a0a0a0a0a44a0a57a0a-30a0a1a2a1a0a0a0a1a0a0a0a0a0a0a0a0a0a0a0a0a0a0;", NULL, false);
+        particle_info->setZOrder(-100);
+        bgSpr->setContentSize(this->getContentSize());
+        bgSpr->addChildAtPosition(particle_info, Anchor::Center);
+    }
 
     auto title = CCLabelBMFont::create(data.name.c_str(), "bigFont.fnt");
     title->limitLabelWidth(70.0F, 0.4F, 0.1F); // 0.425
@@ -92,7 +137,7 @@ bool ObjectItem::init(ObjectData data) {
     auto objectsIcon = CircleButtonSprite::create(blockSpr);
     objectsIcon->setScale(0.5F);
     objectsBG->addChildAtPosition(objectsIcon, Anchor::Left, { 15, 0 });
-    auto objectsLabel = CCLabelBMFont::create(std::to_string(std::count(data.objectString.begin(), data.objectString.end(), ';')).c_str(), "bigFont.fnt");
+    auto objectsLabel = CCLabelBMFont::create(GameToolbox::intToShortString(std::count(data.objectString.begin(), data.objectString.end(), ';')).c_str(), "bigFont.fnt");
     objectsLabel->limitLabelWidth(120.F, 0.6F, 0.4F);
     objectsLabel->setAnchorPoint({0, 0.5});
     objectsBG->addChildAtPosition(objectsLabel, Anchor::Left, { 32, 0 });
@@ -104,7 +149,7 @@ bool ObjectItem::init(ObjectData data) {
     auto downloadsIcon = CCSprite::createWithSpriteFrameName("GJ_downloadBtn_001.png");
     downloadsIcon->setScale(0.5F);
     downloadsBG->addChildAtPosition(downloadsIcon, Anchor::Left, { 15, 0 });
-    auto downloadsLabel = CCLabelBMFont::create(std::to_string(data.downloads).c_str(), "bigFont.fnt");
+    auto downloadsLabel = CCLabelBMFont::create(GameToolbox::intToShortString(data.downloads).c_str(), "bigFont.fnt");
     downloadsLabel->limitLabelWidth(120.F, 0.6F, 0.4F);
     downloadsLabel->setAnchorPoint({0, 0.5});
     downloadsBG->addChildAtPosition(downloadsLabel, Anchor::Left, { 32, 0 });
