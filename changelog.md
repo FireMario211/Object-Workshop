@@ -1,5 +1,7 @@
+# v1.3.1
+- Fixed bug where going to a users profile while on another page will assume you want to go to that page
 # v1.3.0
-- Added user profiles
+- Added user profiles (Thanks Rue!)
 - Replaced Trending with Featured
 - Revamped Object UI
 - Added abbreviations for object items (Object Count and Download Count)

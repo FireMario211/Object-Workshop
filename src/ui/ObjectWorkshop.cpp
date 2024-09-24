@@ -681,7 +681,7 @@ void ObjectWorkshop::load() {
 
                     auto accName = CCLabelBMFont::create(user.name.c_str(), "goldFont.fnt");
                     accName->setAlignment(cocos2d::kCCTextAlignmentCenter);
-                    accName->limitLabelWidth(120.F, 0.6F, 0.3F);
+                    accName->limitLabelWidth(100.F, 0.6F, 0.3F);
                     profileInnerBG->addChildAtPosition(accName, Anchor::Center, {-35, 9});
 
                     auto uploadsSpr = CCSprite::createWithSpriteFrameName("GJ_hammerIcon_001.png");
@@ -1090,6 +1090,9 @@ void ObjectWorkshop::onClickUser(int accountID) {
         static_cast<CategoryButton*>(oldItem->getChildren()->objectAtIndex(0))->setIndicatorState(false);
     }
     m_currentUserID = accountID;
+    m_currentPage = 1;
+    m_pageInput->setString("1");
+    isSearching = false;
     currentMenuIndexGD = -1;
     RegenCategory();
 }
