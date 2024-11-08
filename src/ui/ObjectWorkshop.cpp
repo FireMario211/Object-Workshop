@@ -1,15 +1,24 @@
 #include "../config.hpp"
 #include "ObjectWorkshop.hpp"
+#include "popups/WarningPopup.hpp"
 #include "popups/includes.h"
+#include "admin/AdminPopup.hpp"
 #include "../nodes/CategoryButton.hpp"
 #include "../utils.hpp"
-#include "../nodes/CommentCell.hpp"
 //#include <dashauth.hpp>
 
 int currentMenuIndexGD = 2;
 
 bool ObjectWorkshop::setup(bool authenticated) {
     if (currentMenuIndexGD == -1) currentMenuIndexGD = 2;
+    if (auto editor = EditorUI::get()) {
+        m_editorLayer = editor->m_editorLayer;
+        m_inEditor = true;
+    } else {
+        m_editorLayer = LevelEditorLayer::create(GJGameLevel::create(), false);
+        GameManager::sharedState()->fadeInMenuMusic();
+        m_inEditor = false;
+    }
     m_user.authenticated = authenticated;
     //m_authenticated = false;
     web::WebRequest req = web::WebRequest();
@@ -57,6 +66,7 @@ bool ObjectWorkshop::setup(bool authenticated) {
 
     auto titleLabel = CCLabelBMFont::create("Custom Object Workshop", "goldFont.fnt");
     titleLabel->setScale(0.66F);
+    titleLabel->setZOrder(1);
     m_mainLayer->addChildAtPosition(titleLabel, Anchor::Top, { 53, -17 });
 
     auto leftBar = CCScale9Sprite::create("square02_small.png");
@@ -108,6 +118,7 @@ bool ObjectWorkshop::setup(bool authenticated) {
 
     m_searchInput = TextInput::create(110.0F, "Search...");
     m_searchInput->setMaxCharCount(64);
+    m_searchInput->setCommonFilter(CommonFilter::Any);
     m_searchInput->setScale(0.525F);
     m_searchInput->setAnchorPoint({ 0, .5f });
     m_searchInput->setTextAlign(TextInputAlign::Left);
@@ -154,6 +165,7 @@ bool ObjectWorkshop::setup(bool authenticated) {
 
     rightBg = CCScale9Sprite::create("square02_small.png");
     rightBg->setOpacity(60);
+    rightBg->setZOrder(1);
     rightBg->setContentSize({295, 225});
     m_mainLayer->addChildAtPosition(rightBg, Anchor::Center, {53, -4});
 
@@ -201,6 +213,29 @@ bool ObjectWorkshop::setup(bool authenticated) {
                         true
                     };
                     log::debug("Set user information.");
+                    if (jsonRes.contains("warning")) {
+                        matjson::Array arrDefault;
+                        auto caseJsonArray = jsonRes.try_get<matjson::Array>("cases").value_or(arrDefault);
+                        if (caseJsonArray.size() > 0) {
+                            hasWarning = true;
+                            auto caseJsonRes = caseJsonArray[0];
+                            log::debug("User has warning, setting info for it.");
+                            caseData = {
+                                caseJsonRes.try_get<int>("case_id").value_or(0),
+                                jsonRes.get<int>("warning"),
+                                static_cast<CaseType>(caseJsonRes.try_get<int>("case_type").value_or(0)),
+                                caseJsonRes.try_get<std::string>("reason").value_or("No reason provided."),
+                                "N/A"
+                            };
+                            if (!shownObjects) {
+                                WarningPopup::create(caseData, [this]() {
+                                    acknowledgedWarning = true;
+                                })->show();
+                                hasWarning = false;
+                                shownWarning = true;
+                            }
+                        }
+                    }
                 } else {
                     log::error("Something went wrong when getting keys from the users object. {}", jsonRes.dump());
                     Notification::create("Couldn't parse user object.", NotificationIcon::Warning)->show();
@@ -253,10 +288,6 @@ bool ObjectWorkshop::setup(bool authenticated) {
     rightArrowBtn->setPositionX(30);
     pagesMenu->addChild(leftArrowBtn);
     pagesMenu->addChild(rightArrowBtn);
-
-    /*pageLabel = CCLabelBMFont::create(std::to_string(m_currentPage).c_str(), "bigFont.fnt");
-    pageLabel->setScale(0.5F);
-    pagesMenu->addChild(pageLabel);*/
 
     m_pageInput = TextInput::create(70.0F, "Page...");
     m_pageInput->setString("1");
@@ -328,6 +359,17 @@ void ObjectWorkshop::textInputClosed(CCTextInputNode* input) {
 
 void ObjectWorkshop::RegenCategory() {
     // this definitely wont go wrong
+    if (!shownWarning && hasWarning) {
+        Loader::get()->queueInMainThread([this]() {
+            WarningPopup::create(caseData, [this]() {
+                acknowledgedWarning = true;
+                RegenCategory();
+            })->show();
+        });
+        shownWarning = true;
+        return;
+    }
+    if (!acknowledgedWarning && hasWarning && shownWarning) return;
     Loader::get()->queueInMainThread([this]() {
         int myItems = 0;
         int items = 0;
@@ -534,7 +576,7 @@ void ObjectWorkshop::load() {
                     o_rating && o_downloads && o_favorites && o_rating_count && 
                     o_data && o_tags && o_status && o_created && o_updated && o_version && o_featured
                 ) {
-                    auto cell = CCMenuItemSpriteExtra::create(ObjectItem::create({
+                    ObjectData objData = {
                         o_id.value(),
                         o_name.value(),
                         o_desc.value(),
@@ -552,7 +594,29 @@ void ObjectWorkshop::load() {
                         o_created.value(),
                         o_updated.value(),
                         o_version.value()
-                    }), this, menu_selector(ObjectWorkshop::onClickObject));
+                    };
+
+                    if (currentMenuIndexGD == 8) {
+                        auto reportArrayRes = obj.try_get<matjson::Array>("reports");
+                        matjson::Array reportArray;
+                        if (arrayRes) {
+                            reportArray = reportArrayRes.value();
+                        }
+                        if (reportArray.size() > 0) {
+                            for (auto report : reportArray) {
+                                auto r_reason = report.try_get<std::string>("reason");
+                                auto r_account_id = report.try_get<int>("account_id");
+                                if (r_reason && r_account_id) {
+                                    ReportData report = {
+                                        r_account_id.value(),
+                                        r_reason.value()
+                                    };
+                                    objData.reports.push_back(report);
+                                }
+                            }
+                        }
+                    }
+                    auto cell = CCMenuItemSpriteExtra::create(ObjectItem::create(m_editorLayer, objData), this, menu_selector(ObjectWorkshop::onClickObject));
                     categoryItems->addChild(cell);
                 } else {
                     log::error("One of the cells could not be properly parsed! {}", obj.dump());
@@ -735,13 +799,15 @@ void ObjectWorkshop::load() {
                 if (p_total) {
                     auto downloadSpr = CCSprite::createWithSpriteFrameName("GJ_downloadBtn_001.png");
                     downloadSpr->setScale(0.4F);
-                    auto downloadsLabel = CCLabelBMFont::create(std::to_string(p_total.value().get<int>("downloads")).c_str(), "bigFont.fnt");
+                    auto p_total_downloads = p_total.value().try_get<int>("downloads").value_or(0);
+                    auto downloadsLabel = CCLabelBMFont::create(std::to_string(p_total_downloads).c_str(), "bigFont.fnt");
                     downloadsLabel->setAnchorPoint({0, 0.5});
                     downloadsLabel->setScale(0.35F);
                     profileBG->addChildAtPosition(downloadSpr, Anchor::BottomLeft, {18, 13});
                     profileBG->addChildAtPosition(downloadsLabel, Anchor::BottomLeft, {28, 13});
                     auto favSpr = CCSprite::createWithSpriteFrameName("gj_heartOn_001.png");
-                    auto favLabel = CCLabelBMFont::create(std::to_string(p_total.value().get<int>("favorites")).c_str(), "bigFont.fnt");
+                    auto p_total_favs = p_total.value().try_get<int>("favorites").value_or(0);
+                    auto favLabel = CCLabelBMFont::create(std::to_string(p_total_favs).c_str(), "bigFont.fnt");
                     favLabel->setAnchorPoint({0, 0.5});
                     favLabel->setScale(0.35F);
                     favSpr->setScale(0.5F);
@@ -751,13 +817,13 @@ void ObjectWorkshop::load() {
 
                 auto p_avg = jsonRes.try_get<matjson::Value>("user_average");
                 if (p_avg) {
-                    double averageRating = p_avg.value().get<double>("average_rating");
+                    double averageRating = p_avg.value().try_get<double>("average_rating").value_or(0.00);
                     auto stars = ObjectItem::createStars(averageRating);
                     stars->setScale(0.9F);
                     stars->setAnchorPoint({0.5, 0});
                     std::ostringstream oss;
                     oss << std::fixed << std::setprecision(2) << averageRating;
-                    auto ratingLbl = CCLabelBMFont::create(fmt::format("{} ({})", oss.str(), p_avg.value().get<int>("total_rating_count")).c_str(), "bigFont.fnt");
+                    auto ratingLbl = CCLabelBMFont::create(fmt::format("{} ({})", oss.str(), p_avg.value().try_get<int>("total_rating_count").value_or(0)).c_str(), "bigFont.fnt");
                     for (int i = 0; i < 4; i++) {
                         // why doesnt CCFontSprite EXIST!?
                         auto fontSpr = static_cast<CCSprite*>(ratingLbl->getChildren()->objectAtIndex(i));
@@ -809,6 +875,7 @@ void ObjectWorkshop::load() {
                 if (loadingCircle != nullptr) loadingCircle->fadeAndRemove();
                 m_scrollLayer->moveToTop();
             }
+            shownObjects = true;
         } else if (web::WebProgress* progress = e->getProgress()) {
             // The request is still in progress...
         } else if (e->isCancelled()) {
@@ -858,7 +925,7 @@ void ObjectWorkshop::load() {
                     o_rating && o_downloads && o_favorites && o_rating_count && 
                     o_data && o_tags && o_status && o_created && o_updated && o_version && o_featured
                 ) {
-                    auto cell = CCMenuItemSpriteExtra::create(ObjectItem::create({
+                    auto cell = CCMenuItemSpriteExtra::create(ObjectItem::create(m_editorLayer, {
                         o_id.value(),
                         o_name.value(),
                         o_desc.value(),
@@ -1101,13 +1168,12 @@ void ObjectWorkshop::onAdminBtn(CCObject* sender) {
     auto menuItem = as<CCMenuItemSpriteExtra*>(sender);
     AdminPopup::create(m_user, m_currentUser)->show();
 }
-
 void ObjectWorkshop::onClickObject(CCObject* sender) {
-    m_topCommentsListener.getFilter().cancel();
     auto menuItem = static_cast<CCMenuItemSpriteExtra*>(sender); // how could this go wrong
     if (auto objectItem = typeinfo_cast<ObjectItem*>(menuItem->getChildren()->objectAtIndex(0))) {
         auto objectData = objectItem->getData();
         ObjectPopup::create(objectData, m_user)->show();
+        /*
         return;
         m_currentObject = objectData;
         m_currentMenu = 2;
@@ -1515,348 +1581,8 @@ void ObjectWorkshop::onClickObject(CCObject* sender) {
                 log::error("Request was cancelled.");
             }
         });
+        */
     }
-}
-
-void ObjectWorkshop::onLeftCommentPage(CCObject* sender) {
-    if (m_currentObject.commentPage > 1) {
-        m_currentObject.commentPage--;
-        //m_pageInput->setString(std::to_string(m_currentPage).c_str());
-        ObjectWorkshop::onLoadComments(sender);
-    }
-}
-void ObjectWorkshop::onRightCommentPage(CCObject* sender) {
-    if ((m_currentObject.commentPage + 1) <= m_currentObject.maxCommentPage) {
-        m_currentObject.commentPage++;
-        //m_pageInput->setString(std::to_string(m_currentPage).c_str());
-        ObjectWorkshop::onLoadComments(sender);
-    }
-}
-
-void ObjectWorkshop::onLoadComments(CCObject*) {
-    m_buttonMenu->removeChildByID("loadcomments"_spr);
-    web::WebRequest req = web::WebRequest();
-    req.userAgent(USER_AGENT);
-    m_topCommentsListener.setFilter(req.get(fmt::format("{}/objects/{}/comments?limit=10&page={}", HOST_URL, m_currentObject.id, m_currentObject.commentPage)));
-}
-
-void ObjectWorkshop::onZoomIn(CCObject*) {
-    if (previewBG != nullptr) previewBG->updateZoom(0.2F);
-}
-void ObjectWorkshop::onZoomOut(CCObject*) {
-    if (previewBG != nullptr) previewBG->updateZoom(-0.2F);
-}
-void ObjectWorkshop::onResetZoom(CCObject*) {
-    if (previewBG != nullptr) previewBG->resetZoom();
-}
-
-void ObjectWorkshop::onCommentBtn(CCObject*) {
-    CommentPopup::create(m_currentObject, [this]() {
-        ObjectWorkshop::onLoadComments(nullptr);
-    })->show();
-}
-
-void ObjectWorkshop::onFavBtn(CCObject*) {
-    if (!m_user.authenticated) return FLAlertLayer::create("Error", "You cannot favorite levels as you are <cy>not authenticated!</c>", "OK")->show();
-    m_favoriteListener.getFilter().cancel();
-    m_favoriteListener.bind([this] (web::WebTask::Event* e) {
-        if (web::WebResponse* value = e->getValue()) {
-            auto jsonRes = value->json().unwrapOrDefault();
-            if (!jsonRes.is_object()) return log::error("Response isn't object.");
-            auto isError = jsonRes.try_get<std::string>("error");
-            if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
-            auto message = jsonRes.try_get<std::string>("message");
-            if (message) {
-                Notification::create(message->c_str(), NotificationIcon::Success)->show();
-            } else {
-                log::error("Unknown response, expected message. {}", jsonRes.dump());
-                Notification::create("Got an unknown response, check logs for details.", NotificationIcon::Warning)->show();
-            }
-            m_currentObject.favorited = !m_currentObject.favorited;
-            if (m_currentObject.favorited) {
-                m_currentObject.favorites++;
-                m_user.favorites.push_back(m_currentObject.id);
-            } else {
-                m_currentObject.favorites--;
-                auto it = std::find(m_user.favorites.begin(), m_user.favorites.end(), m_currentObject.id);
-                if (it != m_user.favorites.end()) { 
-                    m_user.favorites.erase(it); 
-                }
-            }
-            if (m_currentMenu == 2 && favoritesLabel != nullptr) favoritesLabel->setString(std::to_string(m_currentObject.favorites).c_str());
-            return;
-        } else if (web::WebProgress* progress = e->getProgress()) {
-            // The request is still in progress...
-        } else if (e->isCancelled()) {
-            log::error("Request was cancelled.");
-        }
-    });
-    web::WebRequest req = web::WebRequest();
-    req.userAgent(USER_AGENT);
-    auto myjson = matjson::Value();
-    myjson.set("token", m_token);
-    req.header("Content-Type", "application/json");
-    req.bodyJSON(myjson);
-    m_favoriteListener.setFilter(req.post(fmt::format("{}/objects/{}/favorite", HOST_URL, m_currentObject.id)));
-}
-
-void ObjectWorkshop::actuallyDownload() {
-    if (auto gameManager = GameManager::sharedState()) {
-        if (auto editorUI = CustomObjects::get()) {
-            gameManager->addNewCustomObject(m_currentObject.objectString);
-            editorUI->reloadCustomItems();
-            Notification::create("Downloaded object!", NotificationIcon::Success)->show();
-        }
-    }
-}
-
-void ObjectWorkshop::onDownloadBtn(CCObject*) {
-    if (Utils::arrayIncludes(m_user.downloaded, m_currentObject.id)) {
-        geode::createQuickPopup(
-            "Info",
-            "You have already <cg>downloaded this object</c>!\nWould you like to <cy>download anyways</c>?",
-            "No",
-            "Yes",
-            [this](auto, bool btn2) {
-                if (btn2) {
-                    actuallyDownload();
-                }
-            },
-            true,
-            true
-        );
-    } else {
-        if (m_currentObject.status == ObjectStatus::PENDING) return actuallyDownload();
-        m_downloadListener.getFilter().cancel();
-        m_downloadListener.bind([this] (web::WebTask::Event* e) {
-            if (web::WebResponse* value = e->getValue()) {
-                if (value->json().has_error()) return log::error("Response is not JSON.");
-                auto jsonRes = value->json().unwrapOrDefault();
-                if (!jsonRes.is_object()) return log::error("Response isn't object.");
-                auto isError = jsonRes.try_get<std::string>("error");
-                if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
-                if (m_currentMenu == 2 && downloadsLabel != nullptr) downloadsLabel->setString(std::to_string(m_currentObject.downloads).c_str());
-                return;
-            } else if (web::WebProgress* progress = e->getProgress()) {
-                // The request is still in progress...
-            } else if (e->isCancelled()) {
-                log::error("Request was cancelled.");
-            }
-        });
-        m_currentObject.downloads++;
-        m_user.downloaded.push_back(m_currentObject.id);
-        actuallyDownload();
-        web::WebRequest req = web::WebRequest();
-        req.userAgent(USER_AGENT);
-        auto myjson = matjson::Value();
-        myjson.set("token", m_token);
-        req.header("Content-Type", "application/json");
-        req.bodyJSON(myjson);
-        m_downloadListener.setFilter(req.post(fmt::format("{}/objects/{}/download", HOST_URL, m_currentObject.id)));
-    }
-}
-
-void ObjectWorkshop::onRateBtn(CCObject* sender) {
-    if (!m_user.authenticated) return FLAlertLayer::create("Error", "You cannot rate objects as you are <cy>not authenticated!</c>", "OK")->show();
-    m_rateListener.getFilter().cancel();
-    auto menuItem = static_cast<CCMenuItemSpriteExtra*>(sender);
-    auto menu = static_cast<CCMenu*>(menuItem->getParent());
-    for (int i = 0; i < 5; i++) {
-        auto item = typeinfo_cast<CCMenuItemSpriteExtra*>(menu->getChildByID(fmt::format("{}", i + 1)));
-        if (item) {
-            auto node = static_cast<CCNode*>(item->getChildren()->objectAtIndex(0));
-            auto starFull = static_cast<CCSprite*>(node->getChildByID("full"));
-            auto starEmpty = static_cast<CCSprite*>(node->getChildByID("empty"));
-            starFull->setVisible(false);
-            starEmpty->setVisible(false);
-            if (std::stoi(item->getID()) <= std::stoi(menuItem->getID())) {
-                starFull->setVisible(true);
-            } else {
-                starEmpty->setVisible(true);
-            }
-        }
-    }
-    m_rateListener.bind([this] (web::WebTask::Event* e) {
-        if (web::WebResponse* value = e->getValue()) {
-            auto jsonRes = value->json().unwrapOrDefault();
-            if (!jsonRes.is_object()) return log::error("Response isn't object.");
-            auto isError = jsonRes.try_get<std::string>("error");
-            if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
-            Notification::create("Rated!", NotificationIcon::Success)->show();
-            return;
-        } else if (web::WebProgress* progress = e->getProgress()) {
-            // The request is still in progress...
-        } else if (e->isCancelled()) {
-            log::error("Request was cancelled.");
-        }
-    });
-    web::WebRequest req = web::WebRequest();
-    req.userAgent(USER_AGENT);
-    auto myjson = matjson::Value();
-    myjson.set("token", m_token);
-    myjson.set("stars", std::stoi(menuItem->getID()));
-    req.header("Content-Type", "application/json");
-    req.bodyJSON(myjson);
-    m_rateListener.setFilter(req.post(fmt::format("{}/objects/{}/rate", HOST_URL, m_currentObject.id)));
-}
-
-void ObjectWorkshop::onDescBtn(CCObject*) {
-    FLAlertLayer::create(
-        "Object Info",
-        fmt::format(
-            "<cp>ID</c>: {}\n<cg>Uploader</c>: {}\n<cy>Uploaded</c>: {}\n<cy>Updated</c>: {}\n<cl>Version</c>: {}\n<co>Tags</c>: {}",
-            m_currentObject.id,
-            m_currentObject.authorName,
-            m_currentObject.created,
-            m_currentObject.updated,
-            m_currentObject.version,
-            fmt::join(m_currentObject.tags, ", ")
-        ).c_str(),
-        "OK"
-    )->show();
-}
-
-void ObjectWorkshop::onTrashBtn(CCObject*) {
-    geode::createQuickPopup(
-        "Warning",
-        "Are you sure you want to <cy>delete this object</c>?\nYou <cr>cannot go back from this</c>!",
-        "No",
-        "Yes",
-        [this](auto, bool btn2) {
-            if (btn2) {
-                m_deleteListener.getFilter().cancel();
-                m_deleteListener.bind([this] (web::WebTask::Event* e) {
-                    if (web::WebResponse* value = e->getValue()) {
-                        auto jsonRes = value->json().unwrapOrDefault();
-                        if (!jsonRes.is_object()) return log::error("Response isn't object.");
-                        auto isError = jsonRes.try_get<std::string>("error");
-                        if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
-                        auto message = jsonRes.try_get<std::string>("message");
-                        if (message) {
-                            Notification::create(message->c_str(), NotificationIcon::Success)->show();
-                        } else {
-                            log::error("Unknown response, expected message. {}", jsonRes.dump());
-                            Notification::create("Got an unknown response, check logs for details.", NotificationIcon::Warning)->show();
-                        }
-                        onBackBtn(nullptr);
-                        RegenCategory();
-                        return;
-                    } else if (web::WebProgress* progress = e->getProgress()) {
-                        // The request is still in progress...
-                    } else if (e->isCancelled()) {
-                        log::error("Request was cancelled.");
-                    }
-                });
-                web::WebRequest req = web::WebRequest();
-                req.userAgent(USER_AGENT);
-                auto myjson = matjson::Value();
-                myjson.set("token", m_token);
-                req.header("Content-Type", "application/json");
-                req.bodyJSON(myjson);
-                m_deleteListener.setFilter(req.post(fmt::format("{}/objects/{}/delete", HOST_URL, m_currentObject.id)));
-            }
-        },
-        true,
-        true
-    );
-}
-void ObjectWorkshop::onEditBtn(CCObject*) {
-    EditPopup::create(m_currentObject, m_availableTags, m_user)->show();
-}
-void ObjectWorkshop::onVerifyBtn(CCObject*) {
-    geode::createQuickPopup(
-        "Warning",
-        "Are you sure you want to <cy>accept this object</c>?",
-        "No",
-        "Yes",
-        [this](auto, bool btn2) {
-            if (btn2) {
-                m_reviewListener.getFilter().cancel();
-                m_reviewListener.bind([this] (web::WebTask::Event* e) {
-                    if (web::WebResponse* value = e->getValue()) {
-                        auto jsonRes = value->json().unwrapOrDefault();
-                        if (!jsonRes.is_object()) return log::error("Response isn't object.");
-                        auto isError = jsonRes.try_get<std::string>("error");
-                        if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
-                        auto message = jsonRes.try_get<std::string>("message");
-                        if (message) {
-                            Notification::create(message->c_str(), NotificationIcon::Success)->show();
-                        } else {
-                            log::error("Unknown response, expected message. {}", jsonRes.dump());
-                            Notification::create("Got an unknown response, check logs for details.", NotificationIcon::Warning)->show();
-                        }
-                        if (m_currentMenu == 2) {
-                            onBackBtn(nullptr);
-                            RegenCategory();
-                        }
-                        return;
-                    } else if (web::WebProgress* progress = e->getProgress()) {
-                        // The request is still in progress...
-                    } else if (e->isCancelled()) {
-                        log::error("Request was cancelled.");
-                    }
-                });
-                web::WebRequest req = web::WebRequest();
-                req.userAgent(USER_AGENT);
-                auto myjson = matjson::Value();
-                myjson.set("token", m_token);
-                req.header("Content-Type", "application/json");
-                req.bodyJSON(myjson);
-                m_reviewListener.setFilter(req.post(fmt::format("{}/objects/{}/accept", HOST_URL, m_currentObject.id)));
-            }
-        },
-        true,
-        true
-    );
-}
-void ObjectWorkshop::onRejectBtn(CCObject*) {
-    geode::createQuickPopup(
-        "Warning",
-        "Are you sure you want to <cy>reject this object</c>?",
-        "No",
-        "Yes",
-        [this](auto, bool btn2) {
-            if (btn2) {
-                m_reviewListener.getFilter().cancel();
-                m_reviewListener.bind([this] (web::WebTask::Event* e) {
-                    if (web::WebResponse* value = e->getValue()) {
-                        auto jsonRes = value->json().unwrapOrDefault();
-                        if (!jsonRes.is_object()) return log::error("Response isn't object.");
-                        auto isError = jsonRes.try_get<std::string>("error");
-                        if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
-                        auto message = jsonRes.try_get<std::string>("message");
-                        if (message) {
-                            Notification::create(message->c_str(), NotificationIcon::Success)->show();
-                        } else {
-                            log::error("Unknown response, expected message. {}", jsonRes.dump());
-                            Notification::create("Got an unknown response, check logs for details.", NotificationIcon::Warning)->show();
-                        }
-                        if (m_currentMenu == 2) {
-                            onBackBtn(nullptr);
-                            RegenCategory();
-                        }
-                        return;
-                    } else if (web::WebProgress* progress = e->getProgress()) {
-                        // The request is still in progress...
-                    } else if (e->isCancelled()) {
-                        log::error("Request was cancelled.");
-                    }
-                });
-                web::WebRequest req = web::WebRequest();
-                req.userAgent(USER_AGENT);
-                auto myjson = matjson::Value();
-                myjson.set("token", m_token);
-                req.header("Content-Type", "application/json");
-                req.bodyJSON(myjson);
-                m_reviewListener.setFilter(req.post(fmt::format("{}/objects/{}/reject", HOST_URL, m_currentObject.id)));
-            }
-        },
-        true,
-        true
-    );
-}
-void ObjectWorkshop::onReportBtn(CCObject*) {
-    ReportPopup::create(m_currentObject)->show();
 }
 
 void ObjectWorkshop::onBackBtn(CCObject*) {
@@ -1866,8 +1592,6 @@ void ObjectWorkshop::onBackBtn(CCObject*) {
     rightBg->setVisible(true);
     obj_backBtn->setVisible(false);
     objectInfoNode->removeAllChildrenWithCleanup(true);
-    m_buttonMenu->removeChildByID("favbtn"_spr);
-    m_buttonMenu->removeChildByID("commentbtn"_spr);
     m_buttonMenu->removeChildByID("downloadbtn"_spr);
     m_buttonMenu->removeChildByID("loadmorebtn"_spr);
     m_buttonMenu->removeChildByID("uploadbtn"_spr);
@@ -1885,6 +1609,10 @@ T* clonePointer(const T* original) {
 }
 
 void ObjectWorkshop::onUploadBtn(CCObject*) {
+    if (!m_inEditor) {
+        FLAlertLayer::create("Error", "You cannot <cy>upload objects</c> if you aren't in the <cl>Editor</c>!", "OK")->show();
+        return;
+    }
     m_filterTags.clear();
     m_currentMenu = 1;
     rightBg->setVisible(false);
@@ -1912,7 +1640,31 @@ void ObjectWorkshop::onUploadBtn(CCObject*) {
     m_objName = TextInput::create(300.0F, "Object Name", "bigFont.fnt");
     m_objName->setScale(0.8);
     m_objName->setMaxCharCount(64);
+    m_objName->setCommonFilter(CommonFilter::Any);
     bottomBg->addChildAtPosition(m_objName, Anchor::Top, {0, -20});
+
+    /*
+    m_objDesc = TextInputNode::create("Description [Optional]", 300, {270, 60}, 90);//{270.F, 30.F}, 90);
+    m_objDesc->getInput()->setScale(0.5F);
+    bottomBg->addChildAtPosition(m_objDesc, Anchor::Center, {-1, -3});
+    m_objDesc->addChildAtPosition(m_objDesc->getInput(), Anchor::Center);
+    m_objDesc->setUpdateCallback([this](std::string text) {
+        m_objDesc->getInput()->m_textArea->m_width = 300.0F / Utils::calculateScale(text, 50, 300, 1.0F, 0.5F);
+        m_objDesc->getInput()->setScale(Utils::calculateScale(text, 50, 300, 0.75F, 0.45F));
+        m_objDesc->getInput()->setPosition({
+            Utils::calculateScale(text, 50, 300, 100, 60),
+            Utils::calculateScale(text, 50, 300, 25, 20)
+        });
+    });
+    //m_objDesc->getBackground()->setScale(0.5F);
+    /\*m_objDesc->getBackground()->setContentSize({
+        (m_objDesc->getSize().width - 20.F) * 2.F,
+        (m_objDesc->getSize().height + 20.F) * 2.F
+    });*\/
+    /\*m_objDesc->getBackground()->setContentSize({
+        520, 100
+    });*/
+
 #ifndef GEODE_IS_ANDROID32
     auto textArea = TextArea::create("", "chatFont.fnt", 1.0F, 270.0F, {0.5, 0.5}, 20.0F, true);
     //             TextArea::create(&local_64,"chatFont.fnt",,0x439d8000,this_03,0x41a00000,1);
@@ -1988,6 +1740,9 @@ void ObjectWorkshop::onUploadBtn(CCObject*) {
         scrollLayer->m_contentLayer->addChild(content);
         scrollLayer->setTouchEnabled(true);
 
+        if (m_oldCustomObjectButtonArray == nullptr) {
+            m_oldCustomObjectButtonArray = editor->m_customObjectButtonArray;
+        }
         CCArrayExt<CreateMenuItem*> customItems = editor->createCustomItems();
         int size = customItems.size() - 4;
         for (int i = 0; i < size; i++) {
@@ -2051,6 +1806,8 @@ void ObjectWorkshop::onSearchBtn(CCObject*) {
     if (m_searchInput != nullptr) {
         if (m_searchInput->getString().empty()) return FLAlertLayer::create("Error", "You must enter in a <cy>search query</c>!", "OK")->show();
         if (currentMenuIndexGD < 2) return FLAlertLayer::create("Error", "You cannot search in <cy>My Objects</c> or <cy>Favorites</c>! Please select another category.", "OK")->show();
+        m_currentPage = 1;
+        m_pageInput->setString("1");
         isSearching = true;
         RegenCategory();
     } 
@@ -2065,6 +1822,8 @@ void ObjectWorkshop::onFilterBtn(CCObject*) {
     FiltersPopup::create(m_availableTags, m_filterTags, false, [this](std::unordered_set<std::string> selectedTags) {
         if (m_filterTags != selectedTags) {
             m_filterTags = selectedTags;
+            m_currentPage = 1;
+            m_pageInput->setString("1");
             RegenCategory();
         }
     })->show();
@@ -2100,14 +1859,12 @@ void ObjectWorkshop::onUpload(CCObject*) {
             }
             if (obj.objectString == "") return FLAlertLayer::create("Error", "You must <cy>select an object</c>!", "OK")->show();
             if (m_objDesc != nullptr && m_objDesc->getString().length() > 0) {
-                obj.description = m_objDesc->getString();
+                obj.description = Utils::replaceAll(m_objDesc->getString(), "\\n", "\n");
             }
             obj.tags = m_filterTags;
             obj_backBtn->setVisible(false);
             objectInfoNode->removeAllChildrenWithCleanup(true);
-            m_buttonMenu->removeChildByID("favbtn"_spr);
             m_buttonMenu->removeChildByID("loadcomments"_spr);
-            m_buttonMenu->removeChildByID("commentbtn"_spr);
             m_buttonMenu->removeChildByID("downloadbtn"_spr);
             m_buttonMenu->removeChildByID("loadmorebtn"_spr);
             m_buttonMenu->removeChildByID("uploadbtn"_spr);
@@ -2157,28 +1914,42 @@ void ObjectWorkshop::onUpload(CCObject*) {
             req.bodyJSON(myjson);
             m_uploadListener.setFilter(req.post(fmt::format("{}/objects/upload", HOST_URL)));
         }
+    } else {
+        FLAlertLayer::create("Error", "You cannot <cy>upload objects</c> if you aren't in the <cl>Editor</c>!", "OK")->show();
     }
 }
 
+// fix esc not working
 void ObjectWorkshop::onClose(CCObject* sender) {
     m_listener0.getFilter().cancel();
     m_listener1.getFilter().cancel();
     m_listener2.getFilter().cancel();
-    m_rateListener.getFilter().cancel();
-    m_editListener.getFilter().cancel();
-    m_favoriteListener.getFilter().cancel();
-    m_downloadListener.getFilter().cancel();
-    m_deleteListener.getFilter().cancel();
-    m_reviewListener.getFilter().cancel();
     m_uploadListener.getFilter().cancel();
     m_tagsListener.getFilter().cancel();
 
-    m_commentListener.getFilter().cancel();
-    m_topCommentsListener.getFilter().cancel();
-    m_userListener.getFilter().cancel();
     this->setKeypadEnabled(false);
     this->setTouchEnabled(false);
+    if (!m_inEditor) {
+        log::debug("delete LEL!");
+        if (auto gameManager = GameManager::sharedState()) {
+            if (gameManager->m_levelEditorLayer != nullptr) {
+                gameManager->m_levelEditorLayer->release();
+                gameManager->m_levelEditorLayer = nullptr; // i LOVE dangling pointres, anyways i cant do `delete` because apparently game crashes if i close
+            }
+            gameManager->m_editorEnabled = false;
+        }
+    }
     this->removeFromParentAndCleanup(true);
+    if (auto editor = EditorUI::get()) {
+        if (m_inEditor) {
+            if (m_oldCustomObjectButtonArray != nullptr) {
+                editor->m_customObjectButtonArray = m_oldCustomObjectButtonArray;
+                editor->reloadCustomItems();
+                editor->m_selectedObjectIndex = 0;
+                editor->updateCreateMenu(false);
+            }
+        }
+    }
     Popup::onClose(sender);
 }
 

@@ -13,37 +13,21 @@ bool EditPopup::setup(ObjectData obj, std::unordered_set<std::string> availableT
     m_objName = TextInput::create(300.0F, "Object Name", "bigFont.fnt");
     m_objName->setScale(0.8);
     m_objName->setMaxCharCount(64);
+    m_objName->setCommonFilter(CommonFilter::Any);
     m_objName->setString(obj.name);
     m_mainLayer->addChildAtPosition(m_objName, Anchor::Center, {0, -20});
     
-    m_objDesc = TextInput::create(270.0F, "Description [Optional]", "chatFont.fnt");
-#ifndef GEODE_IS_ANDROID32
-    auto textArea = TextArea::create("", "chatFont.fnt", 1.0F, 270.0F, {0.5, 0.5}, 20.0F, true);
-    //             TextArea::create(&local_64,"chatFont.fnt",,0x439d8000,this_03,0x41a00000,1);
-    m_objDesc->getInputNode()->addTextArea(textArea);
-    m_objDesc->getInputNode()->m_cursor->setOpacity(0);
-#endif
-    m_objDesc->getBGSprite()->setContentSize({520.0F, 100.0F});
-    m_objDesc->setMaxCharCount(300);
-    m_objDesc->setCommonFilter(CommonFilter::Any);
+    m_objDesc = TextInputNode::create("Description [Optional]", 300, {270.F, 60.F}, 90);
     m_mainLayer->addChildAtPosition(m_objDesc, Anchor::Center, {0, -65});
-    
+    m_objDesc->addChildAtPosition(m_objDesc->getInput(), Anchor::Center);
+    obj.description = Utils::replaceAll(obj.description, "\r\n", "\\n");
+    obj.description = Utils::replaceAll(obj.description, "\n", "\\n");
+    updateDescObj(obj.description);
     m_objDesc->setString(obj.description);
-#ifndef GEODE_IS_ANDROID32
-    m_objDesc->getInputNode()->m_placeholderLabel->setOpacity((obj.description.length() == 0) ? 255 : 0);
-    textArea->setScale(Utils::calculateScale(obj.description, 50, 300, 1.0F, 0.35F));
-    textArea->m_width = 220.0F / Utils::calculateScale(obj.description, 50, 300, 1.0F, 0.32F);
-    textArea->setString(obj.description);
-    m_objDesc->setCallback(
-        [this, textArea](std::string p0) {
-            m_objDesc->getInputNode()->m_placeholderLabel->setOpacity((p0.empty()) ? 255 : 0);
-            textArea->setScale(Utils::calculateScale(p0, 50, 300, 1.0F, 0.35F));
-            textArea->m_width = 220.0F / Utils::calculateScale(p0, 50, 300, 1.0F, 0.32F);
-            textArea->setString(m_objDesc->getInputNode()->getString());
-        }
-    );
-#endif
-
+    //m_objDesc->getInput()->m_textArea->setScale(Utils::calculateScale(obj.description, 50, 300, 1.0F, 0.35F));
+    m_objDesc->setUpdateCallback([this](std::string text) {
+        updateDescObj(text);
+    });
     auto filterSpr = ButtonSprite::create(
         CCSprite::createWithSpriteFrameName("GJ_filterIcon_001.png"),
         30,
@@ -55,11 +39,11 @@ bool EditPopup::setup(ObjectData obj, std::unordered_set<std::string> availableT
         false
     );
     filterSpr->setScale(0.75F);
-    auto filterBtn = CCMenuItemSpriteExtra::create(
-        filterSpr,
-        this,
-        menu_selector(EditPopup::onFilterBtn)
-    );
+    auto filterBtn = CCMenuItemExt::createSpriteExtra(filterSpr, [this](CCObject*) {
+        FiltersPopup::create(m_availableTags, m_object.tags, true, [this](std::unordered_set<std::string> selectedTags) {
+            m_object.tags = selectedTags;
+        })->show();
+    });
     m_buttonMenu->addChildAtPosition(filterBtn, Anchor::Bottom, {-50, 28});
 
     auto uploadSpr = ButtonSprite::create("Update", "bigFont.fnt", "GJ_button_01.png");
@@ -164,17 +148,21 @@ bool EditPopup::setup(ObjectData obj, std::unordered_set<std::string> availableT
     return true;
 }
 
+void EditPopup::updateDescObj(std::string text) {
+    m_objDesc->getInput()->m_textArea->m_width = 300.0F / Utils::calculateScale(text, 50, 300, 1.0F, 0.5F);
+    m_objDesc->getInput()->setScale(Utils::calculateScale(text, 50, 300, 0.75F, 0.45F));
+    m_objDesc->getInput()->setPosition({
+        Utils::calculateScale(text, 50, 300, 100, 60),
+        Utils::calculateScale(text, 50, 300, 25, 20)
+    });
+}
+
 void EditPopup::onOverwriteBtn(CCObject*) {
     if (m_object.authorAccId != m_user.account_id) return FLAlertLayer::create("Error", "You cannot <cr>overwrite</c> an object that is not your own!", "OK")->show();
     m_previewBG->setVisible(!m_previewBG->isVisible());
     m_overwriteInfo->setVisible(!m_overwriteInfo->isVisible());
 }
 
-void EditPopup::onFilterBtn(CCObject*) {
-    FiltersPopup::create(m_availableTags, m_object.tags, true, [this](std::unordered_set<std::string> selectedTags) {
-        m_object.tags = selectedTags;
-    })->show();
-}
 void EditPopup::onUpdateBtn(CCObject*) {
     auto token = Mod::get()->getSettingValue<std::string>("token");
     m_listener.getFilter().cancel();
@@ -243,7 +231,7 @@ void EditPopup::onUpdateBtn(CCObject*) {
     }
     m_object.description = "[No description provided]";
     if (m_objDesc != nullptr && m_objDesc->getString().length() > 0) {
-        m_object.description = m_objDesc->getString();
+        m_object.description = Utils::replaceAll(m_objDesc->getString(), "\\n", "\n");
     }
     web::WebRequest req = web::WebRequest();
     req.userAgent(USER_AGENT);

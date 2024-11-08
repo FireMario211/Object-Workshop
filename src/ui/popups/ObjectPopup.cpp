@@ -1,4 +1,5 @@
 #include "Geode/utils/cocos.hpp"
+#include "ReportsPopup.hpp"
 #include "includes.h"
 #include "ObjectPopup.hpp"
 #include "CommentsPopup.hpp"
@@ -84,8 +85,11 @@ bool ObjectPopup::setup(ObjectData objectData, UserData user) {
     m_mainLayer->addChildAtPosition(vLine1, Anchor::Top, {0, -52});
 
     // Middle
-    m_previewBG = ExtPreviewBG::create(objectData.objectString, {240.F, 82.F});
-    m_mainLayer->addChildAtPosition(m_previewBG, Anchor::Center, {0, 40});
+    if (m_workshop != nullptr) {
+        auto editorLayer = m_workshop->m_editorLayer;
+        m_previewBG = ExtPreviewBG::create(editorLayer, objectData.objectString, {240.F, 82.F});
+        m_mainLayer->addChildAtPosition(m_previewBG, Anchor::Center, {0, 40});
+    }
 
     auto resetZoomSpr = CCSprite::createWithSpriteFrameName("GJ_updateBtn_001.png");
     resetZoomSpr->setScale(0.4F);
@@ -141,6 +145,16 @@ bool ObjectPopup::setup(ObjectData objectData, UserData user) {
             featureSpr, this, menu_selector(ObjectPopup::onFeatureBtn)
         );
         leftMenu->addChild(featureBtn);
+
+        if (!m_object.reports.empty()) {
+            auto admreportSpr = CCSprite::createWithSpriteFrameName("GJ_reportBtn_001.png");
+            admreportSpr->setScale(0.5F);
+            admreportSpr->setColor({0, 255, 0});
+            auto admreportBtn = CCMenuItemExt::createSpriteExtra(admreportSpr, [this](CCObject*) {
+                ReportsPopup::create(m_object.reports, {})->show();
+            });
+            leftMenu->addChild(admreportBtn);
+        }
     }
     if (m_user.account_id != objectData.authorAccId && m_user.account_id > 0) {
         leftMenu->addChild(reportBtn);
@@ -276,7 +290,6 @@ bool ObjectPopup::setup(ObjectData objectData, UserData user) {
     auto favBtn = CCMenuItemToggler::create(unfavSpr, favSpr, this, menu_selector(ObjectPopup::onFavBtn));
     if (m_workshop != nullptr) {
         favBtn->toggle(Utils::arrayIncludes(m_workshop->m_user.favorites, objectData.id));
-
     }
     m_buttonMenu->addChildAtPosition(downloadBtn, Anchor::BottomRight, {-90, 29});
     m_buttonMenu->addChildAtPosition(favBtn, Anchor::BottomRight, {-48, 29});
@@ -296,6 +309,7 @@ bool ObjectPopup::setup(ObjectData objectData, UserData user) {
 
     auto commentBtn = CCMenuItemSpriteExtra::create(commentSpr, this, menu_selector(ObjectPopup::onCommentsBtn));
     m_buttonMenu->addChildAtPosition(commentBtn, Anchor::BottomRight, {-3, 3});
+    this->setID("ObjectPopup"_spr);
     return true;
 }
 
@@ -501,6 +515,12 @@ void ObjectPopup::actuallyDownload() {
 }
 
 void ObjectPopup::onDownloadBtn(CCObject*) {
+    if (m_workshop != nullptr) {
+        if (!m_workshop->m_inEditor) {
+            FLAlertLayer::create("Error", "You need to be in the <cl>Editor</c> to <cg>download objects</c>!", "OK")->show();
+            return;
+        }
+    }
     if (Utils::arrayIncludes(m_user.downloaded, m_object.id)) {
         geode::createQuickPopup(
             "Info",

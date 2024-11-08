@@ -11,11 +11,11 @@ protected:
     UserData m_managingUser;
     UserData m_user;
     bool setup(UserData, UserData) override;
-    void onUpdateBtn(CCObject*);
+    bool m_hadSetRole = false;
 public:
     static AdminPopup* create(UserData user1, UserData user2) {
         auto ret = new AdminPopup();
-        if (ret->initAnchored(300.f, 220.f, user1, user2)) {
+        if (ret->initAnchored(300.f, 150.f, user1, user2)) {
             ret->autorelease();
             return ret;
         }

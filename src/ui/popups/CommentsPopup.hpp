@@ -3,7 +3,6 @@
 #include <Geode/ui/Popup.hpp>
 #include "../../nodes/ObjectItem.hpp"
 #include "../ObjectWorkshop.hpp"
-#include <Geode/utils/web.hpp>
 using namespace geode::prelude;
 
 class CommentsPopup : public geode::Popup<ObjectData, UserData> {
@@ -22,14 +21,11 @@ protected:
     bool setup(ObjectData obj, UserData user) override;
     void updateCategoryBG();
     
-    void onCommentBtn(CCObject*);
     void onLoadComments(CCObject*);
-    void onNextPage(CCObject*);
-    void onPrevPage(CCObject*);
 
     void onCategoryButton(CCObject*);
-    virtual void onClose(CCObject* sender) override;
 public:
+    virtual void onClose(CCObject* sender) override;
     static CommentsPopup* create(ObjectData obj, UserData user) {
         auto ret = new CommentsPopup();
         if (ret->initAnchored(300.f, 200.f, obj, user)) {

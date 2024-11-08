@@ -5,4 +5,4 @@
 #include "CommentPopup.hpp"
 #include "ObjectPopup.hpp"
 #include "VotePopup.hpp"
-#include "AdminPopup.hpp"
+#include "ReportsPopup.hpp"

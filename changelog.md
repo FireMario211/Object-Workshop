@@ -1,3 +1,11 @@
+# v1.4.0
+- Allowed clicking on users profiles in comments (will only work for players that authenticated with Object Workshop before)
+- Added \n for descriptions and comments
+- Changed clicking on usernames in comments to redirect to the users objects rather than profile
+- Allowed symbols in object names
+- Changed descriptions (mainly editing) to use RobTop's textarea (like comments)
+- Fixed bug where selecting an object in the workshop will not allow you to select in the editor unless you re-enter
+- Added warnings
 # v1.3.1
 - Fixed bug where going to a users profile while on another page will assume you want to go to that page
 # v1.3.0

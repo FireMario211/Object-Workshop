@@ -157,10 +157,10 @@ ScrollLayerExt* ScrollLayerExt::create(CCRect const& rect, bool scroll, bool ver
     return ret;
 }
 
-void ScrollLayerExt::setCallbackMove(utils::MiniFunction<void()> callbackMove) {
+void ScrollLayerExt::setCallbackMove(std::function<void()> callbackMove) {
     m_callbackMove = callbackMove;
 }
-void ScrollLayerExt::setCallbackEnd(utils::MiniFunction<void()> callbackEnd) {
+void ScrollLayerExt::setCallbackEnd(std::function<void()> callbackEnd) {
     m_callbackEnd = callbackEnd;
 }
 

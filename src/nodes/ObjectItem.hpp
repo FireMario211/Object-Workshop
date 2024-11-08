@@ -10,6 +10,12 @@ enum ObjectStatus {
     BANNED = 3
 };
 
+struct ReportData {
+    int accountID;
+    std::string reason;
+    //std::string timestamp;
+};
+
 struct ObjectData {
     int id;
     std::string name;
@@ -33,18 +39,20 @@ struct ObjectData {
 
     int commentPage = 1;
     int maxCommentPage = 1;
+
+    std::vector<ReportData> reports;
 };
 
 class ObjectItem : public CCScale9Sprite {
     protected:
         CCClippingNode* m_clippingNode;
         ObjectData m_data;
-        virtual bool init(ObjectData);
+        virtual bool init(LevelEditorLayer*, ObjectData);
         CCScale9Sprite* bgSpr;
     public:
         ObjectData getData() { return m_data; };
         static CCNode* createStars(double rating);
         static CCMenu* createClickableStars(CCObject* target, SEL_MenuHandler callback);
         static ccColor3B starColor(double rating);
-        static ObjectItem* create(ObjectData);
+        static ObjectItem* create(LevelEditorLayer*, ObjectData);
 };

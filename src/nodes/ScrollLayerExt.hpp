@@ -39,8 +39,8 @@ class ScrollLayerExt : public CCScrollLayerExt, public CCScrollLayerExtDelegate 
         bool m_touchMoved;
         float m_touchLastY;
         bool m_cancellingTouches;
-        utils::MiniFunction<void()> m_callbackMove;
-        utils::MiniFunction<void()> m_callbackEnd;
+        std::function<void()> m_callbackMove;
+        std::function<void()> m_callbackEnd;
 
         void cancelAndStoleTouch(cocos2d::CCTouch*, cocos2d::CCEvent*);
         void checkBoundaryOfContent(float);
@@ -60,8 +60,8 @@ class ScrollLayerExt : public CCScrollLayerExt, public CCScrollLayerExtDelegate 
         ScrollLayerExt(CCRect const& rect, bool scrollWheelEnabled, bool vertical);
     public:
         void fixTouchPrio();
-        void setCallbackMove(utils::MiniFunction<void()> callbackMove);
-        void setCallbackEnd(utils::MiniFunction<void()> callbackEnd);
+        void setCallbackMove(std::function<void()> callbackMove);
+        void setCallbackEnd(std::function<void()> callbackEnd);
         static ScrollLayerExt* create(
             cocos2d::CCRect const& rect, bool scrollWheelEnabled = true, bool vertical = true
         );

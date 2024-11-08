@@ -1,6 +1,7 @@
 #include "ExtPreviewBG.hpp"
+#include "../ui/ObjectWorkshop.hpp"
 #include "../config.hpp"
-bool ExtPreviewBG::init(std::string data, CCSize contentSize) {
+bool ExtPreviewBG::init(LevelEditorLayer* editorLayer, std::string data, CCSize contentSize) {
     if (!CCLayer::init()) return false;
     this->setContentSize(contentSize);
     this->setAnchorPoint({0.5, 0.5});
@@ -18,11 +19,12 @@ bool ExtPreviewBG::init(std::string data, CCSize contentSize) {
     m_clippingNode = CCClippingNode::create();
     m_clippingNode->setContentSize(bg->getContentSize());
     m_clippingNode->setAnchorPoint({0.5, 0.5});
-    if (auto editorUI = EditorUI::get() && data.length() > 0) {
-        auto renderLimit = Mod::get()->getSettingValue<int64_t>("render-objects");
+    if (data.length() > 0) {
+        int renderLimit = Mod::get()->getSettingValue<int64_t>("render-objects");
         auto smartBlock = CCArray::create();
-        objSprite = EditorUI::get()->spriteFromObjectString(data, false, false, renderLimit, smartBlock, (CCArray *)0x0,(GameObject *)0x0);
-        LevelEditorLayer::get()->updateObjectColors(smartBlock);
+        objSprite = editorLayer->m_editorUI->spriteFromObjectString(data, false, false, renderLimit, smartBlock, (CCArray *)0x0,(GameObject *)0x0);
+        //objSprite = ObjectWorkshop::spriteFromObjectString(data, false, false, renderLimit, smartBlock, nullptr, (GameObject *)0x0);
+        editorLayer->updateObjectColors(smartBlock);
         objSprite->setScale((m_clippingNode->getContentSize().height - 20) / objSprite->getContentSize().height);
         m_oldScale = objSprite->getScale();
         m_clippingNode->addChildAtPosition(objSprite, Anchor::Center, {0, -5});
@@ -99,10 +101,10 @@ void ExtPreviewBG::resetZoom() {
     objSprite->setPosition(m_oldPos);
 };
 
-ExtPreviewBG* ExtPreviewBG::create(std::string data, CCSize contentSize) {
+ExtPreviewBG* ExtPreviewBG::create(LevelEditorLayer* editorLayer, std::string data, CCSize contentSize) {
     auto pRet = new ExtPreviewBG();
     if (pRet) {
-        if (pRet->init(data, contentSize)) {
+        if (pRet->init(editorLayer, data, contentSize)) {
             pRet->autorelease();
             return pRet;
         }

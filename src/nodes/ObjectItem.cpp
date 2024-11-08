@@ -89,7 +89,7 @@ CCMenu* ObjectItem::createClickableStars(CCObject* target, SEL_MenuHandler callb
     node->updateLayout();
     return node;
 }
-bool ObjectItem::init(ObjectData data) {
+bool ObjectItem::init(LevelEditorLayer* editorLayer, ObjectData data) {
     if (!CCScale9Sprite::init()) return false;
     m_data = data;
     this->setContentSize({ 86.0f, 100.0f });
@@ -164,7 +164,7 @@ bool ObjectItem::init(ObjectData data) {
     m_clippingNode = CCClippingNode::create();
     m_clippingNode->setContentSize(previewBG->getContentSize());
     m_clippingNode->setAnchorPoint({0.5, 0.5});
-    if (auto editorUI = EditorUI::get() && data.objectString.length() > 0) {
+    if (data.objectString.length() > 0) {
         // i love ghidra (i have no idea what params are what)
         /*
         gd::string - object string, duh 
@@ -176,9 +176,9 @@ bool ObjectItem::init(ObjectData data) {
         GameObject* - something with keyframes
         */
         auto smartBlock = CCArray::create();
-        auto renderLimit = Mod::get()->getSettingValue<int64_t>("render-objects");
-        CCSprite* sprite = EditorUI::get()->spriteFromObjectString(data.objectString, false, false, renderLimit, smartBlock, (CCArray *)0x0,(GameObject *)0x0);
-        LevelEditorLayer::get()->updateObjectColors(smartBlock);
+        int renderLimit = Mod::get()->getSettingValue<int64_t>("render-objects");
+        CCSprite* sprite = editorLayer->m_editorUI->spriteFromObjectString(data.objectString, false, false, renderLimit, smartBlock, (CCArray *)0x0,(GameObject *)0x0);
+        editorLayer->updateObjectColors(smartBlock);
         sprite->setScale(((previewBG->getContentSize().height - 6) / sprite->getContentSize().height));
         m_clippingNode->addChildAtPosition(sprite, Anchor::Center);
     }
@@ -193,10 +193,10 @@ bool ObjectItem::init(ObjectData data) {
     return true;
 }
 
-ObjectItem* ObjectItem::create(ObjectData data) {
+ObjectItem* ObjectItem::create(LevelEditorLayer* editorLayer, ObjectData data) {
     auto pRet = new ObjectItem();
     if (pRet) {
-        if (pRet->init(data)) {
+        if (pRet->init(editorLayer, data)) {
             pRet->autorelease();
             return pRet;
         }

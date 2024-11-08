@@ -47,7 +47,7 @@ void AuthMenu::onDashAuth(CCObject*) {
     FLAlertLayer::create("Error", "Unfortunately, RobTop's servers <cr>IP banned my server</c>, meaning this method <cr>is not available</c>.", "OK")->show();
 }
 
-void AuthMenu::testAuth(std::string token, utils::MiniFunction<void(int)> callback) {
+void AuthMenu::testAuth(std::string token, std::function<void(int)> callback) {
     m_iconListener.bind([] (web::WebTask::Event* e) {
         if (web::WebResponse* value = e->getValue()) {
             hasEmitted = true;
@@ -115,7 +115,7 @@ void AuthMenu::testAuth(std::string token, utils::MiniFunction<void(int)> callba
     req.userAgent(USER_AGENT);
     m_authListener.setFilter(req.post(fmt::format("{}/verify", HOST_URL)));
 }
-void AuthMenu::genAuthToken(AuthMethod method, std::string token, bool showFLAlert, utils::MiniFunction<void(int)> callback) {
+void AuthMenu::genAuthToken(AuthMethod method, std::string token, bool showFLAlert, std::function<void(int)> callback) {
     m_authListener.bind([method, showFLAlert, callback] (web::WebTask::Event* e) {
         if (web::WebResponse* value = e->getValue()) {
             log::info("Request was finished!");

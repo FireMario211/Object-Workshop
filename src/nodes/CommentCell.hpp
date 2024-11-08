@@ -21,16 +21,16 @@ struct CommentData {
 class OWCommentCell : public CCScale9Sprite {
     protected:
         EventListener<web::WebTask> m_listener;
-        utils::MiniFunction<void()> m_forceRefresh;
+        std::function<void()> m_forceRefresh;
 
         CommentData m_data;
         UserData m_user;
-        virtual bool init(CommentData, ObjectData, UserData, utils::MiniFunction<void()>);
+        virtual bool init(CommentData, ObjectData, UserData, std::function<void()>);
         void onVote(CCObject*);
         void onPin(CCObject*);
         void onDelete(CCObject*);
     public:
         std::string getComment() { return m_data.content; };
         CommentData getData() { return m_data; };
-        static OWCommentCell* create(CommentData, ObjectData, UserData, utils::MiniFunction<void()>);
+        static OWCommentCell* create(CommentData, ObjectData, UserData, std::function<void()>);
 };

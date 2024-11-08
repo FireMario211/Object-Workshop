@@ -7,6 +7,7 @@ bool ReportPopup::setup(ObjectData obj) {
     m_reportInput = TextInput::create(300.0F, "Report Reason...", "chatFont.fnt");
     m_reportInput->setScale(0.8);
     m_reportInput->setMaxCharCount(100);
+    m_reportInput->setCommonFilter(CommonFilter::Any);
     m_mainLayer->addChildAtPosition(m_reportInput, Anchor::Center, {0, 8});
     
     auto reportSpr = ButtonSprite::create("Report", "bigFont.fnt", "GJ_button_01.png");

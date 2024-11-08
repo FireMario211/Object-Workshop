@@ -4,12 +4,12 @@ import ObjectData from '@/Components/Object';
 import { getCache } from '../postgres';
 import { Router, Request, Response } from 'express'
 import { query, body, param, validationResult, CustomValidator } from 'express-validator';
-import { verifyToken } from './user';
+import { verifyToken, banCheck } from './user';
 import axios from 'axios';
 import moment from 'moment'
 import { UserData } from '@/Components/User';
 
-const allowedTags = ["Font", "Decoration", "Gameplay", "Art", "Structure", "Custom", "Icon", "Meme", "Technical", "Particles", "Triggers", "SFX", "Effects", "Auto Build"];
+const allowedTags = ["Font", "Decoration", "Gameplay", "Art", "Structure", "Custom", "Icon", "Meme", "Technical", "Particles", "Triggers", "SFX", "Effects", "Auto Build", "Recreation"];
 
 const oRouter = Router();
 
@@ -138,7 +138,7 @@ oRouter.post('/objects/upload',
         const { token, name, description, data } = req.body;
         let tags = req.body.tags as Array<string>;
         if (name.length > 64) return res.status(413).json({error: "The name cannot be more than 64 characters long!"});
-        if (description.length > 300) return res.status(413).json({error: "The description cannot be more than 300 characters long!"});
+        if (description.length > 500) return res.status(413).json({error: "The description cannot be more than 500 characters long!"});
         const splitData: Array<string> = data.split(";");
         if (splitData.length > 50000) return res.status(413).json({error: "You cannot upload a custom object with more than 50,000 objects!"})
         const hasBlacklistedIDs = splitData.find(objStr => {
@@ -164,7 +164,7 @@ oRouter.post('/objects/upload',
                     return res.status(401).json({ error: verifyRes.message });
                 }
                 if (!verifyRes.user) return res.status(404).json({error: "Couldn't retrieve user."});
-                if (verifyRes.user.role == -1) return res.status(403).json({error: "You are banned! Reason: " + verifyRes.user.ban_reason});
+                if (banCheck(res, verifyRes.user, 1)) return;
                 try {
                     const dupCheck = await pool.query("SELECT id FROM objects WHERE data = $1 LIMIT 1;", [data]);
                     if (dupCheck.rowCount != null && dupCheck.rowCount > 0) return res.status(409).json({error: "You cannot upload an object that already exists!"});
@@ -243,13 +243,13 @@ oRouter.post('/objects/:id/overwrite',
                     return res.status(401).json({ error: verifyRes.message });
                 }
                 if (!verifyRes.user) return res.status(404).json({error: "Couldn't retrieve user."});
-                if (verifyRes.user.role == -1) return res.status(403).json({error: "You are banned! Reason: " + verifyRes.user.ban_reason});
+                if (banCheck(res, verifyRes.user, 1)) return;
                 try {
                     const query = await pool.query("SELECT * FROM objects WHERE id = $1 AND status != 3", [objectID])
                     if (!query.rows.length) return res.status(404).json({error: "Object not found."});
                     const objData: ObjectData = query.rows[0];
                     if (objData.account_id != verifyRes.user.account_id) return res.status(403).json({error: "This is not your object!"});
-                    if (verifyRes.user.role == 0) {
+                    if (verifyRes.user.role == 0 && !objData.featured) {
                         await pool.query("UPDATE objects SET data = $1, status = 0, updated_at = $2, version = version + 1 WHERE id = $3", [data, new Date(), objectID]);
                     } else {
                         await pool.query("UPDATE objects SET data = $1, updated_at = $2, version = version + 1 WHERE id = $3", [data, new Date(), objectID]);
@@ -333,7 +333,8 @@ oRouter.post('/objects/:id/rate',
                     return res.status(401).json({ error: verifyRes.message });
                 }
                 const accountID = verifyRes.user?.account_id;
-                if (verifyRes.user?.role == -1) return res.status(403).json({error: "You are banned! Reason: " + verifyRes.user.ban_reason});
+                if (!verifyRes.user) return;
+                if (banCheck(res, verifyRes.user, 3)) return;
                 try {
                     const objExists = await pool.query("SELECT EXISTS (SELECT 1 FROM objects WHERE id = $1 AND status = 1)", [objectID])
                     if (!objExists.rows[0].exists) return res.status(404).json({error: "Object not found."}); 
@@ -377,8 +378,9 @@ oRouter.post('/objects/:id/comment',
                 } else if (!verifyRes.valid) {
                     return res.status(401).json({ error: verifyRes.message });
                 }
-                const accountID = verifyRes.user?.account_id;
-                if (verifyRes.user?.role == -1) return res.status(403).json({error: "You are banned! Reason: " + verifyRes.user.ban_reason});
+                if (!verifyRes.user) return;
+                const accountID = verifyRes.user.account_id;
+                if (banCheck(res, verifyRes.user, 2)) return;
                 try {
                     const objExists = await pool.query("SELECT EXISTS (SELECT 1 FROM objects WHERE id = $1 AND status = 1)", [objectID])
                     if (!objExists.rows[0].exists) return res.status(404).json({error: "Object not found."}); 
@@ -415,8 +417,9 @@ oRouter.post('/objects/:id/comments/:commentid/pin',
                 } else if (!verifyRes.valid) {
                     return res.status(401).json({ error: verifyRes.message });
                 }
-                const accountID = verifyRes.user?.account_id;
-                if (verifyRes.user?.role == -1) return res.status(403).json({error: "You are banned! Reason: " + verifyRes.user.ban_reason});
+                if (!verifyRes.user) return;
+                const accountID = verifyRes.user.account_id;
+                if (banCheck(res, verifyRes.user, 3)) return;
                 try {
                     if (verifyRes.user && verifyRes.user.role == 3) {
                         const objExists = await pool.query("SELECT EXISTS (SELECT 1 FROM objects WHERE id = $1)", [objectID])
@@ -520,8 +523,9 @@ oRouter.post('/objects/:id/comments/:commentid/delete',
                 } else if (!verifyRes.valid) {
                     return res.status(401).json({ error: verifyRes.message });
                 }
+                if (!verifyRes.user) return;
                 const accountID = verifyRes.user?.account_id;
-                if (verifyRes.user?.role == -1) return res.status(403).json({error: "You are banned! Reason: " + verifyRes.user.ban_reason});
+                if (banCheck(res, verifyRes.user, 3)) return;
                 try {
                     const query = await pool.query("SELECT * FROM objects WHERE id = $1 AND status = 1", [objectID])
                     if (!query.rows.length) return res.status(404).json({error: "Object not found."});
@@ -567,8 +571,9 @@ oRouter.post('/objects/:id/report',
                 } else if (!verifyRes.valid) {
                     return res.status(401).json({ error: verifyRes.message });
                 }
-                const accountID = verifyRes.user?.account_id;
-                if (verifyRes.user?.role == -1) return res.status(403).json({error: "You are banned! Reason: " + verifyRes.user.ban_reason});
+                if (!verifyRes.user) return;
+                const accountID = verifyRes.user.account_id;
+                if (banCheck(res, verifyRes.user, 1)) return;
                 try {
                     const objExists = await pool.query("SELECT EXISTS (SELECT 1 FROM objects WHERE id = $1 AND status = 1)", [objectID])
                     if (!objExists.rows[0].exists) return res.status(404).json({error: "Object not found."}); 
@@ -736,7 +741,7 @@ oRouter.post('/objects/:id/update',
         const { token, name, description } = req.body;
         let tags = req.body.tags as Array<string>;
         if (name.length > 64) return res.status(413).json({error: "The name cannot be more than 64 characters long!"});
-        if (description.length > 300) return res.status(413).json({error: "The description cannot be more than 300 characters long!"});
+        if (description.length > 500) return res.status(413).json({error: "The description cannot be more than 500 characters long!"});
         if (!tags || !tags.length) tags = [];
         if (tags.length > 5) return res.status(413).json({error: "You can only add a maximum of 5 tags!"});
         getCache().then(pool => { // returns a PoolClient
@@ -1219,7 +1224,7 @@ oRouter.post('/objects/reports',
                 } else if (!verifyRes.valid) {
                     return res.status(401).json({ error: verifyRes.message });
                 }
-                if (verifyRes.user && verifyRes.user.role != 3) return res.status(403).json({ error: "No permission" });
+                if (verifyRes.user && verifyRes.user.role < 2) return res.status(403).json({ error: "No permission" });
                 const page = parseInt(req.query.page as string) || 1;
                 const limit = 9;
                 const offset = (page - 1) * limit;
@@ -1231,7 +1236,12 @@ oRouter.post('/objects/reports',
                             COALESCE(AVG(orate.stars), 0) as rating,
                             COUNT(orate.stars) as rating_count,
                             COUNT(*) OVER() AS total_records,
-                            COUNT(rep) AS report_count
+                            COUNT(rep) AS report_count,
+                            COALESCE(ARRAY_AGG(DISTINCT jsonb_build_object(
+                                'reason', rep.reason,
+                                'account_id', rep.account_id,
+                                'timestamp', rep.timestamp
+                            )) FILTER (WHERE rep.object_id IS NOT NULL), '{}') AS reports
                         FROM
                             objects o
                         LEFT JOIN
@@ -1248,7 +1258,11 @@ oRouter.post('/objects/reports',
                     const totalRecords = (result.rows.length > 0) ? parseInt(result.rows[0].total_records) : 0;
                     const totalPages = Math.ceil(totalRecords / limit);
 
-                    const objectData = convertRowsToObjects(result.rows)
+                    const objectData = (convertRowsToObjects(result.rows) as Array<any>).map((value, index) => {
+                        value.report_count = parseInt(result.rows[index].report_count);
+                        value.reports = result.rows[index].reports;
+                        return value;
+                    });
                     res.json({
                         results: objectData,
                         page,

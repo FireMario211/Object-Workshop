@@ -1,5 +1,5 @@
 {
-	"geode": "3.7.1",
+	"geode": "3.9.0",
 	"gd": {
 		"win": "2.206",
 		"android": "2.206",
@@ -8,7 +8,7 @@
 	},
 	"id": "firee.object-workshop",
 	"name": "Object Workshop",
-	"version": "v1.3.1",
+	"version": "v1.4.0",
 	"developer": "Firee",
 	"description": "Download, upload, or find custom objects made by other creators!",
     "resources": {
@@ -60,6 +60,11 @@
         {
             "id": "alphalaneous.editortab_api",
             "version": ">=v1.0.0",
+            "importance": "required"
+        },
+        {
+            "id": "geode.node-ids",
+            "version": ">=1.14.1",
             "importance": "required"
         }
     ]

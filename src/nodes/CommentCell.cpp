@@ -2,9 +2,10 @@
 #include "../config.hpp"
 #include "../utils.hpp"
 #include "../ui/popups/VotePopup.hpp"
-#include "Geode/utils/cocos.hpp"
+#include "../ui/popups/CommentsPopup.hpp"
+#include "../ui/popups/ObjectPopup.hpp"
 
-bool OWCommentCell::init(CommentData data, ObjectData obj, UserData user, utils::MiniFunction<void()> callback) {
+bool OWCommentCell::init(CommentData data, ObjectData obj, UserData user, std::function<void()> callback) {
     if (!CCScale9Sprite::init()) return false;
     m_data = data;
     m_user = user;
@@ -31,8 +32,31 @@ bool OWCommentCell::init(CommentData data, ObjectData obj, UserData user, utils:
 
     auto authorName = CCLabelBMFont::create(data.accountName.c_str(), "goldFont.fnt");
     authorName->limitLabelWidth(80.0F, 0.45F, 0.1F); // 0.425
-    authorName->setAnchorPoint({0, 0.5});
-    authorName->setID("comment/author"_spr);
+    auto authorBtn = CCMenuItemExt::createSpriteExtra(authorName, [this](CCObject*) {
+        auto doProfileInstead = [this]() {
+            ProfilePage::create(m_data.accountID, false)->show();
+        };
+        if (auto scene = CCScene::get()) {
+            if (auto commentsPopup = typeinfo_cast<CommentsPopup*>(scene->getChildByID("CommentsPopup"_spr))) {
+                if (auto objectPopup = typeinfo_cast<ObjectPopup*>(scene->getChildByID("ObjectPopup"_spr))) {
+                    auto workshop = objectPopup->getWorkshop();
+                    if (workshop != nullptr) {
+                        commentsPopup->onClose(nullptr);
+                        objectPopup->onClose(nullptr);
+                        workshop->onClickUser(m_data.accountID);
+                    }
+                } else {
+                    doProfileInstead();
+                }
+            } else {
+                doProfileInstead();
+            }
+        } else {
+            doProfileInstead();
+        }
+    });
+    authorBtn->setAnchorPoint({0, 0.5});
+    authorBtn->setID("comment/author"_spr);
     
     // icon,playerColor,playerColor2,playerColorGlow,glow
     if (auto gm = GameManager::sharedState()) {
@@ -103,7 +127,7 @@ bool OWCommentCell::init(CommentData data, ObjectData obj, UserData user, utils:
 
     bgSpr->addChildAtPosition(invisLabel, Anchor::Left, {4, 0});
     bgSpr->addChildAtPosition(commentText, Anchor::Left, {4, 0});
-    bgSpr->addChildAtPosition(authorName, Anchor::TopLeft, {22, -9});
+    menu->addChildAtPosition(authorBtn, Anchor::TopLeft, {22, -9});
     bgSpr->addChildAtPosition(timeAgo, Anchor::BottomRight, {-4, 5});
 
     menu->addChildAtPosition(voteBtn, Anchor::TopRight, {-25, -8});
@@ -250,7 +274,7 @@ void OWCommentCell::onDelete(CCObject*) {
     );
 }
 
-OWCommentCell* OWCommentCell::create(CommentData data, ObjectData obj, UserData user, utils::MiniFunction<void()> callback) {
+OWCommentCell* OWCommentCell::create(CommentData data, ObjectData obj, UserData user, std::function<void()> callback) {
     auto pRet = new OWCommentCell();
     if (pRet) {
         if (pRet->init(data, obj, user, callback)) {

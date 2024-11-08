@@ -182,4 +182,37 @@ class Utils {
             }
         }
     }
+
+    static std::string replaceAll(std::string str, const std::string& from, const std::string& to) {
+        size_t start_pos = 0;
+        while((start_pos = str.find(from, start_pos)) != std::string::npos) {
+            str.replace(start_pos, from.length(), to);
+            start_pos += to.length(); // Handles case where 'to' is a substring of 'from'
+        }
+        return str;
+    }
+
+    static cocos2d::CCSprite* roleIDToSprite(int role, float scale) {
+        cocos2d::CCSprite* spr;
+        switch (role) {
+            case 0: // default
+            default:
+                spr = cocos2d::CCSprite::createWithSpriteFrameName("GJ_profileButton_001.png");
+                break;
+            case 1: // verified
+                spr = cocos2d::CCSprite::createWithSpriteFrameName("GJ_editBtn_001.png");
+                scale -= 0.18F;
+                break;
+            case 2: // moderator
+                spr = cocos2d::CCSprite::createWithSpriteFrameName("GJ_starBtn_001.png");
+                scale += 0.1F;
+                break;
+            case 3: // admin
+                spr = cocos2d::CCSprite::createWithSpriteFrameName("GJ_starBtnMod_001.png");
+                scale += 0.1F;
+                break;
+        }
+        spr->setScale(scale);
+        return spr;
+    }
 };

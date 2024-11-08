@@ -13,6 +13,7 @@ file(GLOB SOURCES
 	src/nodes/*.cpp
 	src/ui/*.cpp
 	src/ui/popups/*.cpp
+	src/ui/admin/*.cpp
 	src/ui/auth/*.cpp
 )
 

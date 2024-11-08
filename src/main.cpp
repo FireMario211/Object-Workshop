@@ -238,3 +238,116 @@ class $modify(ObjectBypass, EditorUI) {
 */
     }
 };
+
+#include <Geode/modify/ProfilePage.hpp>
+
+EventListener<web::WebTask> m_profileListener;
+
+class $modify(ProfilePage) {
+    struct Fields {
+        CCMenuItemSpriteExtra* customObjsBtn;
+    };
+    void onClose(CCObject* sender) {
+        m_profileListener.getFilter().cancel();
+        ProfilePage::onClose(sender);
+    }
+    void loadPageFromUserInfo(GJUserScore* user) {
+        ProfilePage::loadPageFromUserInfo(user);
+        m_profileListener.bind([this] (web::WebTask::Event* e) {
+            if (web::WebResponse* value = e->getValue()) {
+                log::info("Request was finished!");
+                if (value->json().has_error() && !value->ok() && value->code() >= 500) {
+                    std::string err = value->string().unwrapOrDefault();
+                    log::error("Couldn't get server. {}", err);
+                    return;
+                }
+                auto jsonRes = value->json().unwrapOrDefault();
+                if (jsonRes.is_object()) {
+                    auto isError = jsonRes.try_get<std::string>("error");
+                    if (!isError) {
+                        if (m_fields->customObjsBtn == nullptr) {
+                            if (auto menu = typeinfo_cast<CCMenu*>(m_mainLayer->getChildByID("socials-menu"))) {
+                                m_fields->customObjsBtn = CCMenuItemExt::createSpriteExtraWithFilename("profileObjBtn.png"_spr, 0.75F,
+                                    /*ButtonSprite::create(
+                                        CCSprite::createWithSpriteFrameName("square_01_001.png"),
+                                        24,
+                                        0,
+                                        20.5F,
+                                        0.65F,
+                                        false,
+                                        "blueButton.png"_spr,
+                                        false
+                                    ),*/
+                                [this](CCObject*) {
+                                    int authServer = Mod::get()->getSettingValue<int64_t>("auth-server");
+                                    if (authServer != -1) {
+                                        auto loadLayer = AuthLoadLayer::create();
+                                        loadLayer->show();
+                                        auto token = Mod::get()->getSettingValue<std::string>("token");
+                                        AuthMenu::testAuth(token, [this, loadLayer, authServer, token](int value) {
+                                            if (value == 1) {
+                                                loadLayer->finished();
+                                                ObjectWorkshop::createToUser(true, m_accountID)->show();
+                                            } else if (value == -1) {
+                                                loadLayer->finished();
+                                                FLAlertLayer::create("Error", "Currently, Object Workshop <cy>servers are down</c> at the moment! View your logs, or view announcements on the <cy>Discord Server</c> for more information, or if there are no announcements, inform the developer of this error!", "OK")->show();
+                                            } else {
+                                                switch (AuthMenu::intToAuth(authServer)) {
+                                                    default:
+                                                    case AuthMethod::None:
+                                                    case AuthMethod::DashAuth: {
+                                                        loadLayer->finished();
+                                                        FLAlertLayer::create("Error", "Unsupported <cy>authentication method</c>.", "OK")->show();
+                                                        break;
+                                                    }
+                                                    case AuthMethod::Custom: {
+                                                        loadLayer->finished();
+                                                        FLAlertLayer::create("Error", "Either the token you set is <cy>expired</c>, or you <cy>entered the token incorrectly!</c>", "OK")->show();
+                                                        break;
+                                                    }
+                                                    case AuthMethod::GDAuth: {
+                                                        authentication::AuthenticationManager::get()->getAuthenticationToken([this, loadLayer](std::string token) {
+                                                            AuthMenu::genAuthToken(AuthMethod::GDAuth, token, false, [this, loadLayer](int value) {
+                                                                loadLayer->finished();
+                                                                if (value == 1) {
+                                                                    ObjectWorkshop::createToUser(true, m_accountID)->show();
+                                                                } else if (value == -1) {
+                                                                    FLAlertLayer::create("Error", "Currently, Object Workshop <cy>servers are down</c> at the moment! View your logs, or view announcements on the <cy>Discord Server</c> for more information, or if there are no announcements, inform the developer of this error!", "OK")->show();
+                                                                } else {
+                                                                    FLAlertLayer::create("Error", "Something went wrong when <cy>trying to generate a new authentication token!</c>\nIf this issue happens again, please consider <cr>resetting your settings</c> to redo the authentication process.", "OK")->show();
+                                                                }
+                                                            });
+                                                        });
+                                                        break;
+                                                    }
+                                                }
+                                            }
+                                        });
+                                    } else {
+                                        ObjectWorkshop::createToUser(false, m_accountID)->show();
+                                    }
+                                });
+                                menu->addChild(m_fields->customObjsBtn);
+                                menu->updateLayout();
+                            }
+                        }
+                    }
+                }
+            } else if (web::WebProgress* progress = e->getProgress()) {
+                // The request is still in progress...
+            } else if (e->isCancelled()) {
+                log::error("Request was cancelled.");
+            } else {
+                log::error("what happened?");
+            }
+        });
+        if (auto scene = CCScene::get()) {
+            auto workshop = typeinfo_cast<ObjectWorkshop*>(scene->getChildByID("objectworkshop"_spr));
+            if (workshop != nullptr) return; // so you cant loop lol
+            web::WebRequest req = web::WebRequest();
+            m_profileListener.getFilter().cancel();
+            req.userAgent(USER_AGENT);
+            m_profileListener.setFilter(req.get(fmt::format("{}/user/{}", HOST_URL, m_accountID)));
+        }
+    }
+};

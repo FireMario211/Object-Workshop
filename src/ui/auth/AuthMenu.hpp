@@ -18,8 +18,8 @@ protected:
     void onGDAuth(CCObject*);
     void onDoLater(CCObject*);
 public:
-    static void genAuthToken(AuthMethod method, std::string token, bool showFLAlert, utils::MiniFunction<void(int)> callback);
-    static void testAuth(std::string token, utils::MiniFunction<void(int)> callback);
+    static void genAuthToken(AuthMethod method, std::string token, bool showFLAlert, std::function<void(int)> callback);
+    static void testAuth(std::string token, std::function<void(int)> callback);
     static AuthMethod intToAuth(int method) {
         switch (method) {
             case -1:

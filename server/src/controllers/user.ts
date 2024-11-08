@@ -1,10 +1,12 @@
 import { getCache } from '../postgres';
 import { Router, Request, Response } from 'express';
-import { body, CustomValidator, query, validationResult } from 'express-validator';
+import { body, param, CustomValidator, query, validationResult } from 'express-validator';
 import crypto from 'crypto'
 import axios from 'axios';
 import { UserData } from '@/Components/User';
 import { PoolClient } from 'pg';
+import moment from 'moment'
+
 
 const uRouter = Router();
 
@@ -41,6 +43,26 @@ export async function verifyToken(pool: PoolClient, token: string): Promise<Veri
     }
 }
 
+export function banCheck(res: Response, user: UserData, type: number): boolean {
+    if (user.role < 0) {
+        if (user.role == -1 && type == 1) {
+            res.status(403).json({error: "You are banned from uploading and reporting! Reason: " + user.ban_reason});
+            return true;
+        }
+        if (user.role == -2 && type == 2) {
+            res.status(403).json({error: "You are banned from commenting! Reason: " + user.ban_reason});
+            return true;
+        }
+        if (user.role == -3) {
+            res.status(403).json({error: "You are banned from uploading! Reason: " + user.ban_reason});
+            return true;
+        }
+        return false;
+    } else {
+        return false;
+    }
+}
+
 interface GDAuth {
     sessionID: string,
 	accountID: number;
@@ -73,7 +95,39 @@ uRouter.post("/user/@me",
                     let user = verifyRes.user;
                     pool.query("SELECT count(*) AS count FROM objects WHERE account_id = $1", [user.account_id]).then(objectRes => {
                         user.uploads = parseInt(objectRes.rows[0].count.toString());
-                        res.status(200).json(user);
+                        pool.query("SELECT case_id,case_type,account_id,reason,timestamp,ack FROM cases WHERE account_id = $1 AND case_type = 0", [user.account_id]).then(caseRes => {
+                            if (caseRes.rows.length > 0) {
+                                const cases = caseRes.rows.filter(data => data.ack == false);
+                                res.status(200).json({
+                                    ...user,
+                                    cases: cases,
+                                    warning: caseRes.rows.length
+                                })
+                            } else {
+                                res.status(200).json(user);
+                            }
+                            pool.query("SELECT case_id,case_type,account_id,reason,timestamp,ack,expiration FROM cases WHERE account_id = $1 AND case_type != 0 AND ack = FALSE", [user.account_id]).then(otherCaseRes => {
+                                if (otherCaseRes.rows.length > 0 && user.account_id < 0) {
+                                    const cases = otherCaseRes.rows.filter(data => [1,2,3].includes(data.case_type)).map(x => {
+                                        x.expiration = moment(x.expiration);
+                                        return x;
+                                    });
+                                    const currentDate = moment();
+                                    if (cases.length) {
+                                        cases.forEach(caseData => {
+                                            if (currentDate.isAfter(caseData.expiration)) {
+                                                pool.query("UPDATE cases SET ack = TRUE, ack_timestamp = $1 WHERE case_id = $2", [new Date(), caseData.case_id])
+                                                pool.query("UPDATE users SET role = 0 WHERE account_id = $1", [user.account_id]);
+                                                console.log(`${user.account_id} was unpunished due to it being expired! Case ID ${caseData.case_id}`);
+                                            }
+                                        })
+                                    }
+                                }
+                            })
+                        }).catch(e => {
+                            console.error(e)
+                            res.status(500).json({ error: 'Internal server error' });
+                        })
                     }).catch(e => {
                         console.error(e)
                         res.status(500).json({ error: 'Internal server error' });

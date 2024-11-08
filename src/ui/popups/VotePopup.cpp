@@ -1,6 +1,6 @@
 #include "VotePopup.hpp"
 
-bool VotePopup::setup(std::string title_str, utils::MiniFunction<void(bool)> callback) {
+bool VotePopup::setup(std::string title_str, std::function<void(bool)> callback) {
     m_callback = callback;
     auto title = CCLabelBMFont::create(title_str.c_str(), "bigFont.fnt");
     m_mainLayer->addChildAtPosition(title, Anchor::Top, {0, -20});

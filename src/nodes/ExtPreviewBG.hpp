@@ -14,12 +14,12 @@ class ExtPreviewBG : public CCLayer {
         float m_currentZoom = 1.0F;
 
         void touchFinished();
-        virtual bool init(std::string objData, CCSize);
+        virtual bool init(LevelEditorLayer* editorLayer, std::string objData, CCSize);
         bool ccTouchBegan(CCTouch*, CCEvent*) override;
         void ccTouchMoved(CCTouch*, CCEvent*) override;
     public:
         void updateZoom(float amount);
         void setZoom(float amount = 1.0F);
         void resetZoom();
-        static ExtPreviewBG* create(std::string objData, CCSize contentSize = {124.F, 82.F});
+        static ExtPreviewBG* create(LevelEditorLayer* editorLayer, std::string objData, CCSize contentSize = {124.F, 82.F});
 };

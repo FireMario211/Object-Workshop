@@ -1,7 +1,8 @@
 #include "CommentPopup.hpp"
 #include "../../config.hpp"
+#include "../../utils.hpp"
 
-bool CommentPopup::setup(ObjectData obj, utils::MiniFunction<void()> callback) {
+bool CommentPopup::setup(ObjectData obj, std::function<void()> callback) {
     this->setID("CommentPopup"_spr);
     auto winSize = CCDirector::sharedDirector()->getWinSize();
     m_object = obj;
@@ -31,38 +32,31 @@ bool CommentPopup::setup(ObjectData obj, utils::MiniFunction<void()> callback) {
     commentBG->setOpacity(100);
     commentBG->setContentSize({360, 60});
     // most undocumented thing ever, why does it have to be 0x0 to allow new lines!? i tried chatFont.fnt before but apparently that keeps the CCLabelBMFont!
-    auto textInput = CCTextInputNode::create(360.F, 50.F, "Insert comment", "Thonburi", 24, 0x0);
+    /*auto textInput = CCTextInputNode::create(360.F, 50.F, "Insert comment", "Thonburi", 24, 0x0);
     textInput->setAllowedChars(" abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,-!?:;)(/\\\"\'`*=+- _%[]<>|@&^#{}%$~");
     textInput->setMaxLabelLength(100);
     textInput->setLabelPlaceholderColor({0xc8, 0xc8, 0xc8});
     textInput->setDelegate(this);
-    textInput->addTextArea(TextArea::create("","chatFont.fnt",1.0F,295.F,{0.5, 0.5},20.F,true));
+    textInput->addTextArea(TextArea::create("","chatFont.fnt",1.0F,295.F,{0.5, 0.5},20.F,true));*/
     m_charCountLabel = cocos2d::CCLabelBMFont::create("100","chatFont.fnt");
     m_charCountLabel->setAnchorPoint({1.0, 0.5});
     m_charCountLabel->setColor({0,0,0});
     m_charCountLabel->setOpacity(125);
     m_mainLayer->addChildAtPosition(m_charCountLabel, Anchor::TopRight, {-10, -15});
-    m_mainLayer->addChildAtPosition(commentBG, Anchor::Center, {0, 9});
-    m_buttonMenu->addChildAtPosition(textInput, Anchor::Center, {0, 9});
+    //m_mainLayer->addChildAtPosition(commentBG, Anchor::Center, {0, 9});
+    //m_buttonMenu->addChildAtPosition(textInput, Anchor::Center, {0, 9});
+    m_inputNode = TextInputNode::create("Insert comment");
+    m_inputNode->setUpdateCallback([this](std::string text) {
+        if (m_closed) return;
+        m_descText = text;
+        updateCharCountLabel();
+    });
+    m_mainLayer->addChildAtPosition(m_inputNode, Anchor::Center, {0, 9});
+    m_buttonMenu->addChildAtPosition(m_inputNode->getInput(), Anchor::Center, {0, 9});
     /*m_mainLayer->setPositionY(winSize.height * 0.75F);
     m_mainLayer->updateLayout();*/ 
     // this causes text input to break for SOME reason
     return true;
-}
-
-void CommentPopup::textChanged(CCTextInputNode* input) {
-    if (m_closed) return;
-    updateDescText(input->getString());
-}
-void CommentPopup::textInputClosed(CCTextInputNode* input) {
-    if (input == nullptr || m_closed) return;
-    m_descText = input->getString();
-    updateDescText(m_descText);
-}
-void CommentPopup::updateDescText(std::string string) {
-    if (m_closed) return;
-    m_descText = string;
-    updateCharCountLabel();
 }
 
 void CommentPopup::updateCharCountLabel() {
@@ -81,6 +75,7 @@ void CommentPopup::updateCharCountLabel() {
 
 void CommentPopup::onClose(CCObject* sender) {
     m_closed = true;
+    m_inputNode->cancel = true;
     Popup::onClose(sender);
 }
 
@@ -94,9 +89,15 @@ void CommentPopup::onSubmit(CCObject*) {
     m_listener.bind([this] (web::WebTask::Event* e) {
         if (web::WebResponse* value = e->getValue()) {
             auto jsonRes = value->json().unwrapOrDefault();
-            if (!jsonRes.is_object()) return log::error("Response isn't object.");
+            if (!jsonRes.is_object()) {
+                this->onClose(nullptr);
+                return log::error("Response isn't object.");
+            }
             auto isError = jsonRes.try_get<std::string>("error");
-            if (isError) return Notification::create(isError.value(), NotificationIcon::Error)->show();
+            if (isError) {
+                Notification::create(isError.value(), NotificationIcon::Error)->show();
+                return this->onClose(nullptr);
+            }
             auto message = jsonRes.try_get<std::string>("message");
             if (message) {
                 Notification::create(message.value(), NotificationIcon::Success)->show();
@@ -119,6 +120,8 @@ void CommentPopup::onSubmit(CCObject*) {
     req.userAgent(USER_AGENT);
     auto myjson = matjson::Value();
     myjson.set("token", token);
+
+    m_descText = Utils::replaceAll(m_descText, "\\n", "\n");
     myjson.set("data", m_descText);
     req.header("Content-Type", "application/json");
     req.bodyJSON(myjson);

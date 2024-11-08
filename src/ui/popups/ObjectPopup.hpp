@@ -41,8 +41,14 @@ protected:
     void onReviewBtn(CCObject*);
     void onFeatureBtn(CCObject*);
     void onReportBtn(CCObject*);
-    virtual void onClose(CCObject* sender) override;
 public:
+    virtual void onClose(CCObject* sender) override;
+    ObjectWorkshop* getWorkshop() {
+        return m_workshop;
+    }
+    ObjectData getObject() {
+        return m_object;
+    }
     static ObjectPopup* create(ObjectData object, UserData user) {
         auto ret = new ObjectPopup();
         if (ret->initAnchored(300.f, 275.f, object, user)) {
@@ -54,6 +60,3 @@ public:
         return nullptr;
     }
 };
-
-
-    

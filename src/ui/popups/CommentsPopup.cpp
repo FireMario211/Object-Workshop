@@ -22,8 +22,18 @@ bool CommentsPopup::setup(ObjectData object, UserData user) {
     rightArrowSpr->setFlipX(true);
     leftArrowSpr->setScale(0.75F);
     rightArrowSpr->setScale(0.75F);
-    leftArrowBtn = CCMenuItemSpriteExtra::create(leftArrowSpr, this, menu_selector(CommentsPopup::onPrevPage));
-    rightArrowBtn = CCMenuItemSpriteExtra::create(rightArrowSpr, this, menu_selector(CommentsPopup::onNextPage));
+    leftArrowBtn = CCMenuItemExt::createSpriteExtra(leftArrowSpr, [this](CCObject* sender) {
+        if (m_object.commentPage > 1) {
+            m_object.commentPage--;
+            onLoadComments(sender);
+        }
+    });
+    rightArrowBtn = CCMenuItemExt::createSpriteExtra(rightArrowSpr, [this](CCObject* sender) {
+        if ((m_object.commentPage + 1) <= m_object.maxCommentPage) {
+            m_object.commentPage++;
+            onLoadComments(sender);
+        }
+    });
     m_buttonMenu->addChildAtPosition(leftArrowBtn, Anchor::Left, {25, -5});
     m_buttonMenu->addChildAtPosition(rightArrowBtn, Anchor::Right, {-25, -5});
 
@@ -68,13 +78,16 @@ bool CommentsPopup::setup(ObjectData object, UserData user) {
     filterMenu->updateLayout();
     m_mainLayer->addChildAtPosition(filterMenu, Anchor::Left, {25, 39});
 
-    auto commentSpr = CCSprite::createWithSpriteFrameName("GJ_chatBtn_001.png");
-    commentSpr->setScale(0.65F);
-
-    auto commentBtn = CCMenuItemSpriteExtra::create(commentSpr, this, menu_selector(CommentsPopup::onCommentBtn));
+    auto commentBtn = CCMenuItemExt::createSpriteExtraWithFrameName("GJ_chatBtn_001.png", 0.65F, [this](CCObject*) {
+        if (!m_user.authenticated) return FLAlertLayer::create("Error", "You cannot comment on objects as you are <cy>not authenticated!</c>", "OK")->show();
+        CommentPopup::create(m_object, [this]() {
+            onLoadComments(nullptr);
+        })->show();
+    });
     m_buttonMenu->addChildAtPosition(commentBtn, Anchor::BottomRight, {-3, 3});
 
     onLoadComments(nullptr);
+    this->setID("CommentsPopup"_spr);
     updateCategoryBG();
     return true;
 }
@@ -202,19 +215,6 @@ void CommentsPopup::onLoadComments(CCObject*) {
     m_listener.setFilter(req.get(fmt::format("{}/objects/{}/comments?limit=10&page={}&filter={}", HOST_URL, m_object.id, m_object.commentPage, m_currentFilter)));
 }
 
-void CommentsPopup::onPrevPage(CCObject* sender) {
-    if (m_object.commentPage > 1) {
-        m_object.commentPage--;
-        onLoadComments(sender);
-    }
-}
-void CommentsPopup::onNextPage(CCObject* sender) {
-    if ((m_object.commentPage + 1) <= m_object.maxCommentPage) {
-        m_object.commentPage++;
-        onLoadComments(sender);
-    }
-}
-
 void CommentsPopup::updateCategoryBG() {
     if (auto likesBtn = typeinfo_cast<CCMenuItemSpriteExtra*>(filterMenu->getChildByTag(1))) {
         if (auto recentBtn = typeinfo_cast<CCMenuItemSpriteExtra*>(filterMenu->getChildByTag(2))) {
@@ -227,15 +227,9 @@ void CommentsPopup::updateCategoryBG() {
 void CommentsPopup::onCategoryButton(CCObject* sender) {
     int id = static_cast<CCMenuItemSpriteExtra*>(sender)->getTag();
     m_currentFilter = id;
+    m_object.commentPage = 1;
     updateCategoryBG();
     onLoadComments(sender);
-}
-
-void CommentsPopup::onCommentBtn(CCObject*) {
-    if (!m_user.authenticated) return FLAlertLayer::create("Error", "You cannot comment on objects as you are <cy>not authenticated!</c>", "OK")->show();
-    CommentPopup::create(m_object, [this]() {
-        onLoadComments(nullptr);
-    })->show();
 }
 
 void CommentsPopup::onClose(CCObject* sender) {

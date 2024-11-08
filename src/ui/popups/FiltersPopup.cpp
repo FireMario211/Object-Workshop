@@ -1,7 +1,7 @@
 #include "FiltersPopup.hpp"
 #include "../../utils.hpp"
 
-bool FiltersPopup::setup(std::unordered_set<std::string> tags, std::unordered_set<std::string> selectedTags, bool uploading, utils::MiniFunction<void(std::unordered_set<std::string>)> callback) {
+bool FiltersPopup::setup(std::unordered_set<std::string> tags, std::unordered_set<std::string> selectedTags, bool uploading, std::function<void(std::unordered_set<std::string>)> callback) {
     m_callback = callback;
     m_selectedTags = selectedTags;
 
