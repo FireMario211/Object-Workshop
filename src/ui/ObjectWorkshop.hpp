@@ -225,6 +225,7 @@ public:
         if (!editor) return nullptr;
         //return editor->spriteFromObjectString(objectString, center, filterObjects, limit, smartBlocks, filter, keyframeObject);
         auto sprite = CCSprite::create();
+        /*
         CCArray* objectsArray = LevelEditorLayer::get()->createObjectsFromString(objectString, true, true);
         if (filter != nullptr && filterObjects) {
             for (int i = 0; (i < objectsArray->count()) && (i < filter->count()); i++) {
