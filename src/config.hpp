@@ -3,7 +3,7 @@
 //#define HOST_URL "http://localhost:3000"
 #define DASHEND_URL "https://dashend.firee.dev/api/v1"
 //#define DASHEND_URL "http://localhost:3001/api/v1"
-#define USER_AGENT "ObjectWorkshop/1.4.0"
+#define USER_AGENT "ObjectWorkshop/1.4.2"
 
 #define DASHAUTH 1
 #define GDAUTH 1 

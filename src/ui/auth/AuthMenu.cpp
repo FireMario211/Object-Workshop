@@ -52,6 +52,11 @@ geode::createQuickPopup(
 */
 
 void AuthMenu::onDashAuth(CCObject*) {
+    if (auto gjam = GJAccountManager::sharedState()) {
+        if (gjam->m_accountID == 0) {
+            return FLAlertLayer::create("Error", "You are not <cy>signed in</c>! The only option you can use is <cg>Do Later</c>", "OK")->show();
+        }
+    }
 #ifdef DASHAUTH
     geode::createQuickPopup(
         "Note",
@@ -219,6 +224,11 @@ void AuthMenu::genAuthToken(AuthMethod method, std::string token, bool showFLAle
         }
 }
 void AuthMenu::onGDAuth(CCObject*) {
+    if (auto gjam = GJAccountManager::sharedState()) {
+        if (gjam->m_accountID == 0) {
+            return FLAlertLayer::create("Error", "You are not <cy>signed in</c>! The only option you can use is <cg>Do Later</c>", "OK")->show();
+        }
+    }
 #ifdef GDAUTH
     geode::createQuickPopup(
         "Warning",
