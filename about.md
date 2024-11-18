@@ -16,7 +16,7 @@ Thank you to <cj>Midair</c> for the mod idea, <cy>Alphalaneous</c> for the extra
 - To upload, click on the <cy>My Objects</c> tab, and make sure that the object you want to upload is in your <co>custom objects</c> (C). Otherwise, you won't be able to <cy>upload an object</c>!
 
 # Authentication Methods
-- <cp>DashAuth</c> is an authentication method that <cy>sends a message to a bot</c> to confirm the authenticity of your <cy>GD account</c>, similar to how mods like <cb>Globed</c> handles verifying your <cy>GD account</c>. Unfortunately, RobTop's servers <cr>IP banned my server</c>, meaning this method <cr>is not available</c>.
+- <cp>DashAuth</c> is an authentication method that <cy>sends a message to a bot</c> to confirm the authenticity of your <cy>GD account</c>, similar to how mods like <cb>Globed</c> handles verifying your <cy>GD account</c>. Thanks to <cp>rooot</c> for creating it!
 - <cg>GDAuth</c> is an authentication method made by <cg>fig</c> which <cy>sends your GJP</c> (session token for GD) to <cg>fig's server</c> to confirm the authenticity of your <cy>GD account</c>. You should only use this <cy>if you trust fig's server</c>, as this method is like sending your GD account to <cy>fig's server</c>.
 - <cy>Do Later</c> is what it says. This will close the menu and open up the <cy>Object Workshop</c>. Although do note that you <cy>will be limited</c> in what features you can use.
 

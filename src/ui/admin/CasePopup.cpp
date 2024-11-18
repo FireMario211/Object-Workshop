@@ -56,16 +56,15 @@ void CasePopup::onLoadCases(CCObject*) {
                 return;
             }
             auto jsonRes = value->json().unwrapOrDefault();
-            auto isError = jsonRes.try_get<std::string>("error");
-            if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
-            auto arrayRes = jsonRes.try_get<matjson::Array>("results");
-            auto c_total = jsonRes.try_get<int>("total");
-            matjson::Array array;
-            if (arrayRes) {
-                array = arrayRes.value();
+            if (Utils::notifError(jsonRes)) return;
+            auto arrayRes = jsonRes.get("results");
+            auto c_total = jsonRes.get("total");
+            std::vector<matjson::Value> array;
+            if (arrayRes.isOk()) {
+                array = arrayRes.unwrap().asArray().unwrap();
             }
-            if (c_total) {
-                this->setTitle(fmt::format("Cases ({})", c_total.value()).c_str());
+            if (c_total.isOk()) {
+                this->setTitle(fmt::format("Cases ({})", c_total.unwrap().asInt().unwrapOr(0)).c_str());
             }
             auto nodeArray = CCArray::create();
             auto scrollLayer = ScrollLayerExt::create({ 0, 0, 205.0F, 138.F }, true);
@@ -82,35 +81,9 @@ void CasePopup::onLoadCases(CCObject*) {
             scrollLayer->m_contentLayer->addChild(content);
             scrollLayer->setTouchEnabled(true);
             for (auto item : array) {
-                auto c_id = item.try_get<int>("case_id");
-                auto c_case_type = item.try_get<int>("case_type");
-                auto c_account_id = item.try_get<int>("account_id");
-                auto c_staff_account_id = item.try_get<int>("staff_account_id");
-                auto c_reason = item.try_get<std::string>("reason");
-                auto c_timestamp = item.try_get<std::string>("timestamp");
-                auto c_expiration = item.try_get<std::string>("timestamp");
-                auto c_ack = item.try_get<bool>("ack");
-                auto c_ack_timestamp = item.try_get<std::string>("ack_timestamp");
-                auto c_staff_account_name = item.try_get<std::string>("staff_account_name");
-                if (
-                    c_id && c_case_type &&
-                    c_account_id && c_staff_account_id && c_staff_account_name &&
-                    c_reason && c_ack &&
-                    c_timestamp && c_ack_timestamp && c_expiration
-                ) {
-                    content->addChild(CaseCell::create(m_managingUser, {
-                        c_id.value(),
-                        0,
-                        static_cast<CaseType>(c_case_type.value()),
-                        c_reason.value(),
-                        c_timestamp.value(),
-                        c_account_id.value(),
-                        c_staff_account_id.value(),
-                        c_expiration.value(),
-                        c_ack.value(),
-                        c_ack_timestamp.value(),
-                        c_staff_account_name.value()
-                    }, [this]() {
+                auto caseData = matjson::Serialize<CaseData>::fromJson(item);
+                if (caseData.isOk()) {
+                    content->addChild(CaseCell::create(m_managingUser, caseData.unwrap(), [this]() {
                         onLoadCases(nullptr);
                     }));
                 }

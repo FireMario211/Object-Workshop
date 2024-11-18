@@ -18,17 +18,7 @@ bool WarningPopup::setup(CaseData caseData, std::function<void()> callback) {
     m_listener.bind([this, callback] (web::WebTask::Event* e) {
         if (web::WebResponse* value = e->getValue()) {
             auto jsonRes = value->json().unwrapOrDefault();
-            if (!jsonRes.is_object()) {
-                this->onClose(nullptr);
-                callback();
-                return log::error("Response isn't object.");
-            }
-            auto isError = jsonRes.try_get<std::string>("error");
-            if (isError) {
-                Notification::create(isError.value(), NotificationIcon::Error)->show();
-                this->onClose(nullptr);
-                return callback();
-            }
+            Utils::notifError(jsonRes);
             this->onClose(nullptr);
             callback();
             return;

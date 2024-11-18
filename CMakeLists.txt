@@ -15,6 +15,8 @@ file(GLOB SOURCES
 	src/ui/popups/*.cpp
 	src/ui/admin/*.cpp
 	src/ui/auth/*.cpp
+
+    src/gdauth/*.cpp # until fig ACCEPTS MY PR, for some reason hes inactive...
 )
 
 # Set up the mod binary
@@ -28,7 +30,7 @@ endif()
 
 add_subdirectory($ENV{GEODE_SDK} ${CMAKE_CURRENT_BINARY_DIR}/geode)
 
-#CPMAddPackage("gh:RoootTheFox/dashauth#main")
-#target_link_libraries(${PROJECT_NAME} DashAuth)
+CPMAddPackage("gh:FireMario211/dashauth#main")
+target_link_libraries(${PROJECT_NAME} DashAuth)
 
 setup_geode_mod(${PROJECT_NAME})

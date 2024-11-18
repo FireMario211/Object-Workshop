@@ -171,9 +171,7 @@ void EditPopup::onUpdateBtn(CCObject*) {
     m_uploadListener.bind([this] (web::WebTask::Event* e) {
         if (web::WebResponse* value = e->getValue()) {
             auto jsonRes = value->json().unwrapOrDefault();
-            if (!jsonRes.is_object()) return log::error("Response isn't object.");
-            auto isError = jsonRes.try_get<std::string>("error");
-            if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
+            if (Utils::notifError(jsonRes)) return;
             log::info("Overwrote object.");
             this->onClose(nullptr);
             Notification::create("Updated object!", NotificationIcon::Success)->show();
@@ -187,12 +185,10 @@ void EditPopup::onUpdateBtn(CCObject*) {
     m_listener.bind([this, notif, token] (web::WebTask::Event* e) {
         if (web::WebResponse* value = e->getValue()) {
             auto jsonRes = value->json().unwrapOrDefault();
-            if (!jsonRes.is_object()) return log::error("Response isn't object.");
-            auto isError = jsonRes.try_get<std::string>("error");
-            if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
+            if (Utils::notifError(jsonRes)) return;
             notif->hide();
-            auto message = jsonRes.try_get<std::string>("message");
-            if (message) {
+            auto message = jsonRes.get("message");
+            if (message.isOk()) {
                 if (m_previewBG->isVisible()) { // assume they want to overwrite
                     if (auto editor = EditorUI::get()) {
                         if (auto gameManager = GameManager::sharedState()) {
@@ -212,9 +208,9 @@ void EditPopup::onUpdateBtn(CCObject*) {
                     }
                 }
                 this->onClose(nullptr);
-                Notification::create(message->c_str(), NotificationIcon::Success)->show();
+                Notification::create(message.unwrap().asString().unwrapOrDefault(), NotificationIcon::Success)->show();
             } else {
-                log::error("Unknown response, expected message. {}", jsonRes.dump());
+                log::error("Unknown response, expected message. {}", message.err());
                 Notification::create("Got an unknown response, check logs for details.", NotificationIcon::Warning)->show();
                 this->onClose(nullptr);
             }

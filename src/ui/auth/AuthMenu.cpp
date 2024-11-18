@@ -1,7 +1,6 @@
 #include "../../config.hpp"
 #include "AuthMenu.hpp"
 #include "../ObjectWorkshop.hpp"
-#include <fig.authentication/include/authentication.hpp>
 
 EventListener<web::WebTask> m_authListener;
 EventListener<web::WebTask> m_iconListener;
@@ -43,8 +42,45 @@ bool AuthMenu::setup() {
 }
 
 
+/*
+geode::createQuickPopup(
+        "Warning",
+        "Are you sure you want to use this <cy>authentication method</c>?\nThis method involves <cy>sending your GJP</c> (GD password) to <cg>fig's server</c> (third party), meaning you are <cr>trusting this server to not use your GD account with malice</c>.\n\nIf this method doesn't satisfy you, consider receiving an <cy>authentication token</c> by <cy>joining the Discord server</c>\nWould you like to <cg>proceed anyways</c>?",
+        "Cancel",
+        "Proceed",
+        [this](auto, bool btn2) {
+*/
+
 void AuthMenu::onDashAuth(CCObject*) {
+#ifdef DASHAUTH
+    geode::createQuickPopup(
+        "Note",
+        "Are you sure you want to use this <cy>authentication method</c>?\nThis method involves having your GD account <cy>send a message</c> to <cg>GDAuth</c>.\n\nIf this method doesn't satisfy you, consider receiving an <cy>authentication token</c> by <cy>joining the Discord server</c>\nWould you like to <cg>proceed anyways</c>?",
+        "Cancel",
+        "Proceed",
+        [this](auto, bool btn2) {
+            if (btn2) {
+                this->onClose(nullptr);
+                log::info("Authenticating with DashAuth...");
+                DashAuthRequest().getToken(Mod::get(), DASHEND_URL)->except([](std::string err) {
+                    log::warn("failed to get token :c reason: {}", err);
+                    FLAlertLayer::create("DashAuth Error", "Failed to get token, view logs for reason", "OK")->show();
+                })->then([](std::string const& token) {
+                    log::info("got token!! {} :3", token);
+                    genAuthToken(AuthMethod::DashAuth, token, true, [](bool value) {
+                        if (value) {
+                            ObjectWorkshop::create(true)->show();
+                        }
+                    });
+                });
+            }
+        },
+        true,
+        true
+    );
+#else
     FLAlertLayer::create("Error", "Unfortunately, RobTop's servers <cr>IP banned my server</c>, meaning this method <cr>is not available</c>.", "OK")->show();
+#endif
 }
 
 void AuthMenu::testAuth(std::string token, std::function<void(int)> callback) {
@@ -56,7 +92,7 @@ void AuthMenu::testAuth(std::string token, std::function<void(int)> callback) {
     });
     m_authListener.bind([callback, token] (web::WebTask::Event* e) {
         if (web::WebResponse* value = e->getValue()) {
-            if (value->json().has_error() && !value->ok() && value->code() >= 500) {
+            if (value->json().isErr() && !value->ok() && value->code() >= 500) {
                 std::string err = value->string().unwrapOrDefault();
                 log::error("Couldn't get server. {}", err);
                 callback(-1);
@@ -64,9 +100,9 @@ void AuthMenu::testAuth(std::string token, std::function<void(int)> callback) {
             }
             log::info("Request was finished!");
             auto jsonRes = value->json().unwrapOrDefault();
-            if (jsonRes.is_object()) {
-                auto isError = jsonRes.try_get<std::string>("error");
-                if (isError) {
+            if (jsonRes.isObject()) {
+                auto isError = jsonRes.get("error");
+                if (isError.isOk()) {
                     log::error("{}", jsonRes.dump());
                     callback(0);
                 } else {
@@ -75,7 +111,7 @@ void AuthMenu::testAuth(std::string token, std::function<void(int)> callback) {
                         req.userAgent(USER_AGENT);
                         if (auto gm = GameManager::sharedState()) {
                             auto myjson = matjson::Value();
-                            matjson::Array iconSet;
+                            std::vector<matjson::Value> iconSet;
                             iconSet.push_back(gm->getPlayerFrame());
                             iconSet.push_back(gm->getPlayerColor());
                             iconSet.push_back(gm->getPlayerColor2());
@@ -92,7 +128,7 @@ void AuthMenu::testAuth(std::string token, std::function<void(int)> callback) {
                     callback(1);
                 }
             } else {
-                auto strValue = value->string()->c_str();
+                auto strValue = value->string().unwrapOrDefault();
                 log::error("Got value {}, expected valid JSON.", strValue);
                 callback(0);
             }
@@ -119,24 +155,24 @@ void AuthMenu::genAuthToken(AuthMethod method, std::string token, bool showFLAle
     m_authListener.bind([method, showFLAlert, callback] (web::WebTask::Event* e) {
         if (web::WebResponse* value = e->getValue()) {
             log::info("Request was finished!");
-            if (value->json().has_error() && !value->ok() && value->code() >= 500) {
+            if (value->json().isErr() && !value->ok() && value->code() >= 500) {
                 std::string err = value->string().unwrapOrDefault();
                 log::error("Couldn't get server. {}", err);
                 callback(-1);
                 return;
             }
             auto jsonRes = value->json().unwrapOrDefault();
-            if (jsonRes.is_object()) {
-                auto isError = jsonRes.try_get<std::string>("error");
-                if (isError) {
+            if (jsonRes.isObject()) {
+                auto isError = jsonRes.get("error");
+                if (isError.isOk()) {
                     if (showFLAlert) {
-                        FLAlertLayer::create("Error", isError->data(), "OK")->show();
+                        FLAlertLayer::create("Error", isError.unwrap().asString().unwrapOrDefault(), "OK")->show();
                     }
                     callback(0);
                 } else {
-                    auto token = jsonRes.try_get<std::string>("token");
-                    if (token) {
-                        Mod::get()->setSettingValue<std::string>("token", token->c_str());
+                    auto token = jsonRes.get("token");
+                    if (token.isOk()) {
+                        Mod::get()->setSettingValue<std::string>("token", token.unwrap().asString().unwrapOrDefault());
                         Mod::get()->setSettingValue<int64_t>("auth-server", method);
                         callback(1);
                     } else {
@@ -145,7 +181,7 @@ void AuthMenu::genAuthToken(AuthMethod method, std::string token, bool showFLAle
                     }
                 }
             } else {
-                auto strValue = value->string()->c_str();
+                auto strValue = value->string().unwrapOrDefault();
                 log::error("Got value {}, expected valid JSON.", strValue);
                 if (showFLAlert) {
                     FLAlertLayer::create("Error", "Something went wrong when trying to parse the request.", "OK")->show();
@@ -162,7 +198,6 @@ void AuthMenu::genAuthToken(AuthMethod method, std::string token, bool showFLAle
             callback(0);
         }
     });
-    if (method == AuthMethod::GDAuth) {
         web::WebRequest req = web::WebRequest();
         m_authListener.getFilter().cancel();
         req.header("Content-Type", "application/json");
@@ -171,10 +206,20 @@ void AuthMenu::genAuthToken(AuthMethod method, std::string token, bool showFLAle
         myjson.set("token", token);
         req.bodyJSON(myjson);
         req.userAgent(USER_AGENT);
-        m_authListener.setFilter(req.post(fmt::format("{}/gdauth", HOST_URL)));
-    }
+        switch (method) {
+            case AuthMethod::GDAuth:
+                m_authListener.setFilter(req.post(fmt::format("{}/gdauth", HOST_URL)));
+                break;
+            case AuthMethod::DashAuth:
+                m_authListener.setFilter(req.post(fmt::format("{}/dashauth", HOST_URL)));
+                break;
+            default:
+                log::warn("Unknown Auth Method, can't send request!");
+                break;
+        }
 }
 void AuthMenu::onGDAuth(CCObject*) {
+#ifdef GDAUTH
     geode::createQuickPopup(
         "Warning",
         "Are you sure you want to use this <cy>authentication method</c>?\nThis method involves <cy>sending your GJP</c> (GD password) to <cg>fig's server</c> (third party), meaning you are <cr>trusting this server to not use your GD account with malice</c>.\n\nIf this method doesn't satisfy you, consider receiving an <cy>authentication token</c> by <cy>joining the Discord server</c>\nWould you like to <cg>proceed anyways</c>?",
@@ -196,6 +241,9 @@ void AuthMenu::onGDAuth(CCObject*) {
         true,
         true
     );
+#else 
+    FLAlertLayer::create("Error", "Unfortunately, <cy>fig</c> has not ported <cg>GDAuth</c> to <cy>2.207</c>, meaning this method <cr>is not available</c>. (please tell him to look at my pr that allows it to work for 2.207)", "OK")->show();
+#endif
 }
 void AuthMenu::onDoLater(CCObject*) {
     this->onClose(nullptr);

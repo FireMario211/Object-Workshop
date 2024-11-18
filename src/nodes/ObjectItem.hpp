@@ -1,5 +1,6 @@
 #pragma once
 #include <Geode/Geode.hpp>
+#include "../utils.hpp"
 
 using namespace geode::prelude;
 
@@ -14,6 +15,17 @@ struct ReportData {
     int accountID;
     std::string reason;
     //std::string timestamp;
+};
+
+template<>
+struct matjson::Serialize<ReportData> {
+    static Result<ReportData> fromJson(matjson::Value const& value) {
+        ReportData data;
+
+        GEODE_UNWRAP_INTO(data.accountID, value["account_id"].asInt());
+        GEODE_UNWRAP_INTO(data.reason, value["reason"].asString());
+        return Ok(data);
+    }
 };
 
 struct ObjectData {
@@ -41,6 +53,33 @@ struct ObjectData {
     int maxCommentPage = 1;
 
     std::vector<ReportData> reports;
+};
+
+template<>
+struct matjson::Serialize<ObjectData> {
+    static Result<ObjectData> fromJson(matjson::Value const& value) {
+        ObjectData data;
+
+        GEODE_UNWRAP_INTO(data.id, value["id"].asInt());
+        GEODE_UNWRAP_INTO(data.name, value["name"].asString());
+        GEODE_UNWRAP_INTO(data.description, value["description"].asString());
+        GEODE_UNWRAP_INTO(data.authorName, value["account_name"].asString());
+        GEODE_UNWRAP_INTO(data.rating, value["rating"].asDouble());
+        GEODE_UNWRAP_INTO(data.authorAccId, value["account_id"].asInt());
+        GEODE_UNWRAP_INTO(data.downloads, value["downloads"].asInt());
+        GEODE_UNWRAP_INTO(data.favorites, value["favorites"].asInt());
+        GEODE_UNWRAP_INTO(data.ratingCount, value["rating_count"].asInt());
+        GEODE_UNWRAP_INTO(data.objectString, value["data"].asString());
+        GEODE_UNWRAP_INTO(auto o_tags, value["tags"].asArray());
+        GEODE_UNWRAP_INTO(auto o_status, value["status"].asInt());
+        GEODE_UNWRAP_INTO(data.created, value["created"].asString());
+        GEODE_UNWRAP_INTO(data.updated, value["updated"].asString());
+        GEODE_UNWRAP_INTO(data.version, value["version"].asInt());
+        GEODE_UNWRAP_INTO(data.featured, value["featured"].asInt());
+        data.tags = Utils::arrayToUnorderedSet<std::string>(o_tags);
+        data.status = static_cast<ObjectStatus>(o_status);
+        return Ok(data);
+    }
 };
 
 class ObjectItem : public CCScale9Sprite {

@@ -1,3 +1,6 @@
+# v1.4.1
+- Ported to Geode v4.0.0-beta.1 (2.207!)
+- Added DashAuth authentication option
 # v1.4.0
 - Allowed clicking on users profiles in comments (will only work for players that authenticated with Object Workshop before)
 - Added \n for descriptions and comments

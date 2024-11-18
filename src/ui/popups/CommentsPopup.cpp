@@ -112,28 +112,29 @@ void CommentsPopup::onLoadComments(CCObject*) {
                 return;
             }
             auto jsonRes = value->json().unwrapOrDefault();
-            auto isError = jsonRes.try_get<std::string>("error");
-            leftArrowBtn->setEnabled(false);
-            rightArrowBtn->setEnabled(false);
-            if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
+            if (Utils::notifError(jsonRes)) {
+                leftArrowBtn->setEnabled(false);
+                rightArrowBtn->setEnabled(false);
+                return;
+            }
             leftArrowBtn->setEnabled(true);
             rightArrowBtn->setEnabled(true);
-            auto arrayRes = jsonRes.try_get<matjson::Array>("results");
-            auto c_total = jsonRes.try_get<int>("total");
-            auto c_page = jsonRes.try_get<int>("page");
-            auto c_pageAmount = jsonRes.try_get<int>("pageAmount");
-            matjson::Array array;
-            if (arrayRes) {
-                array = arrayRes.value();
+            auto arrayRes = jsonRes.get("results");
+            auto c_total = jsonRes.get("total");
+            auto c_page = jsonRes.get("page");
+            auto c_pageAmount = jsonRes.get("pageAmount");
+            std::vector<matjson::Value> array;
+            if (arrayRes.isOk()) {
+                array = arrayRes.unwrap().asArray().unwrap();
             }
-            if (c_total) {
-                this->setTitle(fmt::format("Comments ({})", c_total.value()).c_str());
+            if (c_total.isOk()) {
+                this->setTitle(fmt::format("Comments ({})", c_total.unwrap().asInt().unwrapOrDefault()).c_str());
             }
-            if (c_page) {
-                m_object.commentPage = c_page.value();
+            if (c_page.isOk()) {
+                m_object.commentPage = c_page.unwrap().asInt().unwrapOrDefault();
             }
-            if (c_pageAmount) {
-                m_object.maxCommentPage = c_pageAmount.value();
+            if (c_pageAmount.isOk()) {
+                m_object.maxCommentPage = c_pageAmount.unwrap().asInt().unwrapOrDefault();
             }
             auto nodeArray = CCArray::create();
             
@@ -152,34 +153,9 @@ void CommentsPopup::onLoadComments(CCObject*) {
             scrollLayer->setTouchEnabled(true);
             for (auto item : array) {
                 auto obj = item;
-                auto o_id = obj.try_get<int>("id");
-                auto o_object_id = obj.try_get<int>("object_id");
-                auto o_acc_name = obj.try_get<std::string>("account_name");
-                auto o_acc_id = obj.try_get<int>("account_id");
-                auto o_likes = obj.try_get<int>("likes");
-                auto o_content = obj.try_get<std::string>("content");
-                auto o_timestamp = obj.try_get<std::string>("timestamp");
-                auto o_icon = obj.try_get<matjson::Array>("icon");
-                auto o_pinned = obj.try_get<bool>("pinned");
-                auto o_role = obj.try_get<int>("role");
-                if (
-                    o_id && o_object_id &&
-                    o_acc_name && o_acc_id &&
-                    o_likes && o_content &&
-                    o_timestamp && o_icon
-                ) {
-                    content->addChild(OWCommentCell::create({
-                        o_id.value(),
-                        o_object_id.value(),
-                        o_acc_name.value(),
-                        o_acc_id.value(),
-                        o_timestamp.value(),
-                        o_content.value(),
-                        o_likes.value(),
-                        o_pinned.value(),
-                        o_icon.value(),
-                        o_role.value()
-                    }, m_object, m_user, [this]() {
+                auto commentRes = matjson::Serialize<CommentData>::fromJson(item);
+                if (commentRes.isOk()) {
+                    content->addChild(OWCommentCell::create(commentRes.unwrap(), m_object, m_user, [this]() {
                         onLoadComments(nullptr);
                     }));
                 }

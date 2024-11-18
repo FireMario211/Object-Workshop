@@ -70,6 +70,17 @@ interface GDAuth {
     expires_after: Date;
 };
 
+interface DashAuth {
+    success: boolean,
+    message: string,
+    data: {
+        id: number,
+        username: string,
+        token: string,
+        token_expiration: Date
+    }
+};
+
 uRouter.get("/testverify", query('token').notEmpty().isUUID(4), async (req: Request, res: Response) => {
     const result = validationResult(req);
     if (!result.isEmpty()) return res.status(400).json({ errors: result.array() })
@@ -254,6 +265,55 @@ uRouter.post('/gdauth',
             })
             //pool.query("SELECT EXISTS (SELECT 1 FROM users WHERE account_id = $1)", [accountID]).then(resp => {
             //    if (resp.rows[0].exists) {
+        }).catch(e => {
+            console.error(e);
+            res.sendStatus(500);
+        });
+    }
+);
+
+uRouter.post('/dashauth',
+    body('token').notEmpty(),
+    async (req: Request, res: Response) => {
+        const result = validationResult(req);
+        if (!result.isEmpty()) return res.status(400).json({ errors: result.array() })
+        const token = req.body.token as string;
+        getCache().then(pool => {
+            axios.post("https://dashend.firee.dev/api/v1/verify", {token}).then(axiosRes => {
+            //axios.post("http://127.0.0.1:3001/api/v1/verify", {token}).then(axiosRes => {
+                const dashAuthData = axiosRes.data as DashAuth;
+                const data = dashAuthData.data;
+                if (!process.env.PRODUCTION) {
+                    console.log("[DashAuth]", data);
+                }
+                if (axiosRes.data == "-1") return res.status(403).json({error: "Invalid token."});
+                pool.query("INSERT INTO users (auth_method, account_id, name) VALUES ($1, $2, $3) ON CONFLICT (account_id) DO NOTHING RETURNING *;", ["dashauth", data.id, data.username]).then(async userResult => {
+                    let user = userResult.rows[0];
+                    if (!user) {
+                        const existingUserResult = await pool.query(
+                            `SELECT * FROM users WHERE account_id = $1;`,
+                            [data.id]
+                        );
+                        user = existingUserResult.rows[0];
+                    }
+                    if (!user) return res.status(500).json({ error: "Unable to retrieve or create user." });
+                    const authToken = generateAuthToken(user.account_id);
+                    const expiration = new Date(Date.now() + ((60 * 60 * 1000) * 24) * 14); // 2 weeks
+                    await pool.query(
+                        `INSERT INTO user_tokens (account_id, token, expiration)
+                         VALUES ($1, $2, $3);`,
+                        [user.account_id, authToken, expiration]
+                    );
+                    res.status(200).json({ token: authToken });
+                }).catch(err => {
+                    console.error(err);
+                    res.status(500).json({ error: "Something went wrong when trying to create a user." })
+                })
+
+            }).catch(e => {
+                console.error(e);
+                res.status(500).send({error: "Something went wrong when trying to communicate with DashEnd servers."})
+            })
         }).catch(e => {
             console.error(e);
             res.sendStatus(500);

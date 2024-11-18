@@ -1,6 +1,18 @@
 #pragma once
 #include <Geode/Geode.hpp>
 
+#ifdef GDAUTH
+//#include <fig.authentication/include/authentication.hpp>
+#include "../../gdauth/authentication.hpp"
+#endif
+
+//#ifdef DASHAUTH
+#include <dashauth.hpp>
+
+//#include "dashauthloll.hpp"
+using namespace dashauth;
+//#endif
+
 using namespace geode::prelude;
 
 enum AuthMethod {

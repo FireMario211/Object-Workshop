@@ -64,11 +64,11 @@ bool OWCommentCell::init(CommentData data, ObjectData obj, UserData user, std::f
         if (m_data.icon.size() != 5) {
             pIcon = SimplePlayer::create(1);
         } else {
-            pIcon = SimplePlayer::create(m_data.icon[0].as_int());
-            pIcon->setColor(gm->colorForIdx(m_data.icon[1].as_int()));
-            pIcon->setSecondColor(gm->colorForIdx(m_data.icon[2].as_int()));
-            pIcon->setGlowOutline(gm->colorForIdx(m_data.icon[3].as_int()));
-            pIcon->m_hasGlowOutline = m_data.icon[4].as_int() == 1;
+            pIcon = SimplePlayer::create(m_data.icon[0]);
+            pIcon->setColor(gm->colorForIdx(m_data.icon[1]));
+            pIcon->setSecondColor(gm->colorForIdx(m_data.icon[2]));
+            pIcon->setGlowOutline(gm->colorForIdx(m_data.icon[3]));
+            pIcon->m_hasGlowOutline = m_data.icon[4] == 1;
             pIcon->updateColors();
         }
         pIcon->setScale(0.45f);
@@ -155,17 +155,8 @@ void OWCommentCell::onVote(CCObject*) {
         m_listener.bind([this, token] (web::WebTask::Event* e) {
             if (web::WebResponse* value = e->getValue()) {
                 auto jsonRes = value->json().unwrapOrDefault();
-                if (!jsonRes.is_object()) return log::error("Response isn't object.");
-                auto isError = jsonRes.try_get<std::string>("error");
-                if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
-                auto message = jsonRes.try_get<std::string>("message");
-                if (message) {
-                    m_forceRefresh();
-                    Notification::create(message->c_str(), NotificationIcon::Success)->show();
-                } else {
-                    log::error("Unknown response, expected message. {}", jsonRes.dump());
-                    Notification::create("Got an unknown response, check logs for details.", NotificationIcon::Warning)->show();
-                }
+                if (!jsonRes.isObject()) return log::error("Response isn't object.");
+                Utils::notifMessage(jsonRes, m_forceRefresh);
                 return;
             } else if (web::WebProgress* progress = e->getProgress()) {
                 // The request is still in progress...
@@ -196,18 +187,8 @@ void OWCommentCell::onPin(CCObject*) {
                 m_listener.bind([this] (web::WebTask::Event* e) {
                     if (web::WebResponse* value = e->getValue()) {
                         auto jsonRes = value->json().unwrapOrDefault();
-                        if (!jsonRes.is_object()) return log::error("Response isn't object.");
-                        auto jsonObj = jsonRes.as_object();
-                        auto isError = jsonRes.try_get<std::string>("error");
-                        if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
-                        auto message = jsonRes.try_get<std::string>("message");
-                        if (message) {
-                            Notification::create(message->c_str(), NotificationIcon::Success)->show();
-                            m_forceRefresh();
-                        } else {
-                            log::error("Unknown response, expected message. {}", jsonRes.dump());
-                            Notification::create("Got an unknown response, check logs for details.", NotificationIcon::Warning)->show();
-                        }
+                        if (!jsonRes.isObject()) return log::error("Response isn't object.");
+                        Utils::notifMessage(jsonRes, m_forceRefresh);
                         return;
                     } else if (web::WebProgress* progress = e->getProgress()) {
                         // The request is still in progress...
@@ -241,18 +222,8 @@ void OWCommentCell::onDelete(CCObject*) {
                 m_listener.bind([this] (web::WebTask::Event* e) {
                     if (web::WebResponse* value = e->getValue()) {
                         auto jsonRes = value->json().unwrapOrDefault();
-                        if (!jsonRes.is_object()) return log::error("Response isn't object.");
-                        auto jsonObj = jsonRes.as_object();
-                        auto isError = jsonRes.try_get<std::string>("error");
-                        if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
-                        auto message = jsonRes.try_get<std::string>("message");
-                        if (message) {
-                            Notification::create(message->c_str(), NotificationIcon::Success)->show();
-                            m_forceRefresh();
-                        } else {
-                            log::error("Unknown response, expected message. {}", jsonRes.dump());
-                            Notification::create("Got an unknown response, check logs for details.", NotificationIcon::Warning)->show();
-                        }
+                        if (!jsonRes.isObject()) return log::error("Response isn't object.");
+                        Utils::notifMessage(jsonRes, m_forceRefresh);
                         return;
                     } else if (web::WebProgress* progress = e->getProgress()) {
                         // The request is still in progress...

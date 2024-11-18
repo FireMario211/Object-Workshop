@@ -5,17 +5,17 @@ using namespace geode::prelude;
 #include "ui/auth/AuthMenu.hpp"
 #include "config.hpp"
 #include "ui/auth/AuthLoadLayer.hpp"
-#include <fig.authentication/include/authentication.hpp>
 #include <alphalaneous.editortab_api/include/EditorTabs.hpp>
 
 // 13 = custom objects
 void CustomObjects::onWorkshop(CCObject*) {
-    int authServer = Mod::get()->getSettingValue<int64_t>("auth-server");
-    if (authServer != -1) {
+    int authServerA = Mod::get()->getSettingValue<int64_t>("auth-server");
+    if (authServerA != -1) {
         auto loadLayer = AuthLoadLayer::create();
         loadLayer->show();
         auto token = Mod::get()->getSettingValue<std::string>("token");
-        AuthMenu::testAuth(token, [loadLayer, authServer, token](int value) {
+        AuthMenu::testAuth(token, [loadLayer, authServerA, token](int value) {
+            int authServer = authServerA;
             if (value == 1) {
                 loadLayer->finished();
                 ObjectWorkshop::create(true)->show();
@@ -23,12 +23,39 @@ void CustomObjects::onWorkshop(CCObject*) {
                 loadLayer->finished();
                 FLAlertLayer::create("Error", "Currently, Object Workshop <cy>servers are down</c> at the moment! View your logs, or view announcements on the <cy>Discord Server</c> for more information, or if there are no announcements, inform the developer of this error!", "OK")->show();
             } else {
+#if !defined(GDAUTH) && defined(DASHAUTH)
+    authServer = 0; // fallback
+    log::info("GDAuth disabled, fallback to DashAuth");
+#endif
                 switch (AuthMenu::intToAuth(authServer)) {
                     default:
-                    case AuthMethod::None:
-                    case AuthMethod::DashAuth: {
+                    case AuthMethod::None: {
                         loadLayer->finished();
                         FLAlertLayer::create("Error", "Unsupported <cy>authentication method</c>.", "OK")->show();
+                        break;
+                    }
+                    case AuthMethod::DashAuth: {
+#ifdef DASHAUTH
+                        DashAuthRequest().getToken(Mod::get(), DASHEND_URL)->except([loadLayer](std::string err) {
+                            log::warn("failed to get token :c reason: {}", err);
+                            loadLayer->finished();
+                            FLAlertLayer::create("DashAuth Error", "Failed to get token, view logs for reason.", "OK")->show();
+                        })->then([loadLayer](std::string const& token) {
+                            AuthMenu::genAuthToken(AuthMethod::DashAuth, token, false, [loadLayer](int value) {
+                                loadLayer->finished();
+                                if (value == 1) {
+                                    ObjectWorkshop::create(true)->show();
+                                } else if (value == -1) {
+                                    FLAlertLayer::create("Error", "Currently, Object Workshop <cy>servers are down</c> at the moment! View your logs, or view announcements on the <cy>Discord Server</c> for more information, or if there are no announcements, inform the developer of this error!", "OK")->show();
+                                } else {
+                                    FLAlertLayer::create("Error", "Something went wrong when <cy>trying to generate a new authentication token!</c>\nIf this issue happens again, please consider <cr>resetting your settings</c> to redo the authentication process.", "OK")->show();
+                                }
+                            });
+                        });
+#else
+                        loadLayer->finished();
+                        FLAlertLayer::create("Error", "Unsupported <cy>authentication method</c>.", "OK")->show();
+#endif
                         break;
                     }
                     case AuthMethod::Custom: {
@@ -37,6 +64,7 @@ void CustomObjects::onWorkshop(CCObject*) {
                         break;
                     }
                     case AuthMethod::GDAuth: {
+#ifdef GDAUTH
                         authentication::AuthenticationManager::get()->getAuthenticationToken([loadLayer](std::string token) {
                             AuthMenu::genAuthToken(AuthMethod::GDAuth, token, false, [loadLayer](int value) {
                                 loadLayer->finished();
@@ -49,6 +77,10 @@ void CustomObjects::onWorkshop(CCObject*) {
                                 }
                             });
                         });
+#else
+                        loadLayer->finished();
+                        FLAlertLayer::create("Error", "Unsupported <cy>authentication method</c>.", "OK")->show();
+#endif
                         break;
                     }
                 }
@@ -146,26 +178,22 @@ bool CustomObjects::init(LevelEditorLayer* editorLayer) {
             m_fields->hasCheckedUploads = true;
             m_fields->m_listener.bind([this, labelOther1] (web::WebTask::Event* e) {
                 if (web::WebResponse* value = e->getValue()) {
-                    if (value->json().has_error()) {
-                        log::error("Invalid server response.");
+                    if (value->json().isErr()) {
+                        log::error("Invalid server response. {}", value->json().err());
                         Notification::create("Object Workshop server gave invalid response.", NotificationIcon::Warning)->show();
                         return;
                     }
                     auto jsonRes = value->json().unwrapOrDefault();
-                    if (!jsonRes.is_object()) return log::error("Response isn't object.");
-                    auto jsonObj = jsonRes.as_object();
-                    auto isError = jsonRes.try_get<std::string>("error");
-                    if (isError) {
-                        log::error("{}", isError);
-                        return;
-                    }
-                    auto uploads = jsonRes.try_get<int>("uploads");
-                    if (uploads) {
+                    if (Utils::notifError(jsonRes)) return;
+                    auto uploadRes = jsonRes.get("uploads");
+
+                    if (uploadRes.isOk()) {
+                        auto uploads = uploadRes.unwrap().asInt().unwrapOrDefault();
                         labelOther1->setString(
                             fmt::format(
                                 "<cg>{}</c> Upload{} from you",
-                                uploads.value(),
-                                (uploads.value() == 1) ? "" : "s"
+                                uploads,
+                                (uploads == 1) ? "" : "s"
                             )
                         );
                     }
@@ -256,82 +284,103 @@ class $modify(ProfilePage) {
         m_profileListener.bind([this] (web::WebTask::Event* e) {
             if (web::WebResponse* value = e->getValue()) {
                 log::info("Request was finished!");
-                if (value->json().has_error() && !value->ok() && value->code() >= 500) {
-                    std::string err = value->string().unwrapOrDefault();
-                    log::error("Couldn't get server. {}", err);
+                if (value->json().err() && !value->ok() && value->code() >= 500) {
+                    log::error("Couldn't get server. {}", value->json().err());
+                    return;
+                }
+                if (value->code() != 200) {
+                    log::error("Couldn't get user: {}", value->json().unwrapOrDefault().dump());
                     return;
                 }
                 auto jsonRes = value->json().unwrapOrDefault();
-                if (jsonRes.is_object()) {
-                    auto isError = jsonRes.try_get<std::string>("error");
-                    if (!isError) {
-                        if (m_fields->customObjsBtn == nullptr) {
-                            if (auto menu = typeinfo_cast<CCMenu*>(m_mainLayer->getChildByID("socials-menu"))) {
-                                m_fields->customObjsBtn = CCMenuItemExt::createSpriteExtraWithFilename("profileObjBtn.png"_spr, 0.75F,
-                                    /*ButtonSprite::create(
-                                        CCSprite::createWithSpriteFrameName("square_01_001.png"),
-                                        24,
-                                        0,
-                                        20.5F,
-                                        0.65F,
-                                        false,
-                                        "blueButton.png"_spr,
-                                        false
-                                    ),*/
-                                [this](CCObject*) {
-                                    int authServer = Mod::get()->getSettingValue<int64_t>("auth-server");
-                                    if (authServer != -1) {
-                                        auto loadLayer = AuthLoadLayer::create();
-                                        loadLayer->show();
-                                        auto token = Mod::get()->getSettingValue<std::string>("token");
-                                        AuthMenu::testAuth(token, [this, loadLayer, authServer, token](int value) {
-                                            if (value == 1) {
-                                                loadLayer->finished();
-                                                ObjectWorkshop::createToUser(true, m_accountID)->show();
-                                            } else if (value == -1) {
-                                                loadLayer->finished();
-                                                FLAlertLayer::create("Error", "Currently, Object Workshop <cy>servers are down</c> at the moment! View your logs, or view announcements on the <cy>Discord Server</c> for more information, or if there are no announcements, inform the developer of this error!", "OK")->show();
-                                            } else {
-                                                switch (AuthMenu::intToAuth(authServer)) {
-                                                    default:
-                                                    case AuthMethod::None:
-                                                    case AuthMethod::DashAuth: {
-                                                        loadLayer->finished();
-                                                        FLAlertLayer::create("Error", "Unsupported <cy>authentication method</c>.", "OK")->show();
-                                                        break;
-                                                    }
-                                                    case AuthMethod::Custom: {
-                                                        loadLayer->finished();
-                                                        FLAlertLayer::create("Error", "Either the token you set is <cy>expired</c>, or you <cy>entered the token incorrectly!</c>", "OK")->show();
-                                                        break;
-                                                    }
-                                                    case AuthMethod::GDAuth: {
-                                                        authentication::AuthenticationManager::get()->getAuthenticationToken([this, loadLayer](std::string token) {
-                                                            AuthMenu::genAuthToken(AuthMethod::GDAuth, token, false, [this, loadLayer](int value) {
-                                                                loadLayer->finished();
-                                                                if (value == 1) {
-                                                                    ObjectWorkshop::createToUser(true, m_accountID)->show();
-                                                                } else if (value == -1) {
-                                                                    FLAlertLayer::create("Error", "Currently, Object Workshop <cy>servers are down</c> at the moment! View your logs, or view announcements on the <cy>Discord Server</c> for more information, or if there are no announcements, inform the developer of this error!", "OK")->show();
-                                                                } else {
-                                                                    FLAlertLayer::create("Error", "Something went wrong when <cy>trying to generate a new authentication token!</c>\nIf this issue happens again, please consider <cr>resetting your settings</c> to redo the authentication process.", "OK")->show();
-                                                                }
-                                                            });
-                                                        });
-                                                        break;
-                                                    }
-                                                }
-                                            }
-                                        });
+                if (Utils::notifError(jsonRes)) return;
+                if (m_fields->customObjsBtn == nullptr) {
+                    if (auto menu = typeinfo_cast<CCMenu*>(m_mainLayer->getChildByID("socials-menu"))) {
+                        m_fields->customObjsBtn = CCMenuItemExt::createSpriteExtraWithFilename("profileObjBtn.png"_spr, 0.75F,
+                        [this](CCObject*) {
+                            int authServerL = Mod::get()->getSettingValue<int64_t>("auth-server");
+                            if (authServerL != -1) {
+                                auto loadLayer = AuthLoadLayer::create();
+                                loadLayer->show();
+                                auto token = Mod::get()->getSettingValue<std::string>("token");
+                                AuthMenu::testAuth(token, [this, loadLayer, authServerL, token](int value) {
+                                    int authServer = authServerL;
+                                    if (value == 1) {
+                                        loadLayer->finished();
+                                        ObjectWorkshop::createToUser(true, m_accountID)->show();
+                                    } else if (value == -1) {
+                                        loadLayer->finished();
+                                        FLAlertLayer::create("Error", "Currently, Object Workshop <cy>servers are down</c> at the moment! View your logs, or view announcements on the <cy>Discord Server</c> for more information, or if there are no announcements, inform the developer of this error!", "OK")->show();
                                     } else {
-                                        ObjectWorkshop::createToUser(false, m_accountID)->show();
+                                        #if !defined(GDAUTH) && defined(DASHAUTH)
+                                        authServer = 0; // fallback
+                                        log::info("GDAuth disabled, fallback to DashAuth");
+                                        #endif
+                                        switch (AuthMenu::intToAuth(authServer)) {
+                                            default:
+                                            case AuthMethod::None: {
+                                                loadLayer->finished();
+                                                FLAlertLayer::create("Error", "Unsupported <cy>authentication method</c>.", "OK")->show();
+                                                break;
+                                            }
+                                            case AuthMethod::DashAuth: {
+#ifdef DASHAUTH
+                                                DashAuthRequest().getToken(Mod::get(), DASHEND_URL)->except([loadLayer](std::string err) {
+                                                    log::warn("failed to get token :c reason: {}", err);
+                                                    loadLayer->finished();
+                                                    FLAlertLayer::create("DashAuth Error", "Failed to get token, view logs for reason.", "OK")->show();
+                                                })->then([this, loadLayer](std::string const& token) {
+                                                    AuthMenu::genAuthToken(AuthMethod::DashAuth, token, false, [this, loadLayer](int value) {
+                                                        loadLayer->finished();
+                                                        if (value == 1) {
+                                                            ObjectWorkshop::createToUser(true, m_accountID)->show();
+                                                        } else if (value == -1) {
+                                                            FLAlertLayer::create("Error", "Currently, Object Workshop <cy>servers are down</c> at the moment! View your logs, or view announcements on the <cy>Discord Server</c> for more information, or if there are no announcements, inform the developer of this error!", "OK")->show();
+                                                        } else {
+                                                            FLAlertLayer::create("Error", "Something went wrong when <cy>trying to generate a new authentication token!</c>\nIf this issue happens again, please consider <cr>resetting your settings</c> to redo the authentication process.", "OK")->show();
+                                                        }
+                                                    });
+                                                });
+#else
+                                                loadLayer->finished();
+                                                FLAlertLayer::create("Error", "Unsupported <cy>authentication method</c>.", "OK")->show();
+#endif
+                                            }
+                                            case AuthMethod::Custom: {
+                                                loadLayer->finished();
+                                                FLAlertLayer::create("Error", "Either the token you set is <cy>expired</c>, or you <cy>entered the token incorrectly!</c>", "OK")->show();
+                                                break;
+                                            }
+                                            case AuthMethod::GDAuth: {
+                                                #ifdef GDAUTH
+                                                authentication::AuthenticationManager::get()->getAuthenticationToken([this, loadLayer](std::string token) {
+                                                    AuthMenu::genAuthToken(AuthMethod::GDAuth, token, false, [this, loadLayer](int value) {
+                                                        loadLayer->finished();
+                                                        if (value == 1) {
+                                                            ObjectWorkshop::createToUser(true, m_accountID)->show();
+                                                        } else if (value == -1) {
+                                                            FLAlertLayer::create("Error", "Currently, Object Workshop <cy>servers are down</c> at the moment! View your logs, or view announcements on the <cy>Discord Server</c> for more information, or if there are no announcements, inform the developer of this error!", "OK")->show();
+                                                        } else {
+                                                            FLAlertLayer::create("Error", "Something went wrong when <cy>trying to generate a new authentication token!</c>\nIf this issue happens again, please consider <cr>resetting your settings</c> to redo the authentication process.", "OK")->show();
+                                                        }
+                                                    });
+                                                });
+                                                #else
+                                                loadLayer->finished();
+                                                FLAlertLayer::create("Error", "Unsupported <cy>authentication method</c>.", "OK")->show();
+                                                #endif
+                                                break;
+                                            }
+                                        }
                                     }
                                 });
-                                menu->addChild(m_fields->customObjsBtn);
-                                menu->updateLayout();
+                            } else {
+                                ObjectWorkshop::createToUser(false, m_accountID)->show();
                             }
-                        }
-                    }
+                        });
+                        menu->addChild(m_fields->customObjsBtn);
+                        menu->updateLayout();
+                }
                 }
             } else if (web::WebProgress* progress = e->getProgress()) {
                 // The request is still in progress...

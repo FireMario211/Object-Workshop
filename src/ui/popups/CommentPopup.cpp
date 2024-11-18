@@ -89,22 +89,16 @@ void CommentPopup::onSubmit(CCObject*) {
     m_listener.bind([this] (web::WebTask::Event* e) {
         if (web::WebResponse* value = e->getValue()) {
             auto jsonRes = value->json().unwrapOrDefault();
-            if (!jsonRes.is_object()) {
-                this->onClose(nullptr);
-                return log::error("Response isn't object.");
-            }
-            auto isError = jsonRes.try_get<std::string>("error");
-            if (isError) {
-                Notification::create(isError.value(), NotificationIcon::Error)->show();
+            if (Utils::notifError(jsonRes)) {
                 return this->onClose(nullptr);
             }
-            auto message = jsonRes.try_get<std::string>("message");
-            if (message) {
-                Notification::create(message.value(), NotificationIcon::Success)->show();
+            auto message = jsonRes.get("message");
+            if (message.isOk()) {
+                Notification::create(message.unwrap().asString().unwrapOrDefault(), NotificationIcon::Success)->show();
                 m_submitCallback();
                 this->onClose(nullptr);
             } else {
-                log::error("Unknown response, expected message. {}", jsonRes.dump());
+                log::error("Unknown response, expected message. {}", message.err());
                 Notification::create("Got an unknown response, check logs for details.", NotificationIcon::Warning)->show();
                 this->onClose(nullptr);
             }

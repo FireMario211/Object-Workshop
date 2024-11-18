@@ -35,15 +35,12 @@ void ReportPopup::onReportBtn(CCObject*) {
                 m_listener.bind([this] (web::WebTask::Event* e) {
                     if (web::WebResponse* value = e->getValue()) {
                         auto jsonRes = value->json().unwrapOrDefault();
-                        if (!jsonRes.is_object()) return log::error("Response isn't object.");
-                        auto jsonObj = jsonRes.as_object();
-                        auto isError = jsonRes.try_get<std::string>("error");
-                        if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
-                        auto message = jsonRes.try_get<std::string>("message");
-                        if (message) {
-                            Notification::create(message->c_str(), NotificationIcon::Success)->show();
+                        if (Utils::notifError(jsonRes)) return;
+                        auto message = jsonRes.get("message");
+                        if (message.isOk()) {
+                            Notification::create(message.unwrap().asString().unwrapOrDefault(), NotificationIcon::Success)->show();
                         } else {
-                            log::error("Unknown response, expected message. {}", jsonRes.dump());
+                            log::error("Unknown response, expected message. {}", message.err());
                             Notification::create("Got an unknown response, check logs for details.", NotificationIcon::Warning)->show();
                         }
                         onClose(nullptr);

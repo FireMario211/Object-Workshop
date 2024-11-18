@@ -1,14 +1,14 @@
 {
-	"geode": "3.9.0",
+	"geode": "4.0.0-beta.1",
 	"gd": {
-		"win": "2.206",
-		"android": "2.206",
-		"mac": "2.206",
-		"ios": "2.206"
+		"win": "2.2074",
+		"android": "2.2074",
+		"mac": "2.2074",
+		"ios": "2.2074"
 	},
 	"id": "firee.object-workshop",
 	"name": "Object Workshop",
-	"version": "v1.4.0",
+	"version": "v1.4.1",
 	"developer": "Firee",
 	"description": "Download, upload, or find custom objects made by other creators!",
     "resources": {
@@ -51,15 +51,17 @@
             "max": 50000
         }
     },
-    "dependencies": [
+    "dependentold": [
         {
             "id": "fig.authentication",
-            "version": ">=v1.0.1",
-            "importance": "required"
-        },
+            "version": ">=v1.0.2",
+            "importance": "recommended"
+        }
+    ],
+    "dependencies": [
         {
             "id": "alphalaneous.editortab_api",
-            "version": ">=v1.0.0",
+            "version": ">=v1.0.6",
             "importance": "required"
         },
         {

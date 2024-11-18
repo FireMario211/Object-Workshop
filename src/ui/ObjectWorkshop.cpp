@@ -21,6 +21,7 @@ bool ObjectWorkshop::setup(bool authenticated) {
     }
     m_user.authenticated = authenticated;
     //m_authenticated = false;
+
     web::WebRequest req = web::WebRequest();
     req.userAgent(USER_AGENT);
     m_tagsListener.getFilter().cancel();
@@ -32,13 +33,13 @@ bool ObjectWorkshop::setup(bool authenticated) {
                 return;
             }
             auto jsonRes = value->json().unwrapOrDefault();
-            if (jsonRes.is_object()) {
-                auto isError = jsonRes.try_get<std::string>("error");
-                if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
+            if (jsonRes.isObject()) {
+                auto isError = jsonRes.get("error");
+                if (isError.isOk()) return Notification::create(isError.unwrap().asString().unwrapOrDefault(), NotificationIcon::Error)->show();
                 log::error("{}", jsonRes.dump());
                 return Notification::create("(Tags) Expected array, but got object.", NotificationIcon::Error)->show();
             }
-            matjson::Array jsonArr = jsonRes.as_array();
+            auto jsonArr = jsonRes.asArray().unwrap();
             m_availableTags = Utils::arrayToUnorderedSet<std::string>(jsonArr);
             log::debug("Current available tags: {}", m_availableTags);
         } else if (web::WebProgress* progress = e->getProgress()) {
@@ -192,39 +193,26 @@ bool ObjectWorkshop::setup(bool authenticated) {
         m_listener0.bind([this, leftTopBar] (web::WebTask::Event* e) {
             if (web::WebResponse* value = e->getValue()) {
                 auto jsonRes = value->json().unwrapOrDefault();
-                if (!jsonRes.is_object()) return log::error("Response isn't object.");
-                auto isError = jsonRes.try_get<std::string>("error");
-                if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
-                // i know its a lotta more lines but gotta check!
-                auto r_account_id = jsonRes.try_get<int>("account_id");
-                auto r_name = jsonRes.try_get<std::string>("name");
-                auto r_downloaded = jsonRes.try_get<matjson::Array>("downloaded");
-                auto r_favorites = jsonRes.try_get<matjson::Array>("favorites");
-                auto r_uploads = jsonRes.try_get<int>("uploads");
-                auto r_role = jsonRes.try_get<int>("role");
-                if (r_account_id && r_name && r_downloaded && r_favorites && r_uploads && r_role) {
-                    m_user = {
-                        r_account_id.value(),
-                        r_name->c_str(),
-                        r_downloaded.value(),
-                        r_favorites.value(),
-                        r_uploads.value(),
-                        r_role.value(),
-                        true
-                    };
+                if (Utils::notifError(jsonRes)) return;
+                auto userRes = matjson::Serialize<UserData>::fromJson(jsonRes);
+                if (userRes.isOk()) {
+                    m_user = userRes.unwrap();
+                    m_user.authenticated = true;
                     log::debug("Set user information.");
-                    if (jsonRes.contains("warning")) {
-                        matjson::Array arrDefault;
-                        auto caseJsonArray = jsonRes.try_get<matjson::Array>("cases").value_or(arrDefault);
+                    if (jsonRes.contains("warning") && jsonRes.contains("cases")) {
+                        auto caseJsonArray = jsonRes.get("cases").unwrap().asArray().unwrap();
                         if (caseJsonArray.size() > 0) {
                             hasWarning = true;
                             auto caseJsonRes = caseJsonArray[0];
                             log::debug("User has warning, setting info for it.");
+
+                            matjson::Value defaultVal;
+
                             caseData = {
-                                caseJsonRes.try_get<int>("case_id").value_or(0),
-                                jsonRes.get<int>("warning"),
-                                static_cast<CaseType>(caseJsonRes.try_get<int>("case_type").value_or(0)),
-                                caseJsonRes.try_get<std::string>("reason").value_or("No reason provided."),
+                                (int)caseJsonRes.get("case_id").unwrapOr(defaultVal).asInt().unwrapOrDefault(),
+                                (int)jsonRes.get("warning").unwrap().asInt().unwrapOrDefault(),
+                                static_cast<CaseType>(caseJsonRes.get("case_type").unwrapOr(defaultVal).asInt().unwrapOrDefault()),
+                                caseJsonRes.get("reason").unwrap().asString().unwrapOr("No reason provided."),
                                 "N/A"
                             };
                             if (!shownObjects) {
@@ -237,7 +225,7 @@ bool ObjectWorkshop::setup(bool authenticated) {
                         }
                     }
                 } else {
-                    log::error("Something went wrong when getting keys from the users object. {}", jsonRes.dump());
+                    log::error("Something went wrong when getting keys from the users object. {}", userRes.err());
                     Notification::create("Couldn't parse user object.", NotificationIcon::Warning)->show();
                 }
                 auto uploadsLabel = CCLabelBMFont::create(fmt::format("{} Upload{}", m_user.uploads, (m_user.uploads == 1) ? "" : "s").c_str(), "bigFont.fnt");
@@ -521,7 +509,7 @@ void ObjectWorkshop::load() {
         if (web::WebResponse* value = e->getValue()) {
             log::debug("Finished request for listener 1.");
             if (!value->ok()) {
-                auto errorText = value->string()->c_str();
+                auto errorText = value->string().unwrapOrDefault();
                 log::error("Failed to retrieve data from server: {}", errorText);
                 auto errorLabel = CCLabelBMFont::create("Error fetching objects", "bigFont.fnt");
                 errorLabel->setScale(0.6F);
@@ -529,7 +517,7 @@ void ObjectWorkshop::load() {
                 retrySpr->setScale(0.6F);
                 auto retryBtn = CCMenuItemSpriteExtra::create(retrySpr, this, menu_selector(ObjectWorkshop::onRetryBtn));
                 retryBtn->setID("retrybtn"_spr);
-                auto detailsLabel = CCLabelBMFont::create(value->string()->c_str(), "chatFont.fnt");
+                auto detailsLabel = CCLabelBMFont::create(value->string().unwrapOrDefault().c_str(), "chatFont.fnt");
                 detailsLabel->setAnchorPoint({0.5, 1.0});
                 detailsLabel->limitLabelWidth(180.F, 1.0F, 0.25F);
                 m_content->addChildAtPosition(errorLabel, Anchor::Center, {132, 80});
@@ -541,94 +529,54 @@ void ObjectWorkshop::load() {
                 return;
             }
             auto jsonRes = value->json().unwrapOrDefault();
-            if (!jsonRes.is_object()) return log::error("Response isn't object.");
-            auto isError = jsonRes.try_get<std::string>("error");
-            if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
+            if (Utils::notifError(jsonRes)) return;
             if (!value->ok()) return Notification::create("An unknown error occured.", NotificationIcon::Error)->show();
-            auto arrayRes = jsonRes.try_get<matjson::Array>("results");
-            matjson::Array array;
-            if (arrayRes) {
-                array = arrayRes.value();
+            auto arrayRes = jsonRes.get("results");
+            std::vector<matjson::Value> array;
+            if (arrayRes.isOk()) {
+                array = arrayRes.unwrap().asArray().unwrap();
             }
             for (auto item : array) {
-                auto obj = item;
-                // soooo bad
-                auto o_id = obj.try_get<int>("id");
-                auto o_name = obj.try_get<std::string>("name");
-                auto o_desc = obj.try_get<std::string>("description");
-                auto o_acc_name = obj.try_get<std::string>("account_name");
-                auto o_rating = obj.try_get<double>("rating");
-                auto o_acc_id = obj.try_get<int>("account_id");
-                auto o_downloads = obj.try_get<int>("downloads");
-                auto o_favorites = obj.try_get<int>("favorites");
-                auto o_rating_count = obj.try_get<int>("rating_count");
-                auto o_data = obj.try_get<std::string>("data");
-                auto o_tags = obj.try_get<matjson::Array>("tags");
-                auto o_status = obj.try_get<int>("status");
-                auto o_created = obj.try_get<std::string>("created");
-                auto o_updated = obj.try_get<std::string>("updated");
-                auto o_version = obj.try_get<int>("version");
-                auto o_featured = obj.try_get<int>("featured");
-                if (
-                    o_id &&
-                    o_name && o_desc &&
-                    o_acc_name && o_acc_id &&
-                    o_rating && o_downloads && o_favorites && o_rating_count && 
-                    o_data && o_tags && o_status && o_created && o_updated && o_version && o_featured
-                ) {
-                    ObjectData objData = {
-                        o_id.value(),
-                        o_name.value(),
-                        o_desc.value(),
-                        o_acc_name.value(),
-                        o_rating.value(),
-                        o_acc_id.value(),
-                        o_downloads.value(),
-                        o_favorites.value(),
-                        o_rating_count.value(),
-                        o_data.value(),
-                        Utils::arrayIncludes(m_user.favorites, o_id.value()),
-                        Utils::arrayToUnorderedSet<std::string>(o_tags.value()),
-                        static_cast<ObjectStatus>(o_status.value()),
-                        o_featured.value(),
-                        o_created.value(),
-                        o_updated.value(),
-                        o_version.value()
-                    };
-
-                    if (currentMenuIndexGD == 8) {
-                        auto reportArrayRes = obj.try_get<matjson::Array>("reports");
-                        matjson::Array reportArray;
-                        if (arrayRes) {
-                            reportArray = reportArrayRes.value();
-                        }
-                        if (reportArray.size() > 0) {
-                            for (auto report : reportArray) {
-                                auto r_reason = report.try_get<std::string>("reason");
-                                auto r_account_id = report.try_get<int>("account_id");
-                                if (r_reason && r_account_id) {
-                                    ReportData report = {
-                                        r_account_id.value(),
-                                        r_reason.value()
-                                    };
-                                    objData.reports.push_back(report);
-                                }
+                auto objRes = matjson::Serialize<ObjectData>::fromJson(item);
+                if (objRes.isErr()) {
+                    log::error("One of the cells could not be properly parsed! {}", objRes.err());
+                    continue;
+                }
+                auto objData = objRes.unwrap();
+                objData.favorited = Utils::arrayIncludes(m_user.favorites, objData.id);
+                if (currentMenuIndexGD == 8 && (item.contains("reports"))) {
+                    auto reportArrayRes = item.get("reports");
+                    std::vector<matjson::Value> reportArray;
+                    if (reportArrayRes.isOk()) {
+                        reportArray = reportArrayRes.unwrap().asArray().unwrap();
+                    }
+                    if (reportArray.size() > 0) {
+                        for (auto report : reportArray) {
+                            auto reportRes = matjson::Serialize<ReportData>::fromJson(report);
+                            if (reportRes.isOk()) {
+                                objData.reports.push_back(reportRes.unwrap());
                             }
                         }
                     }
-                    auto cell = CCMenuItemSpriteExtra::create(ObjectItem::create(m_editorLayer, objData), this, menu_selector(ObjectWorkshop::onClickObject));
-                    categoryItems->addChild(cell);
-                } else {
-                    log::error("One of the cells could not be properly parsed! {}", obj.dump());
                 }
+                auto cell = CCMenuItemSpriteExtra::create(ObjectItem::create(m_editorLayer, objData), this, menu_selector(ObjectWorkshop::onClickObject));
+                categoryItems->addChild(cell);
             }
             m_buttonMenu->removeChildByID("bottompage"_spr);
-            auto o_page = jsonRes.try_get<int>("page");
-            auto o_pageAmount = jsonRes.try_get<int>("pageAmount");
-            auto o_total = jsonRes.try_get<int>("total");
-            if (o_page && o_pageAmount && o_total) {
-                bottomPageLabel = CCLabelBMFont::create(fmt::format("Page {} of {} ({} Results found)", o_page.value(), o_pageAmount.value(), o_total.value()).c_str(), "goldFont.fnt");
-                m_maxPage = o_pageAmount.value();
+            auto o_page = jsonRes.get("page");
+            auto o_pageAmount = jsonRes.get("pageAmount");
+            auto o_total = jsonRes.get("total");
+            if (o_page.isOk() && o_pageAmount.isOk() && o_total.isOk()) {
+                bottomPageLabel = CCLabelBMFont::create(
+                    fmt::format(
+                        "Page {} of {} ({} Results found)",
+                        o_page.unwrap().asInt().unwrapOrDefault(),
+                        o_pageAmount.unwrap().asInt().unwrapOrDefault(),
+                        o_total.unwrap().asInt().unwrapOrDefault()
+                    ).c_str(),
+                    "goldFont.fnt"
+                );
+                m_maxPage = o_pageAmount.unwrap().asInt().unwrapOrDefault();
             }
             bottomPageLabel->setScale(0.4F);
             bottomPageLabel->setID("bottompage"_spr);
@@ -694,31 +642,13 @@ void ObjectWorkshop::load() {
                 request2.bodyJSON(myjson);
                 m_listener2.setFilter(request2.get(fmt::format("{}/user/@me/objects?page=0&limit=true", HOST_URL)));
             } else if (currentMenuIndexGD == -1) {
-                auto o_user = jsonRes.try_get<matjson::Value>("user");
+                auto o_user = jsonRes.get("user");
                 UserData user;
                 myUploadsMenu->removeAllChildrenWithCleanup(true);
-                if (o_user) {
-                    auto p_account_id = o_user.value().try_get<int>("account_id");
-                    auto p_name = o_user.value().try_get<std::string>("name");
-                    auto p_uploads = o_user.value().try_get<int>("uploads");
-                    auto p_featured = o_user.value().try_get<int>("featured");
-                    auto p_role = o_user.value().try_get<int>("role");
-                    auto p_icon = o_user.value().try_get<matjson::Array>("icon");
-                    if (
-                        p_account_id && p_name &&
-                        p_uploads && p_featured &&
-                        p_role && p_icon
-                    ) {
-                        user = {
-                            p_account_id.value(),
-                            p_name.value(),
-                            {}, {},
-                            p_uploads.value(),
-                            p_role.value(),
-                            false,
-                            p_icon.value(),
-                            p_featured.value()
-                        };
+                if (o_user.isOk()) {
+                    auto p_res = matjson::Serialize<UserData>::fromJson(o_user.unwrap());
+                    if (p_res.isOk()) {
+                        user = p_res.unwrap();
                     }
                 }
                 m_currentUser = user;
@@ -734,11 +664,11 @@ void ObjectWorkshop::load() {
                     if (user.icon.size() != 5) {
                         pIcon = SimplePlayer::create(1);
                     } else {
-                        pIcon = SimplePlayer::create(user.icon[0].as_int());
-                        pIcon->setColor(gm->colorForIdx(user.icon[1].as_int()));
-                        pIcon->setSecondColor(gm->colorForIdx(user.icon[2].as_int()));
-                        pIcon->setGlowOutline(gm->colorForIdx(user.icon[3].as_int()));
-                        pIcon->m_hasGlowOutline = user.icon[4].as_int() == 1;
+                        pIcon = SimplePlayer::create(user.icon[0]);
+                        pIcon->setColor(gm->colorForIdx(user.icon[1]));
+                        pIcon->setSecondColor(gm->colorForIdx(user.icon[2]));
+                        pIcon->setGlowOutline(gm->colorForIdx(user.icon[3]));
+                        pIcon->m_hasGlowOutline = user.icon[4] == 1;
                         pIcon->updateColors();
                     }
                     profileInnerBG->addChildAtPosition(pIcon, Anchor::Left, {22, 0});
@@ -750,7 +680,7 @@ void ObjectWorkshop::load() {
 
                     auto uploadsSpr = CCSprite::createWithSpriteFrameName("GJ_hammerIcon_001.png");
                     uploadsSpr->setScale(0.5F);
-                    auto uploadsLabel = CCLabelBMFont::create(std::to_string(o_total.value()).c_str(), "bigFont.fnt");
+                    auto uploadsLabel = CCLabelBMFont::create(std::to_string(o_total.unwrap().asInt().unwrapOrDefault()).c_str(), "bigFont.fnt");
                     uploadsLabel->setColor({0, 255, 0});
                     uploadsLabel->setAnchorPoint({1, 0.5});
                     uploadsLabel->setScale(0.4F);
@@ -795,18 +725,18 @@ void ObjectWorkshop::load() {
 
                 profileBG->addChildAtPosition(profileInnerBG, Anchor::Center, {0, 7});
 
-                auto p_total = jsonRes.try_get<matjson::Value>("user_total");
-                if (p_total) {
+                auto p_total = jsonRes.get("user_total");
+                if (p_total.isOk()) {
                     auto downloadSpr = CCSprite::createWithSpriteFrameName("GJ_downloadBtn_001.png");
                     downloadSpr->setScale(0.4F);
-                    auto p_total_downloads = p_total.value().try_get<int>("downloads").value_or(0);
+                    auto p_total_downloads = p_total.unwrap().get("downloads").unwrap().asInt().unwrapOrDefault();
                     auto downloadsLabel = CCLabelBMFont::create(std::to_string(p_total_downloads).c_str(), "bigFont.fnt");
                     downloadsLabel->setAnchorPoint({0, 0.5});
                     downloadsLabel->setScale(0.35F);
                     profileBG->addChildAtPosition(downloadSpr, Anchor::BottomLeft, {18, 13});
                     profileBG->addChildAtPosition(downloadsLabel, Anchor::BottomLeft, {28, 13});
                     auto favSpr = CCSprite::createWithSpriteFrameName("gj_heartOn_001.png");
-                    auto p_total_favs = p_total.value().try_get<int>("favorites").value_or(0);
+                    auto p_total_favs = p_total.unwrap().get("favorites").unwrap().asInt().unwrapOrDefault();
                     auto favLabel = CCLabelBMFont::create(std::to_string(p_total_favs).c_str(), "bigFont.fnt");
                     favLabel->setAnchorPoint({0, 0.5});
                     favLabel->setScale(0.35F);
@@ -815,15 +745,15 @@ void ObjectWorkshop::load() {
                     profileBG->addChildAtPosition(favLabel, Anchor::Bottom, {-40, 13});
                 }
 
-                auto p_avg = jsonRes.try_get<matjson::Value>("user_average");
-                if (p_avg) {
-                    double averageRating = p_avg.value().try_get<double>("average_rating").value_or(0.00);
+                auto p_avg = jsonRes.get("user_average");
+                if (p_avg.isOk()) {
+                    double averageRating = p_avg.unwrap().get("average_rating").unwrap().asDouble().unwrapOrDefault();
                     auto stars = ObjectItem::createStars(averageRating);
                     stars->setScale(0.9F);
                     stars->setAnchorPoint({0.5, 0});
                     std::ostringstream oss;
                     oss << std::fixed << std::setprecision(2) << averageRating;
-                    auto ratingLbl = CCLabelBMFont::create(fmt::format("{} ({})", oss.str(), p_avg.value().try_get<int>("total_rating_count").value_or(0)).c_str(), "bigFont.fnt");
+                    auto ratingLbl = CCLabelBMFont::create(fmt::format("{} ({})", oss.str(), p_avg.unwrap().get("total_rating_count").unwrap().asInt().unwrapOrDefault()).c_str(), "bigFont.fnt");
                     for (int i = 0; i < 4; i++) {
                         // why doesnt CCFontSprite EXIST!?
                         auto fontSpr = static_cast<CCSprite*>(ratingLbl->getChildren()->objectAtIndex(i));
@@ -886,69 +816,28 @@ void ObjectWorkshop::load() {
         if (web::WebResponse* value = e->getValue()) {
             log::debug("Finished request for listener 2.");
             auto jsonRes = value->json().unwrapOrDefault();
-            if (!jsonRes.is_object()) return log::error("Response isn't object.");
-            auto isError = jsonRes.try_get<std::string>("error");
-            if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
+            if (Utils::notifError(jsonRes)) return;
             if (!value->ok()) return Notification::create("An unknown error occured.", NotificationIcon::Error)->show();
-            auto arrayRes = jsonRes.try_get<matjson::Array>("results");
-            matjson::Array array;
-            if (arrayRes) {
-                array = arrayRes.value();
+            auto arrayRes = jsonRes.get("results");
+            std::vector<matjson::Value> array;
+            if (arrayRes.isOk()) {
+                array = arrayRes.unwrap().asArray().unwrap();
             }
             if (array.size() > 0) {
                 myUploadsMenu->removeAllChildrenWithCleanup(true);
             }
             CCSize defaultContentSize;
             for (auto item : array) {
-                auto obj = item;
-                // soooo bad
-                auto o_id = obj.try_get<int>("id");
-                auto o_name = obj.try_get<std::string>("name");
-                auto o_desc = obj.try_get<std::string>("description");
-                auto o_acc_name = obj.try_get<std::string>("account_name");
-                auto o_rating = obj.try_get<double>("rating");
-                auto o_acc_id = obj.try_get<int>("account_id");
-                auto o_downloads = obj.try_get<int>("downloads");
-                auto o_favorites = obj.try_get<int>("favorites");
-                auto o_rating_count = obj.try_get<int>("rating_count");
-                auto o_data = obj.try_get<std::string>("data");
-                auto o_tags = obj.try_get<matjson::Array>("tags");
-                auto o_status = obj.try_get<int>("status");
-                auto o_created = obj.try_get<std::string>("created");
-                auto o_updated = obj.try_get<std::string>("updated");
-                auto o_version = obj.try_get<int>("version");
-                auto o_featured = obj.try_get<int>("featured");
-                if (
-                    o_id &&
-                    o_name && o_desc &&
-                    o_acc_name && o_acc_id &&
-                    o_rating && o_downloads && o_favorites && o_rating_count && 
-                    o_data && o_tags && o_status && o_created && o_updated && o_version && o_featured
-                ) {
-                    auto cell = CCMenuItemSpriteExtra::create(ObjectItem::create(m_editorLayer, {
-                        o_id.value(),
-                        o_name.value(),
-                        o_desc.value(),
-                        o_acc_name.value(),
-                        o_rating.value(),
-                        o_acc_id.value(),
-                        o_downloads.value(),
-                        o_favorites.value(),
-                        o_rating_count.value(),
-                        o_data.value(),
-                        Utils::arrayIncludes(m_user.favorites, o_id.value()),
-                        Utils::arrayToUnorderedSet<std::string>(o_tags.value()),
-                        static_cast<ObjectStatus>(o_status.value()),
-                        o_featured.value(),
-                        o_created.value(),
-                        o_updated.value(),
-                        o_version.value()
-                    }), this, menu_selector(ObjectWorkshop::onClickObject));
-                    defaultContentSize = cell->getContentSize();
-                    myUploadsMenu->addChild(cell);
-                } else {
-                    log::error("One of the cells could not be properly parsed! {}", obj.dump());
+                auto objRes = matjson::Serialize<ObjectData>::fromJson(item);
+                if (objRes.isErr()) {
+                    log::error("One of the cells could not be properly parsed! {}", objRes.err());
+                    continue;
                 }
+                auto objData = objRes.unwrap();
+                objData.favorited = Utils::arrayIncludes(m_user.favorites, objData.id);
+                auto cell = CCMenuItemSpriteExtra::create(ObjectItem::create(m_editorLayer, objData), this, menu_selector(ObjectWorkshop::onClickObject));
+                defaultContentSize = cell->getContentSize();
+                myUploadsMenu->addChild(cell);
             }
             if (array.size() > 0) {
                 myUploadsMenu->setPosition({127,-36});
@@ -1883,9 +1772,7 @@ void ObjectWorkshop::onUpload(CCObject*) {
                     rightBg->setVisible(true);
                     bottomPageLabel->setVisible(true);
                     auto jsonRes = value->json().unwrapOrDefault();
-                    if (!jsonRes.is_object()) return log::error("Response isn't object.");
-                    auto isError = jsonRes.try_get<std::string>("error");
-                    if (isError) return Notification::create(isError->c_str(), NotificationIcon::Error)->show();
+                    if (Utils::notifError(jsonRes)) return;
                     Notification::create("Uploaded Object! It is now pending!", NotificationIcon::Success)->show();
                     if (loadingCircle != nullptr) loadingCircle->fadeAndRemove();
                     m_buttonMenu->setEnabled(true);

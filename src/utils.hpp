@@ -6,7 +6,7 @@ class Utils {
     public:
     // honestly matjson needs this tbh!
     template <typename T>
-    static bool arrayIncludes(const matjson::Array& array, T value) {
+    static bool arrayIncludes(const std::vector<matjson::Value>& array, T value) {
         return std::find(array.begin(), array.end(), value) != array.end();
     }
     static cocos2d::ccColor3B generateColorFromString(const std::string& seed) {
@@ -36,14 +36,14 @@ class Utils {
         }
     }*/
     static std::string convertValue(const matjson::Value& value) {
-        return value.as_string();
+        return value.asString().unwrapOr("");
     }
     template <typename T>
-    static std::unordered_set<T> arrayToUnorderedSet(const matjson::Array& array) {
+    static std::unordered_set<T> arrayToUnorderedSet(const std::vector<matjson::Value>& array) {
         std::unordered_set<T> result;
         for (const auto& value : array) {
-            if (value.is_string()) {
-                result.insert(value.as_string());
+            if (value.isString()) {
+                result.insert(value.asString().unwrapOr(""));
             }/* else if (value.is_number()) {
                 result.insert(value.as_int());
             }*/
@@ -52,8 +52,8 @@ class Utils {
         return result;
     };
     template <typename T>
-    static matjson::Array unorderedSetToArray(std::unordered_set<T> set) {
-        return matjson::Array(set.begin(), set.end());
+    static std::vector<matjson::Value> unorderedSetToArray(std::unordered_set<T> set) {
+        return std::vector<matjson::Value>(set.begin(), set.end());
     };
     static std::string url_encode(const std::string &value) {
         std::ostringstream escaped;
@@ -214,5 +214,31 @@ class Utils {
         }
         spr->setScale(scale);
         return spr;
+    }
+
+    static bool notifError(const matjson::Value& res) {
+        if (!res.isObject()) {
+            geode::log::error("Response isn't object.");
+            return true;
+        }
+        auto isError = res.get("error");
+        if (isError.isOk()) {
+            geode::Notification::create(isError.unwrap().asString().unwrapOrDefault(), geode::NotificationIcon::Error)->show();
+            return true;
+        } else {
+            return false;
+        }
+    }
+    static void notifMessage(const matjson::Value& res, std::function<void()> callback) {
+        if (notifError(res)) return;
+        auto message = res.get("message");
+        if (message.isOk()) {
+            callback();
+            geode::Notification::create(message.unwrap().asString().unwrapOr("Message"), geode::NotificationIcon::Success)->show();
+        } else {
+            geode::log::error("Unknown response, expected message. {}", res.dump());
+            geode::Notification::create("Got an unknown response, check logs for details.", geode::NotificationIcon::Warning)->show();
+        }
+        return;
     }
 };

@@ -62,13 +62,45 @@ public:
 struct UserData {
     int account_id;
     std::string name;
-    matjson::Array downloaded;
-    matjson::Array favorites;
+    std::vector<matjson::Value> downloaded;
+    std::vector<matjson::Value> favorites;
     int uploads;
     int role;
     bool authenticated = false;
-    matjson::Array icon;
+    std::array<int, 5> icon;
     int featured;
+};
+
+template<>
+struct matjson::Serialize<UserData> {
+    static Result<UserData> fromJson(matjson::Value const& value) {
+        UserData data;
+
+        GEODE_UNWRAP_INTO(data.account_id, value["account_id"].asInt());
+        GEODE_UNWRAP_INTO(data.name, value["name"].asString());
+        GEODE_UNWRAP_INTO(data.uploads, value["uploads"].asInt());
+        GEODE_UNWRAP_INTO(data.role, value["role"].asInt());
+        auto o_featured = value.get("featured");
+        auto o_icon = value.get("icon");
+        if (o_featured.isOk()) {
+            data.featured = o_featured.unwrap().asInt().unwrapOrDefault();
+        }
+        if (o_icon.isOk()) {
+            auto icon_array = o_icon.unwrap().asArray().unwrapOr(std::vector<matjson::Value> {1,1,1,1,1});
+            if (icon_array.size() == 5) {
+                data.icon[0] = icon_array[0].asInt().unwrapOrDefault();
+                data.icon[1] = icon_array[1].asInt().unwrapOrDefault();
+                data.icon[2] = icon_array[2].asInt().unwrapOrDefault();
+                data.icon[3] = icon_array[3].asInt().unwrapOrDefault();
+                data.icon[4] = icon_array[4].asInt().unwrapOrDefault();
+            }
+        }
+        if (value.contains("downloaded") && value.contains("favorites")) {
+            GEODE_UNWRAP_INTO(data.downloaded, value["downloaded"].asArray());
+            GEODE_UNWRAP_INTO(data.favorites, value["favorites"].asArray());
+        }
+        return Ok(data);
+    }
 };
 
 // do i really need a bunch of event listeners
@@ -331,7 +363,7 @@ public:
         // 210 240
         CCSize content = {fVar18 - fVar17,fVar15 - fVar16};
 
-        /*
+        /\*
         log::info("{} = {} | {} = {}", content.width, content.width == 210.F, content.height, content.height == 240.F);
         //log::info("step 6 {},{},{},{},{}", rect, rect.getMinX(), rect.getMinY(), rect.getMaxX(), rect.getMaxY());
         sprite->setContentSize(content);
