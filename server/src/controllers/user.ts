@@ -311,8 +311,13 @@ uRouter.post('/dashauth',
                 })
 
             }).catch(e => {
-                console.error(e);
-                res.status(500).send({error: "Something went wrong when trying to communicate with DashEnd servers."})
+                if (e.status != 401) {
+                    console.error(e);
+                    res.status(500).send({error: "Something went wrong when trying to communicate with DashEnd servers."})
+                } else {
+                    console.log("TOKEN NOT RETRIEVED")
+                    res.status(400).json({error: "Token was not retrieved in time. Try again."});
+                }
             })
         }).catch(e => {
             console.error(e);
