@@ -269,19 +269,19 @@ class $modify(ObjectBypass, EditorUI) {
 
 #include <Geode/modify/ProfilePage.hpp>
 
-EventListener<web::WebTask> m_profileListener;
-
 class $modify(ProfilePage) {
     struct Fields {
         CCMenuItemSpriteExtra* customObjsBtn;
+        EventListener<web::WebTask> m_profileListener;
     };
     void onClose(CCObject* sender) {
-        m_profileListener.getFilter().cancel();
+        m_fields->m_profileListener.getFilter().cancel();
         ProfilePage::onClose(sender);
     }
     void loadPageFromUserInfo(GJUserScore* user) {
         ProfilePage::loadPageFromUserInfo(user);
-        m_profileListener.bind([this] (web::WebTask::Event* e) {
+        if (GJBaseGameLayer::get()) return;
+        m_fields->m_profileListener.bind([this] (web::WebTask::Event* e) {
             if (web::WebResponse* value = e->getValue()) {
                 log::info("Request was finished!");
                 if (value->json().err() && !value->ok() && value->code() >= 500) {
@@ -394,9 +394,9 @@ class $modify(ProfilePage) {
             auto workshop = typeinfo_cast<ObjectWorkshop*>(scene->getChildByID("objectworkshop"_spr));
             if (workshop != nullptr) return; // so you cant loop lol
             web::WebRequest req = web::WebRequest();
-            m_profileListener.getFilter().cancel();
+            m_fields->m_profileListener.getFilter().cancel();
             req.userAgent(USER_AGENT);
-            m_profileListener.setFilter(req.get(fmt::format("{}/user/{}", HOST_URL, m_accountID)));
+            m_fields->m_profileListener.setFilter(req.get(fmt::format("{}/user/{}", HOST_URL, m_accountID)));
         }
     }
 };

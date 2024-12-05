@@ -1,3 +1,7 @@
+# v1.4.4 
+- Fixed issue with opening and closing ProfilePage randomly causing crashes
+- Don't allow opening Object Workshop in ProfilePage while in a level (not sure why you would do that...)
+- Added links to credits for Zidnes
 # v1.4.1
 - Ported to Geode v4.0.0-beta.1 (2.207!)
 - Added DashAuth authentication option
