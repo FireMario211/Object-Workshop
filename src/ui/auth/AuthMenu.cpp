@@ -69,7 +69,7 @@ void AuthMenu::onDashAuth(CCObject*) {
                 log::info("Authenticating with DashAuth...");
                 DashAuthRequest().getToken(Mod::get(), DASHEND_URL)->except([](std::string err) {
                     log::warn("failed to get token :c reason: {}", err);
-                    FLAlertLayer::create("DashAuth Error", "Failed to get token, view logs for reason", "OK")->show();
+                    FLAlertLayer::create("DashAuth Error", "Failed to get token, this could be due to the message expiring too early. <cy>Please try again</c>, or check logs to view a detailed reason.", "OK")->show();
                 })->then([](std::string const& token) {
                     log::info("got token!! {} :3", token);
                     genAuthToken(AuthMethod::DashAuth, token, true, [](bool value) {
