@@ -184,7 +184,9 @@ bool CustomObjects::init(LevelEditorLayer* editorLayer) {
                         return;
                     }
                     auto jsonRes = value->json().unwrapOrDefault();
-                    if (Utils::notifError(jsonRes)) return;
+                    if (!jsonRes.isObject()) return log::error("Response isn't object.");
+                    auto isError = jsonRes.get("error");
+                    if (isError.isOk()) return;
                     auto uploadRes = jsonRes.get("uploads");
 
                     if (uploadRes.isOk()) {
@@ -289,11 +291,13 @@ class $modify(ProfilePage) {
                     return;
                 }
                 if (value->code() != 200) {
-                    log::error("Couldn't get user: {}", value->json().unwrapOrDefault().dump());
+                    //log::error("Couldn't get user: {}", value->json().unwrapOrDefault().dump());
                     return;
                 }
                 auto jsonRes = value->json().unwrapOrDefault();
-                if (Utils::notifError(jsonRes)) return;
+                if (!jsonRes.isObject()) return log::error("Response isn't object.");
+                auto isError = jsonRes.get("error");
+                if (isError.isOk()) return;
                 if (m_fields->customObjsBtn == nullptr) {
                     if (auto menu = typeinfo_cast<CCMenu*>(m_mainLayer->getChildByID("socials-menu"))) {
                         m_fields->customObjsBtn = CCMenuItemExt::createSpriteExtraWithFilename("profileObjBtn.png"_spr, 0.75F,
@@ -398,5 +402,15 @@ class $modify(ProfilePage) {
             req.userAgent(USER_AGENT);
             m_fields->m_profileListener.setFilter(req.get(fmt::format("{}/user/{}", HOST_URL, m_accountID)));
         }
+    }
+};
+
+#include <Geode/modify/EditorUI.hpp>
+class $modify(EditorUI) {
+    void keyDown(enumKeyCodes key) {
+        if (auto scene = CCScene::get()) {
+            if (typeinfo_cast<ObjectWorkshop*>(scene->getChildByID("objectworkshop"_spr))) return;
+        }
+        EditorUI::keyDown(key);
     }
 };

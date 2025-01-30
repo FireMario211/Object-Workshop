@@ -40,11 +40,11 @@ struct matjson::Serialize<CaseData> {
         GEODE_UNWRAP_INTO(auto case_type, value["case_type"].asInt());
         GEODE_UNWRAP_INTO(data.account_id, value["account_id"].asInt());
         GEODE_UNWRAP_INTO(data.staff_account_id, value["staff_account_id"].asInt());
-        GEODE_UNWRAP_INTO(data.reason, value["case_type"].asString());
-        GEODE_UNWRAP_INTO(data.timestamp, value["case_type"].asString());
-        GEODE_UNWRAP_INTO(data.expiration, value["case_type"].asString());
-        GEODE_UNWRAP_INTO(data.ack, value["case_type"].asBool());
-        GEODE_UNWRAP_INTO(data.ack_timestamp, value["case_type"].asString());
+        GEODE_UNWRAP_INTO(data.reason, value["reason"].asString());
+        GEODE_UNWRAP_INTO(data.timestamp, value["timestamp"].asString());
+        GEODE_UNWRAP_INTO(data.expiration, value["expiration"].asString());
+        GEODE_UNWRAP_INTO(data.ack, value["ack"].asBool());
+        GEODE_UNWRAP_INTO(data.ack_timestamp, value["ack_timestamp"].asString());
         GEODE_UNWRAP_INTO(data.staff_account_name, value["staff_account_name"].asString());
         data.type = static_cast<CaseType>(case_type);
         return Ok(data);

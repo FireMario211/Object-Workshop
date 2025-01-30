@@ -13,10 +13,10 @@ function banToRole(type: number): number {
         default: return 0;
         case 1:
         case 4:
-            return -2;
+            return -1;
         case 2:
         case 5:
-            return -1;
+            return -2;
         case 3:
         case 6:
             return -3;
@@ -68,7 +68,7 @@ sRouter.post("/case/create",
                     if (requiresExp) values.push(expiration);
                     await pool.query(query, values);
                     if (caseType > 0) {
-                        await pool.query('UPDATE users SET role = $1 WHERE account_id = $2', [banToRole(caseType), userID]);
+                        await pool.query('UPDATE users SET role = $1, ban_reason = $2 WHERE account_id = $3', [banToRole(caseType), reason, userID]);
                     }
                     res.status(200).json({ message: "Case submitted." })
                 }

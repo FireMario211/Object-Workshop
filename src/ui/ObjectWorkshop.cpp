@@ -94,8 +94,8 @@ bool ObjectWorkshop::setup(bool authenticated) {
     leftTopBar->addChildAtPosition(profileLabel, Anchor::Center, {-25, 10});
 
     leftBar->addChildAtPosition(leftTopBar, Anchor::Top, {3, -7});
-    createCategoryBtn("My Objects", 0);
-    createCategoryBtn("Favorites", 1);
+    createCategoryBtn("My Objects", 0, !authenticated);
+    createCategoryBtn("Favorites", 1, !authenticated);
     auto vLine = CCSprite::createWithSpriteFrameName("edit_vLine_001.png");
     vLine->setRotation(90);
     leftBar->addChildAtPosition(vLine, Anchor::Center, {0, 40});
@@ -491,6 +491,7 @@ void ObjectWorkshop::RegenCategory() {
         cocos::handleTouchPriority(m_buttonMenu);
         load();
     });
+    setKeyboardEnabled(true);
 }
 
 void ObjectWorkshop::onRetryBtn(CCObject*) {
@@ -583,7 +584,7 @@ void ObjectWorkshop::load() {
             m_buttonMenu->addChildAtPosition(bottomPageLabel, Anchor::Bottom, {55, 17});
             m_scrollLayer->setTouchEnabled(true);
             m_amountItems = array.size();
-            if (!m_user.authenticated || (currentMenuIndexGD != 0 && currentMenuIndexGD != -1)) {
+            if ((currentMenuIndexGD != 0 && currentMenuIndexGD != -1)) {
                 if (m_amountItems > 6) {
                     categoryItems->setContentSize({
                         categoryItems->getContentWidth(),
@@ -953,7 +954,7 @@ void ObjectWorkshop::load() {
         return;
     }
     if (currentMenuIndexGD < 2 || currentMenuIndexGD > 6) {
-        if (m_user.authenticated) {
+        if (m_user.authenticated || currentMenuIndexGD == -1) {
             if (currentMenuIndexGD != -1) {
                 auto myjson = matjson::Value();
                 myjson.set("token", m_token);
@@ -1028,6 +1029,31 @@ void ObjectWorkshop::createCategoryBtn(const char* string, int menuIndex) {
             {55, (-120.F) + (-25 * (menuIndex - 2))}
             // -85
         );*/ 
+        m_categoryButtons->addChild(btn);
+        m_categoryButtons->updateLayout();
+    }
+}
+
+void ObjectWorkshop::createCategoryBtn(const char* string, int menuIndex, bool disabled) {
+    if (!disabled) return createCategoryBtn(string, menuIndex);
+    auto label = CCLabelBMFont::create(string, "bigFont.fnt");
+    label->limitLabelWidth(160.0F, 0.75F, 0.2F);
+    
+    auto bgNode = CategoryButton::create(string);
+    bgNode->setDisabled(true);
+    auto btn = CCMenuItemSpriteExtra::create(
+        bgNode,
+        this,
+        nullptr
+    );
+    btn->setID(fmt::format("category-{}"_spr, menuIndex));
+    if (menuIndex < 2) {
+        m_buttonMenu->addChildAtPosition(
+            btn,
+            Anchor::TopLeft,
+            {55, (-60.F) + (-25 * menuIndex)}
+        );
+    } else {
         m_categoryButtons->addChild(btn);
         m_categoryButtons->updateLayout();
     }
@@ -1817,13 +1843,13 @@ void ObjectWorkshop::onClose(CCObject* sender) {
     this->setKeypadEnabled(false);
     this->setTouchEnabled(false);
     if (!m_inEditor) {
-        log::debug("delete LEL!");
         if (auto gameManager = GameManager::sharedState()) {
             if (gameManager->m_levelEditorLayer != nullptr) {
                 gameManager->m_levelEditorLayer->release();
                 gameManager->m_levelEditorLayer = nullptr; // i LOVE dangling pointres, anyways i cant do `delete` because apparently game crashes if i close
             }
             gameManager->m_editorEnabled = false;
+            log::debug("delete LEL!");
         }
     }
     this->removeFromParentAndCleanup(true);
@@ -1850,7 +1876,8 @@ void ObjectWorkshop::keyDown(cocos2d::enumKeyCodes key) {
         return;
     }
     if (key == cocos2d::enumKeyCodes::KEY_Space) return;
-    return FLAlertLayer::keyDown(key);
+    //log::info("they really tried");
+    //return FLAlertLayer::keyDown(key);
 }
 
 void ObjectWorkshop::keyBackClicked() {

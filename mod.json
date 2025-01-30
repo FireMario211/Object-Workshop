@@ -1,5 +1,5 @@
 {
-	"geode": "4.0.1",
+	"geode": "4.2.0",
 	"gd": {
 		"win": "2.2074",
 		"android": "2.2074",
@@ -8,7 +8,7 @@
 	},
 	"id": "firee.object-workshop",
 	"name": "Object Workshop",
-	"version": "v1.4.4",
+	"version": "v1.4.5",
 	"developer": "Firee",
 	"description": "Download, upload, or find custom objects made by other creators!",
     "resources": {
@@ -24,7 +24,7 @@
     "settings": {
         "token": {
             "name": "Auth Token",
-            "description": "Authentication Token (DO NOT CHANGE)",
+            "description": "Authentication Token (DO NOT SHARE)",
             "type": "string",
             "default": ""
         },

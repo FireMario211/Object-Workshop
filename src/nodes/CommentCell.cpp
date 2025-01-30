@@ -61,8 +61,8 @@ bool OWCommentCell::init(CommentData data, ObjectData obj, UserData user, std::f
     // icon,playerColor,playerColor2,playerColorGlow,glow
     if (auto gm = GameManager::sharedState()) {
         SimplePlayer* pIcon;
-        if (m_data.icon.size() != 5) {
-            pIcon = SimplePlayer::create(1);
+        if (m_data.icon.size() != 5 || m_data.icon.empty()) {
+            pIcon = SimplePlayer::create(2);
         } else {
             pIcon = SimplePlayer::create(m_data.icon[0]);
             pIcon->setColor(gm->colorForIdx(m_data.icon[1]));

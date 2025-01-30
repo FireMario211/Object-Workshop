@@ -54,7 +54,7 @@ export function banCheck(res: Response, user: UserData, type: number): boolean {
             return true;
         }
         if (user.role == -3) {
-            res.status(403).json({error: "You are banned from uploading! Reason: " + user.ban_reason});
+            res.status(403).json({error: "You are banned! Reason: " + user.ban_reason});
             return true;
         }
         return false;

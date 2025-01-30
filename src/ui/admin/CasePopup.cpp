@@ -86,6 +86,8 @@ void CasePopup::onLoadCases(CCObject*) {
                     content->addChild(CaseCell::create(m_managingUser, caseData.unwrap(), [this]() {
                         onLoadCases(nullptr);
                     }));
+                } else {
+                    log::error("Couldn't parse Case: {}", caseData.err());
                 }
             }
             content->setLayout(

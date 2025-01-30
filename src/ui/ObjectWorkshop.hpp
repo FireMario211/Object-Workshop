@@ -145,6 +145,7 @@ protected:
     void onReloadBtn(CCObject*);
     void onPendingBtn(CCObject*);
     void createCategoryBtn(const char* string, int menuIndex);
+    void createCategoryBtn(const char* string, int menuIndex, bool disabled);
     void onSideButton(CCObject*);
     void showProfile(int userID, bool self);
     void load();

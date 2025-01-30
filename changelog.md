@@ -1,3 +1,9 @@
+# v1.4.5
+- Fixed bug with comments showing another players icon sometimes
+- Fixed bug with the game crashing if you press enter while in the menu or on a profile
+- Fixed cases not showing properly
+- Fixed bug with going to user profiles bugging out if you aren't authenticated
+- Fixed other miscellaneous bugs
 # v1.4.4 
 - Fixed issue with opening and closing ProfilePage randomly causing crashes
 - Don't allow opening Object Workshop in ProfilePage while in a level (not sure why you would do that...)
