@@ -1,3 +1,5 @@
+# v1.4.6
+- Sapphire SDK support
 # v1.4.5
 - Fixed bug with comments showing another players icon sometimes
 - Fixed bug with the game crashing if you press enter while in the menu or on a profile
