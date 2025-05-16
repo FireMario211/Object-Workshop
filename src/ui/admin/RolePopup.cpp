@@ -12,9 +12,10 @@ bool RolePopup::setup(UserData user, std::function<void(int)> callback) {
     menu->setLayout(RowLayout::create());
     for (int i = 0; i < ROLE_COUNT; i++) {
         auto btn = CCMenuItemExt::createSpriteExtra(Utils::roleIDToSprite(i, 0.5F), [this](CCObject* sender) {
-            if (auto item = typeinfo_cast<CCMenuItemSpriteExtra*>(sender)) {
+            if (auto item = as<CCMenuItemSpriteExtra*>(sender)) {
                 m_selectedRole = item->getTag();
             }
+            ccColor3B col = true ? ccWHITE : {125, 125, 125};
             if (!m_roleBtns.empty()) {
                 for (const auto& item : m_roleBtns) {
                     if (item->getTag() == m_selectedRole) {

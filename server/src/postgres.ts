@@ -5,6 +5,9 @@ let isReady: boolean;
 async function getCache(): Promise<PoolClient> {
     if (!isReady) {
         let apool = new Pool({
+            max: 20,
+            idleTimeoutMillis: 20000,
+            connectionTimeoutMillis: 2000,
             user: 'myuser',
             host: 'localhost',
             database: 'db',

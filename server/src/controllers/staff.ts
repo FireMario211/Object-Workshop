@@ -43,7 +43,7 @@ sRouter.post("/case/create",
                 }
                 if (verifyRes.user) {
                     const userData = verifyRes.user;
-                    if (userData.role < 2) return res.status(403).json({error: "No permission"})
+                    if (userData.role != 3) return res.status(403).json({error: "No permission"})
                     const userID = parseInt(req.body.user as string);
                     const caseType = parseInt(req.body.type as string);
                     const reason = req.body.reason;

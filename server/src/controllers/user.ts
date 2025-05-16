@@ -81,14 +81,6 @@ interface DashAuth {
     }
 };
 
-uRouter.get("/testverify", query('token').notEmpty().isUUID(4), async (req: Request, res: Response) => {
-    const result = validationResult(req);
-    if (!result.isEmpty()) return res.status(400).json({ errors: result.array() })
-    axios.post("https://gd.figm.io/authentication/validate", `sessionID=${req.query.token}`).then(axiosRes => {
-        res.status(200).json(axiosRes.data);
-    })
-})
-
 uRouter.post("/user/@me",
     body('token').notEmpty().isString().withMessage("Token is required"),
     async (req: Request, res: Response) => {
@@ -280,7 +272,6 @@ uRouter.post('/dashauth',
         const token = req.body.token as string;
         getCache().then(pool => {
             axios.post("https://dashend.firee.dev/api/v1/verify", {token}).then(axiosRes => {
-            //axios.post("http://127.0.0.1:3001/api/v1/verify", {token}).then(axiosRes => {
                 const dashAuthData = axiosRes.data as DashAuth;
                 const data = dashAuthData.data;
                 if (!process.env.PRODUCTION) {

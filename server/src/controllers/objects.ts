@@ -8,6 +8,7 @@ import { verifyToken, banCheck } from './user';
 import axios from 'axios';
 import moment from 'moment'
 import { UserData } from '@/Components/User';
+import { cacheMiddleware } from '../cache';
 
 const allowedTags = ["Font", "Decoration", "Gameplay", "Art", "Structure", "Custom", "Icon", "Meme", "Technical", "Particles", "Triggers", "SFX", "Effects", "Auto Build", "Recreation"];
 
@@ -57,6 +58,7 @@ enum ReviewStatus {
 interface WebhookObjData {
     account_name: string;
     name: string;
+    id: number;
     description: string;
     tags: Array<string>;
     version: number;
@@ -79,6 +81,11 @@ function sendWebhook(object: WebhookObjData, status: ReviewStatus, reviewer?: st
                     {
                         "name": "Author",
                         "value": object.account_name,
+                        "inline": true
+                    },
+                    {
+                        "name": "Object ID",
+                        "value": object.id,
                         "inline": true
                     },
                     {
@@ -186,6 +193,7 @@ oRouter.post('/objects/upload',
                             timestamp: object.timestamp
                         });
                         sendWebhook({
+                            id: object.id,
                             name,
                             description,
                             tags,
@@ -256,6 +264,7 @@ oRouter.post('/objects/:id/overwrite',
                     }
                     res.status(200).json({ message: "Object updated!" });
                     sendWebhook({
+                        id: objData.id,
                         name: objData.name,
                         description: objData.description,
                         tags: objData.tags,
@@ -277,7 +286,10 @@ oRouter.post('/objects/:id/overwrite',
     }
 );
 
-oRouter.get('/objects/:id', param("id").isInt({min: 0, max: 2147483647}).notEmpty(), (req: Request, res: Response) => {
+oRouter.get('/objects/:id', param("id").isInt({min: 0, max: 2147483647}).notEmpty(), cacheMiddleware(600, (req) => {
+    const category = parseInt(req.query.category as string) || 0;
+    return !req.query["no-cache"] || category != 4;
+}), (req: Request, res: Response) => {
     const result = validationResult(req);
     if (!result.isEmpty()) return res.status(400).json({ errors: result.array() })
     const objectID = req.params.id;
@@ -615,19 +627,18 @@ oRouter.post('/objects/:id/favorite',
                     const objExists = await pool.query("SELECT EXISTS (SELECT 1 FROM objects WHERE id = $1 AND status = 1)", [objectID])
                     if (!objExists.rows[0].exists) return res.status(404).json({error: "Object not found."}); 
                     let query = "";
-                    let query2 = "";
+                    
                     let message = ""
                     if (verifyRes.user?.favorites.includes(parseInt(objectID))) {
                         query = "UPDATE users SET favorites = ARRAY_REMOVE(favorites, $1) WHERE account_id = $2";
-                        query2 = "UPDATE objects SET favorites = favorites - 1 WHERE id = $1";
                         message = "Unfavorited object!";
                     } else {
                         query = "UPDATE users SET favorites = ARRAY_APPEND(favorites, $1) WHERE account_id = $2";
-                        query2 = "UPDATE objects SET favorites = favorites + 1 WHERE id = $1";
                         message = "Favorited object!";
                     }
                     await pool.query(query, [objectID, accountID]);
-                    await pool.query(query2, [objectID]);
+                    const favoriteCount = await pool.query("SELECT COUNT(*) as favorites FROM users WHERE favorites @> ARRAY[$1::integer]", [objectID]);
+                    await pool.query("UPDATE objects SET favorites = $1 WHERE id = $2", [favoriteCount.rows[0].favorites, objectID]);
                     res.status(200).json({ message });
                 } catch (e) {
                     console.error(e);
@@ -823,6 +834,7 @@ oRouter.post('/objects/:id/accept',
                     }
                     await pool.query("UPDATE objects SET status = 1 WHERE id = $1", [objectID]);
                     sendWebhook({
+                        id: objData.id,
                         name: objData.name,
                         description: objData.description,
                         tags: objData.tags,
@@ -876,6 +888,7 @@ oRouter.post('/objects/:id/reject',
                     await pool.query("DELETE FROM objects WHERE id = $1", [objectID]);
                     res.status(200).json({ message: "Rejected!" });
                     sendWebhook({
+                        id: objData.id,
                         name: objData.name,
                         description: objData.description,
                         tags: objData.tags,
@@ -946,6 +959,9 @@ oRouter.post('/objects/:id/feature',
 oRouter.get('/user/:id',
     param('id').isInt({min: 0, max: 2147483647}).notEmpty(),
     query('page').isInt({min: 0, max: 2147483647}).optional(),
+    cacheMiddleware(300, (req) => {
+        return !req.query["no-cache"];
+    }),
     async (req: Request, res: Response) => {
         const result = validationResult(req);
         if (!result.isEmpty()) return res.status(400).json({ errors: result.array() })
@@ -1098,6 +1114,9 @@ oRouter.get('/objects/:id/comments',
     query('page').isInt({min: 1, max: 2147483647}).optional(),
     query('limit').isInt({min: 1, max: 10}).optional(),
     query('filter').isInt({min: 1, max: 2}).optional(),
+    cacheMiddleware(30, (req) => {
+        return !req.query["no-cache"];
+    }),
     async (req: Request, res: Response) => {
         const result = validationResult(req);
         if (!result.isEmpty()) return res.status(400).json({ errors: result.array() })
@@ -1287,6 +1306,9 @@ oRouter.post('/user/@me/favorites',
     body('token').notEmpty().isString(),
     query('page').isInt({min: 1, max: 2147483647}).optional(),
     query('limit').isInt({min: 1, max: 9}).optional(),
+    cacheMiddleware(300, (req) => {
+        return !req.query["no-cache"];
+    }),
     async (req: Request, res: Response) => {
         const result = validationResult(req);
         if (!result.isEmpty()) return res.status(400).json({ errors: result.array() })
@@ -1357,6 +1379,10 @@ oRouter.get('/objects',
     query('category').isInt({min: 0, max: 2147483647}).optional(),
     query('limit').isInt({min: 1, max: 9}).optional(),
     body('tags').optional().isString(),
+    cacheMiddleware(300, (req) => {
+        const category = parseInt(req.query.category as string) || 0;
+        return !req.query["no-cache"] || category == 4;
+    }),
     async (req: Request, res: Response) => {
         const result = validationResult(req);
         if (!result.isEmpty()) return res.status(400).json({ errors: result.array() })
