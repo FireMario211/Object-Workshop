@@ -3,7 +3,7 @@ import { TimedMap } from './Components/TimedMap';
 
 type ShouldCacheRoute = (req: Request) => boolean;
 
-class CacheManager {
+export class CacheManager {
     private static cache = new TimedMap<string, any>(60000, 1000);
     static get<T>(key: string): T | null {
         return this.cache.get(key);
@@ -13,6 +13,9 @@ class CacheManager {
     }
     static delete(key: string): boolean {
         return this.cache.delete(key);
+    }
+    static deletePattern(key: string): void {
+        this.cache.deleteByPattern(key);
     }
 }
 

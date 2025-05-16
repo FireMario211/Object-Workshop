@@ -8,7 +8,7 @@ import { verifyToken, banCheck } from './user';
 import axios from 'axios';
 import moment from 'moment'
 import { UserData } from '@/Components/User';
-import { cacheMiddleware } from '../cache';
+import { cacheMiddleware, CacheManager } from '../cache';
 
 const allowedTags = ["Font", "Decoration", "Gameplay", "Art", "Structure", "Custom", "Icon", "Meme", "Technical", "Particles", "Triggers", "SFX", "Effects", "Auto Build", "Recreation"];
 
@@ -286,7 +286,7 @@ oRouter.post('/objects/:id/overwrite',
     }
 );
 
-oRouter.get('/objects/:id', param("id").isInt({min: 0, max: 2147483647}).notEmpty(), cacheMiddleware(600, (req) => {
+oRouter.get('/objects/:id', param("id").isInt({min: 0, max: 2147483647}).notEmpty(), cacheMiddleware(120, (req) => {
     const category = parseInt(req.query.category as string) || 0;
     return !req.query["no-cache"] || category != 4;
 }), (req: Request, res: Response) => {
@@ -358,6 +358,7 @@ oRouter.post('/objects/:id/rate',
                     `;
                     await pool.query(query, [objectID, accountID, stars]);
                     res.status(200).json({ message: `Sent rating of ${stars} stars!`});
+                    CacheManager.delete(`GET:/objects/${objectID}`);
                 } catch (e) {
                     console.error(e);
                     res.status(500).json({ error: 'Internal server error' });
@@ -398,6 +399,7 @@ oRouter.post('/objects/:id/comment',
                     if (!objExists.rows[0].exists) return res.status(404).json({error: "Object not found."}); 
                     await pool.query("INSERT INTO comments (object_id, account_id, content) VALUES ($1, $2, $3)", [objectID, accountID, data]);
                     res.status(200).json({ message: `Sent!`});
+                    CacheManager.delete(`GET:/objects/${objectID}/comments`);
                 } catch (e) {
                     console.error(e);
                     res.status(500).json({ error: 'Internal server error' });
@@ -442,6 +444,7 @@ oRouter.post('/objects/:id/comments/:commentid/pin',
                     } 
                     await pool.query("UPDATE comments SET pinned = FALSE WHERE object_id = $1", [objectID]);
                     await pool.query("UPDATE comments SET pinned = TRUE WHERE id = $1", [commentID]);
+                    CacheManager.delete(`GET:/objects/${objectID}/comments`);
                     res.status(200).json({ message: `Pinned!`});
                 } catch (e) {
                     console.error(e);
@@ -493,6 +496,7 @@ oRouter.post('/objects/:id/comments/:commentid/vote',
                             await pool.query("UPDATE users SET c_likes = ARRAY_APPEND(c_likes, $1) WHERE account_id = $2", [commentID, accountID]);
                             await pool.query("UPDATE comments SET likes = likes + 2 WHERE id = $1", [commentID]);
                         }
+                        CacheManager.delete(`GET:/objects/${objectID}/comments`);
                         res.status(200).json({ message: "Voted!" });
                     } else {
                         if (like == 0) { // dislike
@@ -502,6 +506,7 @@ oRouter.post('/objects/:id/comments/:commentid/vote',
                             await pool.query("UPDATE users SET c_likes = ARRAY_APPEND(c_likes, $1) WHERE account_id = $2", [commentID, accountID]);
                             await pool.query("UPDATE comments SET likes = likes + 1 WHERE id = $1", [commentID]);
                         }
+                        CacheManager.delete(`GET:/objects/${objectID}/comments`);
                         res.status(200).json({ message: "Voted!" });
                     }
                 } catch (e) {
@@ -549,6 +554,7 @@ oRouter.post('/objects/:id/comments/:commentid/delete',
                         if (!commentExists.rows[0].exists) return res.status(404).json({error: "Comment not found."}); 
                     } 
                     await pool.query("DELETE FROM comments WHERE id = $1", [commentID]);
+                    CacheManager.delete(`GET:/objects/${objectID}/comments`);
                     res.status(200).json({ message: `Deleted!`});
                 } catch (e) {
                     console.error(e);
@@ -722,6 +728,8 @@ oRouter.post('/objects/:id/delete',
                     }
                     await pool.query("DELETE FROM objects WHERE id = $1", [objectID]);
                     res.status(200).json({ message: "Deleted object!" });
+                    CacheManager.delete(`GET:/objects/${objectID}`);
+                    CacheManager.deletePattern(`GET:/objects`);
                 } catch (e) {
                     console.error(e);
                     res.status(500).json({ error: 'Internal server error' });
@@ -788,6 +796,7 @@ oRouter.post('/objects/:id/update',
                         if (!objExists.rows[0].exists) return res.status(404).json({error: "Object not found."}); 
                         await pool.query(query, [name, description, tags, objectID]);
                     }
+                    CacheManager.delete(`GET:/objects/${objectID}`);
                     return res.status(200).json({message: "Updated object!"});
                 } catch (e) {
                     console.error(e)
@@ -942,6 +951,8 @@ oRouter.post('/objects/:id/feature',
                         await pool.query("UPDATE objects SET featured = 1 WHERE id = $1", [objectID]);
                         res.status(200).json({ message: "Featured!" });
                     }
+                    CacheManager.delete(`GET:/objects/${objectID}`);
+                    CacheManager.deletePattern(`GET:/objects`);
                 } catch (e) {
                     console.error(e);
                     res.status(500).json({ error: 'Internal server error' });
@@ -959,7 +970,7 @@ oRouter.post('/objects/:id/feature',
 oRouter.get('/user/:id',
     param('id').isInt({min: 0, max: 2147483647}).notEmpty(),
     query('page').isInt({min: 0, max: 2147483647}).optional(),
-    cacheMiddleware(300, (req) => {
+    cacheMiddleware(60, (req) => {
         return !req.query["no-cache"];
     }),
     async (req: Request, res: Response) => {
@@ -1306,9 +1317,6 @@ oRouter.post('/user/@me/favorites',
     body('token').notEmpty().isString(),
     query('page').isInt({min: 1, max: 2147483647}).optional(),
     query('limit').isInt({min: 1, max: 9}).optional(),
-    cacheMiddleware(300, (req) => {
-        return !req.query["no-cache"];
-    }),
     async (req: Request, res: Response) => {
         const result = validationResult(req);
         if (!result.isEmpty()) return res.status(400).json({ errors: result.array() })
@@ -1379,7 +1387,7 @@ oRouter.get('/objects',
     query('category').isInt({min: 0, max: 2147483647}).optional(),
     query('limit').isInt({min: 1, max: 9}).optional(),
     body('tags').optional().isString(),
-    cacheMiddleware(300, (req) => {
+    cacheMiddleware(60, (req) => {
         const category = parseInt(req.query.category as string) || 0;
         return !req.query["no-cache"] || category == 4;
     }),
@@ -1517,6 +1525,9 @@ oRouter.post('/objects/search',
     query('page').isInt({min: 1, max: 2147483647}).optional(),
     query('limit').isInt({min: 1, max: 9}).optional(),
     body('tags').optional().isString(),
+    cacheMiddleware(10, (req) => {
+        return !req.query["no-cache"]
+    }),
     async (req: Request, res: Response) => {
         const result = validationResult(req);
         if (!result.isEmpty()) return res.status(400).json({ errors: result.array() })

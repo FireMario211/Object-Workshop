@@ -1,5 +1,5 @@
 {
-	"geode": "4.3.1",
+	"geode": "4.4.0",
 	"gd": {
 		"win": "2.2074",
 		"android": "2.2074",
@@ -30,7 +30,7 @@
         },
         "auth-server": {
             "name": "Auth Server",
-            "description": "Authentication Server (-1 = None, 0 = DashAuth, 1 = GDAuth, 2 = Custom Auth (Ignores the test auth))",
+            "description": "Authentication Server (-1 = None, 0 = DashAuth, 1 = Argon, 2 = Custom Auth (Ignores the test auth))",
             "type": "int",
             "default": -1,
             "min": -1,

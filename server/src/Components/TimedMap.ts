@@ -38,6 +38,14 @@ export class TimedMap<K, V> {
     delete(key: K): boolean {
         return this.map.delete(key);
     }
+    deleteByPattern(pattern: string): void {
+        for (const key of this.map.keys()) {
+            const keyStr = String(key);
+            if (keyStr.startsWith(pattern)) {
+                this.map.delete(key);
+            }
+        }
+    }
     find(fn: (value: TimedEntry<V>, key: K) => boolean): [K, TimedEntry<V>] | null {
         for (const [key, value] of this.map.entries()) {
             if (fn(value, key)) {
