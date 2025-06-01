@@ -45,8 +45,6 @@ jobs:
           export-pdb: true
           bindings-ref: main
           combine: true
-          cli: nightly # remove after iso
-          sdk: nightly # remove after iso
           target: ${{ matrix.config.target }}
 
   package:
