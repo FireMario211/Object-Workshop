@@ -20,11 +20,28 @@ bool ExtPreviewBG::init(LevelEditorLayer* editorLayer, std::string data, CCSize 
     m_clippingNode->setContentSize(bg->getContentSize());
     m_clippingNode->setAnchorPoint({0.5, 0.5});
     if (data.length() > 0) {
+        unsigned int objectCount = std::count(data.begin(), data.end(), ';');
         int renderLimit = Mod::get()->getSettingValue<int64_t>("render-objects");
+        int preRender = Mod::get()->getSettingValue<int64_t>("prerender-objects");
         auto smartBlock = CCArray::create();
-        objSprite = editorLayer->m_editorUI->spriteFromObjectString(data, false, false, renderLimit, smartBlock, (CCArray *)0x0,(GameObject *)0x0);
-        //objSprite = ObjectWorkshop::spriteFromObjectString(data, false, false, renderLimit, smartBlock, nullptr, (GameObject *)0x0);
-        editorLayer->updateObjectColors(smartBlock);
+        if (objectCount >= preRender && Mod::get()->getSettingValue<bool>("prerender-full")) {
+            auto sprite = editorLayer->m_editorUI->spriteFromObjectString(data, false, false, renderLimit, smartBlock, (CCArray *)0x0,(GameObject *)0x0);
+            editorLayer->updateObjectColors(smartBlock);
+
+            CCSize contentSize = sprite->getContentSize();
+            sprite->setPosition(contentSize / 2);
+            CCRenderTexture* tex = CCRenderTexture::create(contentSize.width, contentSize.height);
+            tex->beginWithClear(0,0,0,0);
+            sprite->visit();
+            tex->end();
+            objSprite = CCSprite::create();
+            objSprite->setContentSize(sprite->getContentSize());
+            objSprite->addChildAtPosition(tex, Anchor::Center);
+        } else {
+            objSprite = editorLayer->m_editorUI->spriteFromObjectString(data, false, false, renderLimit, smartBlock, (CCArray *)0x0,(GameObject *)0x0);
+            editorLayer->updateObjectColors(smartBlock);
+        }
+        
         objSprite->setScale((m_clippingNode->getContentSize().height - 20) / objSprite->getContentSize().height);
         m_oldScale = objSprite->getScale();
         m_clippingNode->addChildAtPosition(objSprite, Anchor::Center, {0, -5});

@@ -23,9 +23,9 @@ void CustomObjects::onWorkshop(CCObject*) {
                 loadLayer->finished();
                 FLAlertLayer::create("Error", "Currently, Object Workshop <cy>servers are down</c> at the moment! View your logs, or view announcements on the <cy>Discord Server</c> for more information, or if there are no announcements, inform the developer of this error!", "OK")->show();
             } else {
-#if !defined(GDAUTH) && defined(DASHAUTH)
+#if !defined(ARGON) && defined(DASHAUTH)
     authServer = 0; // fallback
-    log::info("GDAuth disabled, fallback to DashAuth");
+    log::info("Argon disabled, fallback to DashAuth");
 #endif
                 switch (AuthMenu::intToAuth(authServer)) {
                     default:
@@ -63,10 +63,17 @@ void CustomObjects::onWorkshop(CCObject*) {
                         FLAlertLayer::create("Error", "Either the token you set is <cy>expired</c>, or you <cy>entered the token incorrectly!</c>", "OK")->show();
                         break;
                     }
-                    case AuthMethod::GDAuth: {
-#ifdef GDAUTH
-                        authentication::AuthenticationManager::get()->getAuthenticationToken([loadLayer](std::string token) {
-                            AuthMenu::genAuthToken(AuthMethod::GDAuth, token, false, [loadLayer](int value) {
+                    case AuthMethod::Argon: {
+#ifdef ARGON
+                        auto res = argon::startAuth([loadLayer](Result<std::string> res) {
+                            if (!res) {
+                                log::warn("Argon auth failed: {}", res.unwrapErr());
+                                loadLayer->finished();
+                                FLAlertLayer::create("Argon Error", "Failed to get token, view logs for reason.", "OK")->show();
+                                return;
+                            }
+                            auto token = std::move(res).unwrap();
+                            AuthMenu::genAuthToken(AuthMethod::Argon, token, false, [loadLayer](int value) {
                                 loadLayer->finished();
                                 if (value == 1) {
                                     ObjectWorkshop::create(true)->show();
@@ -77,6 +84,11 @@ void CustomObjects::onWorkshop(CCObject*) {
                                 }
                             });
                         });
+                        if (!res) {
+                            log::warn("Failed to start auth attempt: {}", res.unwrapErr());
+                            loadLayer->finished();
+                            FLAlertLayer::create("Argon Error", "Failed to start auth attempt, view logs for reason.", "OK")->show();
+                        }
 #else
                         loadLayer->finished();
                         FLAlertLayer::create("Error", "Unsupported <cy>authentication method</c>.", "OK")->show();
@@ -316,9 +328,9 @@ class $modify(ProfilePage) {
                                         loadLayer->finished();
                                         FLAlertLayer::create("Error", "Currently, Object Workshop <cy>servers are down</c> at the moment! View your logs, or view announcements on the <cy>Discord Server</c> for more information, or if there are no announcements, inform the developer of this error!", "OK")->show();
                                     } else {
-                                        #if !defined(GDAUTH) && defined(DASHAUTH)
+                                        #if !defined(ARGON) && defined(DASHAUTH)
                                         authServer = 0; // fallback
-                                        log::info("GDAuth disabled, fallback to DashAuth");
+                                        log::info("Argon disabled, fallback to DashAuth");
                                         #endif
                                         switch (AuthMenu::intToAuth(authServer)) {
                                             default:
@@ -328,7 +340,7 @@ class $modify(ProfilePage) {
                                                 break;
                                             }
                                             case AuthMethod::DashAuth: {
-#ifdef DASHAUTH
+                                                #ifdef DASHAUTH
                                                 DashAuthRequest().getToken(Mod::get(), DASHEND_URL)->except([loadLayer](std::string err) {
                                                     log::warn("failed to get token :c reason: {}", err);
                                                     loadLayer->finished();
@@ -355,10 +367,17 @@ class $modify(ProfilePage) {
                                                 FLAlertLayer::create("Error", "Either the token you set is <cy>expired</c>, or you <cy>entered the token incorrectly!</c>", "OK")->show();
                                                 break;
                                             }
-                                            case AuthMethod::GDAuth: {
-                                                #ifdef GDAUTH
-                                                authentication::AuthenticationManager::get()->getAuthenticationToken([this, loadLayer](std::string token) {
-                                                    AuthMenu::genAuthToken(AuthMethod::GDAuth, token, false, [this, loadLayer](int value) {
+                                            case AuthMethod::Argon: {
+                                                #ifdef ARGON
+                                                auto res = argon::startAuth([this, loadLayer](Result<std::string> res) {
+                                                    if (!res) {
+                                                        log::warn("Argon auth failed: {}", res.unwrapErr());
+                                                        loadLayer->finished();
+                                                        FLAlertLayer::create("Argon Error", "Failed to get token, view logs for reason.", "OK")->show();
+                                                        return;
+                                                    }
+                                                    auto token = std::move(res).unwrap();
+                                                    AuthMenu::genAuthToken(AuthMethod::Argon, token, false, [this, loadLayer](int value) {
                                                         loadLayer->finished();
                                                         if (value == 1) {
                                                             ObjectWorkshop::createToUser(true, m_accountID)->show();
@@ -369,6 +388,11 @@ class $modify(ProfilePage) {
                                                         }
                                                     });
                                                 });
+                                                if (!res) {
+                                                    log::warn("Failed to start auth attempt: {}", res.unwrapErr());
+                                                    loadLayer->finished();
+                                                    FLAlertLayer::create("Argon Error", "Failed to start auth attempt, view logs for reason.", "OK")->show();
+                                                }
                                                 #else
                                                 loadLayer->finished();
                                                 FLAlertLayer::create("Error", "Unsupported <cy>authentication method</c>.", "OK")->show();

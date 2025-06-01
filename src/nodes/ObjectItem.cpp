@@ -137,7 +137,10 @@ bool ObjectItem::init(LevelEditorLayer* editorLayer, ObjectData data) {
     auto objectsIcon = CircleButtonSprite::create(blockSpr);
     objectsIcon->setScale(0.5F);
     objectsBG->addChildAtPosition(objectsIcon, Anchor::Left, { 15, 0 });
-    auto objectsLabel = CCLabelBMFont::create(GameToolbox::intToShortString(std::count(data.objectString.begin(), data.objectString.end(), ';')).c_str(), "bigFont.fnt");
+
+    unsigned int objectCount = std::count(data.objectString.begin(), data.objectString.end(), ';');
+
+    auto objectsLabel = CCLabelBMFont::create(GameToolbox::intToShortString(objectCount).c_str(), "bigFont.fnt");
     objectsLabel->limitLabelWidth(120.F, 0.6F, 0.4F);
     objectsLabel->setAnchorPoint({0, 0.5});
     objectsBG->addChildAtPosition(objectsLabel, Anchor::Left, { 32, 0 });
@@ -177,10 +180,22 @@ bool ObjectItem::init(LevelEditorLayer* editorLayer, ObjectData data) {
         */
         auto smartBlock = CCArray::create();
         int renderLimit = Mod::get()->getSettingValue<int64_t>("render-objects");
+        int preRender = Mod::get()->getSettingValue<int64_t>("prerender-objects");
         CCSprite* sprite = editorLayer->m_editorUI->spriteFromObjectString(data.objectString, false, false, renderLimit, smartBlock, (CCArray *)0x0,(GameObject *)0x0);
         editorLayer->updateObjectColors(smartBlock);
         sprite->setScale(((previewBG->getContentSize().height - 6) / sprite->getContentSize().height));
-        m_clippingNode->addChildAtPosition(sprite, Anchor::Center);
+
+        if (objectCount >= preRender) {
+            CCSize contentSize = m_clippingNode->getContentSize();
+		    sprite->setPosition(contentSize / 2);
+            CCRenderTexture* tex = CCRenderTexture::create(contentSize.width, contentSize.height);
+		    tex->beginWithClear(0, 0, 0, 0);
+            sprite->visit();
+            tex->end();
+            m_clippingNode->addChildAtPosition(tex, Anchor::Center);
+        } else {
+            m_clippingNode->addChildAtPosition(sprite, Anchor::Center);
+        }
     }
 
     //FLAlertLayerProtocol, ColorSelectDelegate, GJRotationControlDelegate, GJScaleControlDelegate, GJTransformControlDelegate, MusicDownloadDelegate, SetIDPopupDelegate {

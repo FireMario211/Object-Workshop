@@ -1,9 +1,8 @@
 #pragma once
 #include <Geode/Geode.hpp>
 
-#ifdef GDAUTH
-//#include <fig.authentication/include/authentication.hpp>
-#include "../../gdauth/authentication.hpp"
+#ifdef ARGON
+#include <argon/argon.hpp>
 #endif
 
 //#ifdef DASHAUTH
@@ -18,7 +17,7 @@ using namespace geode::prelude;
 enum AuthMethod {
     None = -1,
     DashAuth = 0,
-    GDAuth = 1,
+    Argon = 1,
     Custom = 2
 };
 
@@ -27,7 +26,7 @@ protected:
     bool setup() override;
     void onInfoBtn(CCObject*);
     void onDashAuth(CCObject*);
-    void onGDAuth(CCObject*);
+    void onArgon(CCObject*);
     void onDoLater(CCObject*);
 public:
     static void genAuthToken(AuthMethod method, std::string token, bool showFLAlert, std::function<void(int)> callback);
@@ -40,7 +39,7 @@ public:
             case 0:
                 return AuthMethod::DashAuth;
             case 1:
-                return AuthMethod::GDAuth;
+                return AuthMethod::Argon;
             case 2:
                 return AuthMethod::Custom;
         }

@@ -12,7 +12,9 @@ export class CacheManager {
         this.cache.set(key, data, ttl * 1000);
     }
     static delete(key: string): boolean {
-        return this.cache.delete(key);
+        //return this.cache.delete(key);
+        this.deletePattern(key);
+        return true;
     }
     static deletePattern(key: string): void {
         this.cache.deleteByPattern(key);

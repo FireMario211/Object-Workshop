@@ -15,9 +15,9 @@ bool AuthMenu::setup() {
         menu_selector(AuthMenu::onDashAuth)
     );
     auto gdAuthBtn = CCMenuItemSpriteExtra::create(
-        ButtonSprite::create("GDAuth"),
+        ButtonSprite::create("Argon"),
         this,
-        menu_selector(AuthMenu::onGDAuth)
+        menu_selector(AuthMenu::onArgon)
     );
     auto laterSpr = ButtonSprite::create("Do Later", "bigFont.fnt", "GJ_button_01.png");
     laterSpr->setScale(0.7F);
@@ -40,16 +40,6 @@ bool AuthMenu::setup() {
     m_buttonMenu->addChildAtPosition(infoBtn, Anchor::TopRight);
     return true;
 }
-
-
-/*
-geode::createQuickPopup(
-        "Warning",
-        "Are you sure you want to use this <cy>authentication method</c>?\nThis method involves <cy>sending your GJP</c> (GD password) to <cg>fig's server</c> (third party), meaning you are <cr>trusting this server to not use your GD account with malice</c>.\n\nIf this method doesn't satisfy you, consider receiving an <cy>authentication token</c> by <cy>joining the Discord server</c>\nWould you like to <cg>proceed anyways</c>?",
-        "Cancel",
-        "Proceed",
-        [this](auto, bool btn2) {
-*/
 
 void AuthMenu::onDashAuth(CCObject*) {
     if (auto gjam = GJAccountManager::sharedState()) {
@@ -209,11 +199,15 @@ void AuthMenu::genAuthToken(AuthMethod method, std::string token, bool showFLAle
         log::info("Authenticated! Now sending token to backend...");
         auto myjson = matjson::Value();
         myjson.set("token", token);
+        if (method == AuthMethod::Argon) {
+            myjson.set("username", GJAccountManager::get()->m_username);
+            myjson.set("account_id", GJAccountManager::get()->m_accountID);
+        }
         req.bodyJSON(myjson);
         req.userAgent(USER_AGENT);
         switch (method) {
-            case AuthMethod::GDAuth:
-                m_authListener.setFilter(req.post(fmt::format("{}/gdauth", HOST_URL)));
+            case AuthMethod::Argon:
+                m_authListener.setFilter(req.post(fmt::format("{}/argon", HOST_URL)));
                 break;
             case AuthMethod::DashAuth:
                 m_authListener.setFilter(req.post(fmt::format("{}/dashauth", HOST_URL)));
@@ -223,36 +217,46 @@ void AuthMenu::genAuthToken(AuthMethod method, std::string token, bool showFLAle
                 break;
         }
 }
-void AuthMenu::onGDAuth(CCObject*) {
+void AuthMenu::onArgon(CCObject*) {
     if (auto gjam = GJAccountManager::sharedState()) {
         if (gjam->m_accountID == 0) {
             return FLAlertLayer::create("Error", "You are not <cy>signed in</c>! The only option you can use is <cg>Do Later</c>", "OK")->show();
         }
     }
-#ifdef GDAUTH
+#ifdef ARGON
     geode::createQuickPopup(
-        "Warning",
-        "Are you sure you want to use this <cy>authentication method</c>?\nThis method involves <cy>sending your GJP</c> (GD password) to <cg>fig's server</c> (third party), meaning you are <cr>trusting this server to not use your GD account with malice</c>.\n\nIf this method doesn't satisfy you, consider receiving an <cy>authentication token</c> by <cy>joining the Discord server</c>\nWould you like to <cg>proceed anyways</c>?",
+        "Note",
+        "Are you sure you want to use this <cy>authentication method</c>?\nThis method involves the same method used in <cy>Globed</c>, where it has your GD account <cy>send a message</c> to a <cg>bot</c>.\n\nIf this method doesn't satisfy you, consider receiving an <cy>authentication token</c> by <cy>joining the Discord server</c>\nWould you like to <cg>proceed anyways</c>?",
         "Cancel",
         "Proceed",
         [this](auto, bool btn2) {
             if (btn2) {
                 this->onClose(nullptr);
-                log::info("Authenticating with GDAuth...");
-                authentication::AuthenticationManager::get()->getAuthenticationToken([this](std::string token) {
-                    genAuthToken(AuthMethod::GDAuth, token, true, [](bool value) {
+                log::info("Authenticating with Argon...");
+                auto res = argon::startAuth([](Result<std::string> res) {
+                    if (!res) {
+                        log::warn("Argon auth failed: {}", res.unwrapErr());
+                        FLAlertLayer::create("Argon Error", "Failed to get token, view logs for reason.", "OK")->show();
+                        return;
+                    }
+                    auto token = std::move(res).unwrap();
+                    genAuthToken(AuthMethod::Argon, token, true, [](bool value) {
                         if (value) {
                             ObjectWorkshop::create(true)->show();
                         }
                     });
-                }); 
+                });
+                if (!res) {
+                    log::warn("Failed to start auth attempt: {}", res.unwrapErr());
+                    FLAlertLayer::create("Argon Error", "Failed to start auth attempt, view logs for reason.", "OK")->show();
+                }
             }
         },
         true,
         true
     );
 #else 
-    FLAlertLayer::create("Error", "Unfortunately, <cy>fig</c> has not ported <cg>GDAuth</c> to <cy>2.207</c>, meaning this method <cr>is not available</c>. (please tell him to look at my pr that allows it to work for 2.207)", "OK")->show();
+    FLAlertLayer::create("Error", "Unfortunately, this method <cr>is not available</c>.", "OK")->show();
 #endif
 }
 void AuthMenu::onDoLater(CCObject*) {
@@ -263,11 +267,11 @@ void AuthMenu::onDoLater(CCObject*) {
 }
 
 void AuthMenu::onInfoBtn(CCObject*) {
-    //	static FLAlertLayer* create(FLAlertLayerProtocol* delegate, char const* title, gd::string desc, char const* btn1, char const* btn2, float width, bool scroll, float height, float textScale) = win 0x50ac0, m1 0x4083e8, imac 0x4a4da0, ios 0x2bbef8;
+    //	Unfortunately, RobTop's servers <cr>IP banned my server</c>, meaning this method <cr>is not available</c>.
     FLAlertLayer::create(
         nullptr,
         "About Auth",
-        "<cp>DashAuth</c> is an authentication method that <cy>sends a message to a bot</c> to confirm the authenticity of your <cy>GD account</c>, similar to how mods like <cb>Globed</c> handles verifying your <cy>GD account</c>. Unfortunately, RobTop's servers <cr>IP banned my server</c>, meaning this method <cr>is not available</c>.\n\n<cg>GDAuth</c> is an authentication method made by <cg>fig</c> which <cy>sends your GJP</c> (session token for GD) to <cg>fig's server</c> to confirm the authenticity of your <cy>GD account</c>. You should only use this <cy>if you trust fig's server</c>, as this method is like sending your GD account to <cy>fig's server</c>.\n\n<cy>Do Later</c> is what it says. This will close the menu and open up the <cy>Object Workshop</c>. Although do note that you <cy>will be limited</c> in what features you can use.\n\nIf none of the methods satisfy you, or you would like to receive an <cy>authentication token</c> without doing any of these methods, consider <cy>joining the Discord server</c> to ask me to verify you and give an <cy>authentication token</c> to you.",
+        "<cp>DashAuth</c> is an authentication method that <cy>sends a message to a bot</c> to confirm the authenticity of your <cy>GD account</c>, similar to how mods like <cb>Globed</c> handles verifying your <cy>GD account</c>.\n\n<cr>Argon</c> is an authentication method made by <cy>dankmeme01</c> which is similar to <cp>DashAuth</c> and is the method used by <cg>Globed</c> to authenticate..\n\n<cy>Do Later</c> is what it says. This will close the menu and open up the <cy>Object Workshop</c>. Although do note that you <cy>will be limited</c> in what features you can use.\n\nIf none of the methods satisfy you, or you would like to receive an <cy>authentication token</c> without doing any of these methods, consider <cy>joining the Discord server</c> to ask me to verify you and give an <cy>authentication token</c> to you.",
         "OK", nullptr,
         390.F,
         true,

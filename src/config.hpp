@@ -6,7 +6,7 @@
 #define USER_AGENT "ObjectWorkshop/1.4.2"
 
 #define DASHAUTH 1
-#define GDAUTH 1 
+#define ARGON 1 
 
 #define RESULT_LIMIT 9
 #define MAX_ZOOM 10

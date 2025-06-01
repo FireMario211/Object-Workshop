@@ -1,3 +1,6 @@
+# v1.4.7
+- Previews now use CCRenderTexture to optimize performance on large amounts of objects. (New setting: Pre-Render Object Capacity & Pre-Render Full View)
+- Replaced GDAuth with argon
 # v1.4.6
 - Sapphire SDK support
 # v1.4.5

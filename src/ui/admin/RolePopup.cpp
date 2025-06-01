@@ -15,7 +15,7 @@ bool RolePopup::setup(UserData user, std::function<void(int)> callback) {
             if (auto item = as<CCMenuItemSpriteExtra*>(sender)) {
                 m_selectedRole = item->getTag();
             }
-            ccColor3B col = true ? ccWHITE : {125, 125, 125};
+            ccColor3B col = true ? ccWHITE : ccc3(125, 125, 125);
             if (!m_roleBtns.empty()) {
                 for (const auto& item : m_roleBtns) {
                     if (item->getTag() == m_selectedRole) {

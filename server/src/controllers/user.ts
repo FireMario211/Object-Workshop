@@ -81,6 +81,14 @@ interface DashAuth {
     }
 };
 
+// {"valid":true,"valid_weak":true,"username":"FireeDev"}
+interface Argon {
+    valid: boolean,
+    valid_weak: boolean,
+    cause?: string,
+    username: string
+};
+
 uRouter.post("/user/@me",
     body('token').notEmpty().isString().withMessage("Token is required"),
     async (req: Request, res: Response) => {
@@ -245,6 +253,10 @@ uRouter.post('/gdauth',
                          VALUES ($1, $2, $3);`,
                         [user.account_id, authToken, expiration]
                     );
+                    if (user.name != data.username) {
+                        console.log("[GDAuth] updated username", data.username)
+                        await pool.query(`UPDATE users SET name = $1 WHERE account_id = $2;`, [data.username, user.account_id]);
+                    }
                     res.status(200).json({ token: authToken });
                 }).catch(err => {
                     console.error(err);
@@ -284,6 +296,84 @@ uRouter.post('/dashauth',
                         const existingUserResult = await pool.query(
                             `SELECT * FROM users WHERE account_id = $1;`,
                             [data.id]
+                        );
+                        user = existingUserResult.rows[0];
+                    }
+                    if (!user) return res.status(500).json({ error: "Unable to retrieve or create user." });
+                    const authToken = generateAuthToken(user.account_id);
+                    const expiration = new Date(Date.now() + ((60 * 60 * 1000) * 24) * 14); // 2 weeks
+                    await pool.query(
+                        `INSERT INTO user_tokens (account_id, token, expiration)
+                         VALUES ($1, $2, $3);`,
+                        [user.account_id, authToken, expiration]
+                    );
+                    if (user.name != data.username) {
+                        console.log("[DashAuth] updated username", data.username)
+                        await pool.query(`UPDATE users SET name = $1 WHERE account_id = $2;`, [data.username, user.account_id]);
+                    }
+                    res.status(200).json({ token: authToken });
+                }).catch(err => {
+                    console.error(err);
+                    res.status(500).json({ error: "Something went wrong when trying to create a user." })
+                })
+
+            }).catch(e => {
+                if (e.status != 401) {
+                    console.error(e);
+                    res.status(500).send({error: "Something went wrong when trying to communicate with DashEnd servers."})
+                } else {
+                    console.log("TOKEN NOT RETRIEVED")
+                    res.status(400).json({error: "Token was not retrieved in time. Try again."});
+                }
+            })
+        }).catch(e => {
+            console.error(e);
+            res.sendStatus(500);
+        });
+    }
+);
+
+uRouter.post('/argon',
+    body('account_id').notEmpty().isNumeric(),
+    body('token').notEmpty(),
+    body('username').notEmpty(),
+    async (req: Request, res: Response) => {
+        const result = validationResult(req);
+        if (!result.isEmpty()) return res.status(400).json({ errors: result.array() })
+        const token = req.body.token as string;
+        const usernameCheck = req.body.username as string;
+        const accountID = parseInt(req.body.account_id as string);
+        getCache().then(pool => {
+            axios(`https://argon.globed.dev/v1/validation/check_strong?account_id=${accountID}&username=${encodeURIComponent(usernameCheck)}&authtoken=${encodeURIComponent(token)}`, {
+                headers: {
+                    'User-Agent': 'ow-server/1.0.0'
+                }
+            }).then(async axiosRes => {
+                const data = axiosRes.data as Argon;
+                if (!process.env.PRODUCTION) {
+                    console.log("[Argon]", data);
+                }
+                if (axiosRes.data == "-1") return res.status(403).json({error: "Invalid token."});
+                if (data.cause) return res.status(401).json({error: `Invalid token: ${data.cause}`});
+                if (!data.valid && !data.valid_weak) return res.status(403).json({error: "Invalid token."});
+                const existingUserResult0 = await pool.query(
+                    `SELECT name, account_id FROM users WHERE account_id = $1;`,
+                    [accountID]
+                );
+                if (existingUserResult0.rows.length == 1) {
+                    const user = existingUserResult0.rows[0];
+                    if (user.name != data.username && data.valid) {
+                        await pool.query(`UPDATE users SET name = $1 WHERE account_id = $2;`, [data.username, user.account_id]);
+                    }
+                } else if (!data.valid) {
+                    return res.status(403).json({error: "Username not valid. Refresh your GD login."});
+                }
+                pool.query("INSERT INTO users (auth_method, account_id, name) VALUES ($1, $2, $3) ON CONFLICT (account_id) DO NOTHING RETURNING *;", ["argon", accountID, data.username]).then(async userResult => {
+                    let user = userResult.rows[0];
+                    if (!user) {
+                        const existingUserResult = await pool.query(
+                            `SELECT * FROM users WHERE account_id = $1;`,
+                            [accountID]
                         );
                         user = existingUserResult.rows[0];
                     }

@@ -35,6 +35,7 @@ endif()
 add_subdirectory($ENV{GEODE_SDK} ${CMAKE_CURRENT_BINARY_DIR}/geode)
 
 CPMAddPackage("gh:FireMario211/dashauth#main")
-target_link_libraries(${PROJECT_NAME} DashAuth)
+CPMAddPackage("gh:GlobedGD/argon@1.1.5")
+target_link_libraries(${PROJECT_NAME} DashAuth argon)
 
 setup_geode_mod(${PROJECT_NAME})

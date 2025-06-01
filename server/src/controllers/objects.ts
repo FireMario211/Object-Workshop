@@ -272,6 +272,8 @@ oRouter.post('/objects/:id/overwrite',
                         data,
                         version: objData.version + 1
                     }, ReviewStatus.Updated);
+                    CacheManager.deletePattern(`GET:/user/${objData.account_id}`);
+                    CacheManager.deletePattern(`GET:/objects/${objectID}`);
                 } catch (e) {
                     console.error(e)
                     res.status(500).json({error: "Something went wrong when uploading."})
@@ -720,11 +722,13 @@ oRouter.post('/objects/:id/delete',
                 const accountID = verifyRes.user?.account_id;
                 try {
                     if (verifyRes.user && verifyRes.user.role == 3) {
-                        const objExists = await pool.query("SELECT EXISTS (SELECT 1 FROM objects WHERE id = $1)", [objectID])
-                        if (!objExists.rows[0].exists) return res.status(404).json({error: "Object not found."}); 
+                        const objExists = await pool.query("SELECT account_id FROM objects WHERE id = $1", [objectID])
+                        if (!objExists.rows.length) return res.status(404).json({error: "Object not found."});
+                        CacheManager.deletePattern(`GET:/user/${objExists.rows[0].account_id}`);
                     } else {
                         const objExists = await pool.query("SELECT EXISTS (SELECT 1 FROM objects WHERE id = $1 AND account_id = $2)", [objectID, accountID])
                         if (!objExists.rows[0].exists) return res.status(404).json({error: "Object not found."}); 
+                        CacheManager.deletePattern(`GET:/user/${accountID}`);
                     }
                     await pool.query("DELETE FROM objects WHERE id = $1", [objectID]);
                     res.status(200).json({ message: "Deleted object!" });
@@ -795,6 +799,7 @@ oRouter.post('/objects/:id/update',
                         const objExists = await pool.query("SELECT EXISTS (SELECT 1 FROM objects WHERE id = $1 AND account_id = $2)", [objectID, accountID])
                         if (!objExists.rows[0].exists) return res.status(404).json({error: "Object not found."}); 
                         await pool.query(query, [name, description, tags, objectID]);
+                        CacheManager.deletePattern(`GET:/user/${accountID}`);
                     }
                     CacheManager.delete(`GET:/objects/${objectID}`);
                     return res.status(200).json({message: "Updated object!"});
@@ -852,6 +857,7 @@ oRouter.post('/objects/:id/accept',
                         version: objData.version
                     }, ReviewStatus.Approved, verifyRes.user.name);
                     res.status(200).json({ message: "Accepted!" });
+                    CacheManager.deletePattern(`GET:/user/${objData.account_id}`);
                 } catch (e) {
                     console.error(e);
                     res.status(500).json({ error: 'Internal server error' });
@@ -953,6 +959,7 @@ oRouter.post('/objects/:id/feature',
                     }
                     CacheManager.delete(`GET:/objects/${objectID}`);
                     CacheManager.deletePattern(`GET:/objects`);
+                    CacheManager.deletePattern(`GET:/user/${objData.account_id}`);
                 } catch (e) {
                     console.error(e);
                     res.status(500).json({ error: 'Internal server error' });
@@ -1389,7 +1396,7 @@ oRouter.get('/objects',
     body('tags').optional().isString(),
     cacheMiddleware(60, (req) => {
         const category = parseInt(req.query.category as string) || 0;
-        return !req.query["no-cache"] || category == 4;
+        return !req.query["no-cache"] && category != 4;
     }),
     async (req: Request, res: Response) => {
         const result = validationResult(req);

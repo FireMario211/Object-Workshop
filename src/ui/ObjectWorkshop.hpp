@@ -35,30 +35,6 @@ struct CustomObjects : Modify<CustomObjects, EditorUI> {
     void onWorkshop(CCObject*);
 };
 
-// since for whatever reason this isnt in headers...
-class BreakLine : public CCNode {
-protected:
-    void draw() override {
-        // some nodes sometimes set the blend func to
-        // something else without resetting it back
-        ccGLBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        ccDrawSolidRect({ 0, 0 }, this->getContentSize(), { 1.f, 1.f, 1.f, .2f });
-        CCNode::draw();
-    }
-
-public:
-    static BreakLine* create(float width) {
-        auto ret = new BreakLine;
-        if (ret->init()) {
-            ret->autorelease();
-            ret->setContentSize({ width, 1.f });
-            return ret;
-        }
-        delete ret;
-        return nullptr;
-    }
-};
-
 struct UserData {
     int account_id;
     std::string name;

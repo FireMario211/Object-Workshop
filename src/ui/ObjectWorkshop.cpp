@@ -1596,7 +1596,7 @@ void ObjectWorkshop::onUploadBtn(CCObject*) {
 #ifndef GEODE_IS_ANDROID32
     m_objDesc->setCallback(
         [this, textArea](std::string p0) {
-            m_objDesc->getInputNode()->m_placeholderLabel->setOpacity((p0.empty()) ? 255 : 0);
+            m_objDesc->getInputNode()->m_textLabel->setOpacity((p0.empty()) ? 255 : 0);
             textArea->setScale(Utils::calculateScale(p0, 50, 300, 0.9F, 0.35F));
             textArea->m_width = 220.0F / Utils::calculateScale(p0, 50, 300, 1.0F, 0.32F);
             textArea->setString(m_objDesc->getInputNode()->getString());
