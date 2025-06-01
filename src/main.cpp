@@ -281,6 +281,7 @@ class $modify(ObjectBypass, EditorUI) {
     }
 };
 
+#if 0
 #include <Geode/modify/ProfilePage.hpp>
 
 class $modify(ProfilePage) {
@@ -428,6 +429,7 @@ class $modify(ProfilePage) {
         }
     }
 };
+#endif
 
 #include <Geode/modify/EditorUI.hpp>
 class $modify(EditorUI) {

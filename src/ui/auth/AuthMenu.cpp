@@ -200,7 +200,7 @@ void AuthMenu::genAuthToken(AuthMethod method, std::string token, bool showFLAle
         auto myjson = matjson::Value();
         myjson.set("token", token);
         if (method == AuthMethod::Argon) {
-            myjson.set("username", GJAccountManager::get()->m_username);
+            myjson.set("username", fmt::format("{}", GJAccountManager::get()->m_username));
             myjson.set("account_id", GJAccountManager::get()->m_accountID);
         }
         req.bodyJSON(myjson);
