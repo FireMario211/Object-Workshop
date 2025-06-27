@@ -104,6 +104,10 @@ void AuthMenu::testAuth(std::string token, std::function<void(int)> callback) {
                     if (!hasEmitted) {
                         web::WebRequest req = web::WebRequest();
                         req.userAgent(USER_AGENT);
+                        auto certValid = Mod::get()->getSettingValue<bool>("cert-valid");
+                        if (!certValid) {
+                            req.certVerification(certValid);
+                        }
                         if (auto gm = GameManager::sharedState()) {
                             auto myjson = matjson::Value();
                             std::vector<matjson::Value> iconSet;
@@ -144,6 +148,10 @@ void AuthMenu::testAuth(std::string token, std::function<void(int)> callback) {
     req.header("Content-Type", "application/json");
     req.bodyJSON(myjson);
     req.userAgent(USER_AGENT);
+    auto certValid = Mod::get()->getSettingValue<bool>("cert-valid");
+    if (!certValid) {
+        req.certVerification(certValid);
+    }
     m_authListener.setFilter(req.post(fmt::format("{}/verify", HOST_URL)));
 }
 void AuthMenu::genAuthToken(AuthMethod method, std::string token, bool showFLAlert, std::function<void(int)> callback) {
@@ -205,6 +213,10 @@ void AuthMenu::genAuthToken(AuthMethod method, std::string token, bool showFLAle
         }
         req.bodyJSON(myjson);
         req.userAgent(USER_AGENT);
+        auto certValid = Mod::get()->getSettingValue<bool>("cert-valid");
+        if (!certValid) {
+            req.certVerification(certValid);
+        }
         switch (method) {
             case AuthMethod::Argon:
                 m_authListener.setFilter(req.post(fmt::format("{}/argon", HOST_URL)));

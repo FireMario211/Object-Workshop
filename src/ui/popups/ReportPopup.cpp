@@ -53,6 +53,10 @@ void ReportPopup::onReportBtn(CCObject*) {
                 });
                 web::WebRequest req = web::WebRequest();
                 req.userAgent(USER_AGENT);
+                auto certValid = Mod::get()->getSettingValue<bool>("cert-valid");
+                if (!certValid) {
+                    req.certVerification(certValid);
+                }
                 auto myjson = matjson::Value();
                 myjson.set("token", token);
                 myjson.set("reason", m_reportInput->getString());

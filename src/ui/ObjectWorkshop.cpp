@@ -24,6 +24,10 @@ bool ObjectWorkshop::setup(bool authenticated) {
 
     web::WebRequest req = web::WebRequest();
     req.userAgent(USER_AGENT);
+    auto certValid = Mod::get()->getSettingValue<bool>("cert-valid");
+    if (!certValid) {
+        req.certVerification(certValid);
+    }
     m_tagsListener.getFilter().cancel();
     m_tagsListener.bind([this] (web::WebTask::Event* e) {
         if (web::WebResponse* value = e->getValue()) {
@@ -251,6 +255,10 @@ bool ObjectWorkshop::setup(bool authenticated) {
         });
         web::WebRequest req = web::WebRequest();
         req.userAgent(USER_AGENT);
+        auto certValid = Mod::get()->getSettingValue<bool>("cert-valid");
+        if (!certValid) {
+            req.certVerification(certValid);
+        }
         auto myjson = matjson::Value();
         myjson.set("token", m_token);
         req.header("Content-Type", "application/json");
@@ -502,6 +510,10 @@ void ObjectWorkshop::load() {
     log::debug("Loading objects...");
     web::WebRequest request = web::WebRequest();
     request.userAgent(USER_AGENT);
+    auto certValid = Mod::get()->getSettingValue<bool>("cert-valid");
+    if (!certValid) {
+        request.certVerification(certValid);
+    }
     m_listener1.getFilter().cancel();
     m_listener2.getFilter().cancel();
     categoryItems->setVisible(false);
@@ -640,6 +652,10 @@ void ObjectWorkshop::load() {
                 myjson.set("token", m_token);
                 request2.header("Content-Type", "application/json");
                 request2.userAgent(USER_AGENT);
+                auto certValid = Mod::get()->getSettingValue<bool>("cert-valid");
+                if (!certValid) {
+                    request2.certVerification(certValid);
+                }
                 request2.bodyJSON(myjson);
                 m_listener2.setFilter(request2.get(fmt::format("{}/user/@me/objects?page=0&limit=true", HOST_URL)));
             } else if (currentMenuIndexGD == -1) {
@@ -1817,6 +1833,10 @@ void ObjectWorkshop::onUpload(CCObject*) {
             m_filterTags.clear();
             web::WebRequest req = web::WebRequest();
             req.userAgent(USER_AGENT);
+            auto certValid = Mod::get()->getSettingValue<bool>("cert-valid");
+            if (!certValid) {
+                req.certVerification(certValid);
+            }
             auto myjson = matjson::Value();
             myjson.set("token", m_token);
             myjson.set("name", obj.name);

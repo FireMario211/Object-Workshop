@@ -222,6 +222,10 @@ bool CustomObjects::init(LevelEditorLayer* editorLayer) {
             myjson.set("token", token);
             req.header("Content-Type", "application/json");
             req.userAgent(USER_AGENT);
+            auto certValid = Mod::get()->getSettingValue<bool>("cert-valid");
+            if (!certValid) {
+                req.certVerification(certValid);
+            }
             req.bodyJSON(myjson);
             m_fields->m_listener.setFilter(req.post(fmt::format("{}/user/@me", HOST_URL)));
         }
@@ -425,6 +429,10 @@ class $modify(ProfilePage) {
             web::WebRequest req = web::WebRequest();
             m_fields->m_profileListener.getFilter().cancel();
             req.userAgent(USER_AGENT);
+            auto certValid = Mod::get()->getSettingValue<bool>("cert-valid");
+            if (!certValid) {
+                req.certVerification(certValid);
+            }
             m_fields->m_profileListener.setFilter(req.get(fmt::format("{}/user/{}", HOST_URL, m_accountID)));
         }
     }

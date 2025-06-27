@@ -37,6 +37,10 @@ bool WarningPopup::setup(CaseData caseData, std::function<void()> callback) {
         auto token = Mod::get()->getSettingValue<std::string>("token");
         web::WebRequest req = web::WebRequest();
         req.userAgent(USER_AGENT);
+        auto certValid = Mod::get()->getSettingValue<bool>("cert-valid");
+        if (!certValid) {
+            req.certVerification(certValid);
+        }
         auto myjson = matjson::Value();
         myjson.set("token", token);
         req.header("Content-Type", "application/json");

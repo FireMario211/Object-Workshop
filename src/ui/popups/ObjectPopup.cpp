@@ -355,6 +355,10 @@ void ObjectPopup::onTrashBtn(CCObject*) {
                 });
                 web::WebRequest req = web::WebRequest();
                 req.userAgent(USER_AGENT);
+                auto certValid = Mod::get()->getSettingValue<bool>("cert-valid");
+                if (!certValid) {
+                    req.certVerification(certValid);
+                }
                 auto myjson = matjson::Value();
                 myjson.set("token", m_token);
                 req.header("Content-Type", "application/json");
@@ -399,6 +403,10 @@ void ObjectPopup::onReviewBtn(CCObject*) {
         });
         web::WebRequest req = web::WebRequest();
         req.userAgent(USER_AGENT);
+        auto certValid = Mod::get()->getSettingValue<bool>("cert-valid");
+        if (!certValid) {
+            req.certVerification(certValid);
+        }
         auto myjson = matjson::Value();
         myjson.set("token", m_token);
         req.header("Content-Type", "application/json");
@@ -441,6 +449,10 @@ void ObjectPopup::onFeatureBtn(CCObject*) {
             });
             web::WebRequest req = web::WebRequest();
             req.userAgent(USER_AGENT);
+            auto certValid = Mod::get()->getSettingValue<bool>("cert-valid");
+            if (!certValid) {
+                req.certVerification(certValid);
+            }
             auto myjson = matjson::Value();
             myjson.set("token", m_token);
             req.header("Content-Type", "application/json");
@@ -488,6 +500,10 @@ void ObjectPopup::onRateBtn(CCObject* sender) {
     });
     web::WebRequest req = web::WebRequest();
     req.userAgent(USER_AGENT);
+    auto certValid = Mod::get()->getSettingValue<bool>("cert-valid");
+    if (!certValid) {
+        req.certVerification(certValid);
+    }
     auto myjson = matjson::Value();
     myjson.set("token", m_token);
     myjson.set("stars", std::stoi(menuItem->getID()));
@@ -550,6 +566,10 @@ void ObjectPopup::onDownloadBtn(CCObject*) {
         actuallyDownload();
         web::WebRequest req = web::WebRequest();
         req.userAgent(USER_AGENT);
+        auto certValid = Mod::get()->getSettingValue<bool>("cert-valid");
+        if (!certValid) {
+            req.certVerification(certValid);
+        }
         auto myjson = matjson::Value();
         myjson.set("token", m_token);
         req.header("Content-Type", "application/json");
@@ -595,6 +615,10 @@ void ObjectPopup::onFavBtn(CCObject*) {
     });
     web::WebRequest req = web::WebRequest();
     req.userAgent(USER_AGENT);
+    auto certValid = Mod::get()->getSettingValue<bool>("cert-valid");
+    if (!certValid) {
+        req.certVerification(certValid);
+    }
     auto myjson = matjson::Value();
     myjson.set("token", m_token);
     req.header("Content-Type", "application/json");

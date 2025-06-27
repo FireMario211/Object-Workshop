@@ -1,3 +1,6 @@
+# v1.4.8
+- Bump geode version to support jitless
+- Add a new cert validation setting in case HTTPS doesn't work for some reason
 # v1.4.7
 - Previews now use CCRenderTexture to optimize performance on large amounts of objects. (New setting: Pre-Render Object Capacity & Pre-Render Full View)
 - Replaced GDAuth with argon

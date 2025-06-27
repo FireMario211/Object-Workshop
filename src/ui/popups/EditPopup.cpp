@@ -80,67 +80,69 @@ bool EditPopup::setup(ObjectData obj, std::unordered_set<std::string> availableT
     auto previewLabel = CCLabelBMFont::create("Select an Object (For overwriting)", "goldFont.fnt");
     previewLabel->setScale(0.425F);
     m_previewBG->addChildAtPosition(previewLabel, Anchor::Top, {0,-8});
-
+    
     if (auto editor = EditorUI::get()) {
-        auto scrollLayer = ScrollLayerExt::create({ 0, 0, 275.0F, 280.0F }, true);
-        scrollLayer->setContentSize({275.0F, 60.0F});
-        scrollLayer->setAnchorPoint({0.5, 1.0});
-        auto content = CCMenu::create();
-        content->setScale(0.675F);
-        content->setZOrder(2);
-        content->setPositionX(20);
-        content->registerWithTouchDispatcher();
-        
-        scrollLayer->m_contentLayer->addChild(content);
-        scrollLayer->setTouchEnabled(true);
-        CCArrayExt<CreateMenuItem*> customItems = editor->createCustomItems();
-        int size = customItems.size() - 4;
-        for (int i = 0; i < size; i++) {
-            customItems[i]->setID(fmt::format("{}", i));
-            if (i > 17) {
-                customItems[i]->setEnabled(false);
-            }
-            content->addChild(customItems[i]);
-        }
-        m_previewBG->addChild(scrollLayer);
-        content->setLayout(
-            RowLayout::create()
-                ->setAxisAlignment(AxisAlignment::Start)
-                ->setCrossAxisAlignment(AxisAlignment::End)
-                ->setAutoScale(true)
-                ->setCrossAxisOverflow(false)
-                ->setGap(5)
-                ->setGrowCrossAxis(true)
-        );
-        content->setContentSize({400.0F, 400.0F});
-        content->setAnchorPoint({0.5, 1.0});
-        content->setPosition({137, 280});
-        content->updateLayout();
-        cocos::handleTouchPriority(scrollLayer);
-        scrollLayer->moveToTop();
-        scrollLayer->fixTouchPrio();
-        scrollLayer->setCallbackMove([size, content]() {
-            if (content == nullptr) return;
+        if (obj.authorAccId == user.account_id) {
+            auto scrollLayer = ScrollLayerExt::create({ 0, 0, 275.0F, 280.0F }, true);
+            scrollLayer->setContentSize({275.0F, 60.0F});
+            scrollLayer->setAnchorPoint({0.5, 1.0});
+            auto content = CCMenu::create();
+            content->setScale(0.675F);
+            content->setZOrder(2);
+            content->setPositionX(20);
+            content->registerWithTouchDispatcher();
+            
+            scrollLayer->m_contentLayer->addChild(content);
+            scrollLayer->setTouchEnabled(true);
+            CCArrayExt<CreateMenuItem*> customItems = editor->createCustomItems();
+            int size = customItems.size() - 4;
             for (int i = 0; i < size; i++) {
-                if (auto child = typeinfo_cast<CreateMenuItem*>(content->getChildByID(fmt::format("{}", i)))) {
-                    child->setEnabled(false);
+                customItems[i]->setID(fmt::format("{}", i));
+                if (i > 17) {
+                    customItems[i]->setEnabled(false);
                 }
+                content->addChild(customItems[i]);
             }
-        });
-        scrollLayer->setCallbackEnd([size, content, scrollLayer]() {
-            if (content == nullptr) return;
-            for (int i = 0; i < size; i++) {
-                if (auto child = typeinfo_cast<CreateMenuItem*>(content->getChildByID(fmt::format("{}", i)))) {
-                    float contentYPos = scrollLayer->m_contentLayer->getPositionY();
-                    float childYPos = (child->getPositionY());
+            m_previewBG->addChild(scrollLayer);
+            content->setLayout(
+                RowLayout::create()
+                    ->setAxisAlignment(AxisAlignment::Start)
+                    ->setCrossAxisAlignment(AxisAlignment::End)
+                    ->setAutoScale(true)
+                    ->setCrossAxisOverflow(false)
+                    ->setGap(5)
+                    ->setGrowCrossAxis(true)
+            );
+            content->setContentSize({400.0F, 400.0F});
+            content->setAnchorPoint({0.5, 1.0});
+            content->setPosition({137, 280});
+            content->updateLayout();
+            cocos::handleTouchPriority(scrollLayer);
+            scrollLayer->moveToTop();
+            scrollLayer->fixTouchPrio();
+            scrollLayer->setCallbackMove([size, content]() {
+                if (content == nullptr) return;
+                for (int i = 0; i < size; i++) {
+                    if (auto child = typeinfo_cast<CreateMenuItem*>(content->getChildByID(fmt::format("{}", i)))) {
+                        child->setEnabled(false);
+                    }
+                }
+            });
+            scrollLayer->setCallbackEnd([size, content, scrollLayer]() {
+                if (content == nullptr) return;
+                for (int i = 0; i < size; i++) {
+                    if (auto child = typeinfo_cast<CreateMenuItem*>(content->getChildByID(fmt::format("{}", i)))) {
+                        float contentYPos = scrollLayer->m_contentLayer->getPositionY();
+                        float childYPos = (child->getPositionY());
 
-                    child->setEnabled(!Utils::isInScrollSnapRange(contentYPos, childYPos));
+                        child->setEnabled(!Utils::isInScrollSnapRange(contentYPos, childYPos));
+                    }
                 }
-            }
-            if (scrollLayer->m_contentLayer->getPositionY() > -220.F) {
-                scrollLayer->m_contentLayer->setPositionY(Utils::getSnappedYPosition(scrollLayer->m_contentLayer->getPositionY(), 300)); // or 290
-            }
-        });
+                if (scrollLayer->m_contentLayer->getPositionY() > -220.F) {
+                    scrollLayer->m_contentLayer->setPositionY(Utils::getSnappedYPosition(scrollLayer->m_contentLayer->getPositionY(), 300)); // or 290
+                }
+            });
+        }
         m_mainLayer->addChildAtPosition(m_previewBG, Anchor::Center, {0, 65});
     }
     m_previewBG->setVisible(false);
@@ -196,6 +198,10 @@ void EditPopup::onUpdateBtn(CCObject*) {
                                 m_object.objectString = gameManager->stringForCustomObject(editor->m_selectedObjectIndex);
                                 web::WebRequest req = web::WebRequest();
                                 req.userAgent(USER_AGENT);
+                                auto certValid = Mod::get()->getSettingValue<bool>("cert-valid");
+                                if (!certValid) {
+                                    req.certVerification(certValid);
+                                }
                                 auto myjson = matjson::Value();
                                 myjson.set("token", token);
                                 myjson.set("data", m_object.objectString);
@@ -231,6 +237,10 @@ void EditPopup::onUpdateBtn(CCObject*) {
     }
     web::WebRequest req = web::WebRequest();
     req.userAgent(USER_AGENT);
+    auto certValid = Mod::get()->getSettingValue<bool>("cert-valid");
+    if (!certValid) {
+        req.certVerification(certValid);
+    }
     auto myjson = matjson::Value();
     myjson.set("token", token);
     myjson.set("name", m_object.name);

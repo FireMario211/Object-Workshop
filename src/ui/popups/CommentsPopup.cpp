@@ -188,6 +188,10 @@ void CommentsPopup::onLoadComments(CCObject*) {
     });
     web::WebRequest req = web::WebRequest();
     req.userAgent(USER_AGENT);
+    auto certValid = Mod::get()->getSettingValue<bool>("cert-valid");
+    if (!certValid) {
+        req.certVerification(certValid);
+    }
     m_listener.setFilter(req.get(fmt::format("{}/objects/{}/comments?limit=10&page={}&filter={}", HOST_URL, m_object.id, m_object.commentPage, m_currentFilter)));
 }
 

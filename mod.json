@@ -1,5 +1,5 @@
 {
-	"geode": "4.5.0",
+	"geode": "4.6.1",
 	"gd": {
 		"win": "2.2074",
 		"android": "2.2074",
@@ -8,7 +8,7 @@
 	},
 	"id": "firee.object-workshop",
 	"name": "Object Workshop",
-	"version": "v1.4.7",
+	"version": "v1.4.8",
 	"developer": "Firee",
 	"description": "Download, upload, or find custom objects made by other creators!",
     "resources": {
@@ -63,6 +63,12 @@
             "description": "Whether or not to also pre-render when viewing more information about the object. Do note this will disable particles. (When they get added)",
             "type": "bool",
             "default": false
+        },
+        "cert-valid": {
+            "name": "Cert Validation",
+            "description": "Whether or not to validate the certificate when making web requests to Object Workshop. (Only disable if you know what this is for!)",
+            "type": "bool",
+            "default": true
         }
     },
     "dependentold": [
@@ -75,12 +81,12 @@
     "dependencies": [
         {
             "id": "alphalaneous.editortab_api",
-            "version": ">=v1.0.6",
+            "version": ">=v1.0.16",
             "importance": "required"
         },
         {
             "id": "geode.node-ids",
-            "version": ">=1.14.1",
+            "version": ">=1.21.1",
             "importance": "required"
         }
     ]

@@ -170,6 +170,10 @@ void OWCommentCell::onVote(CCObject*) {
         myjson.set("like", (int)like);
         req.header("Content-Type", "application/json");
         req.userAgent(USER_AGENT);
+        auto certValid = Mod::get()->getSettingValue<bool>("cert-valid");
+        if (!certValid) {
+            req.certVerification(certValid);
+        }
         req.bodyJSON(myjson);
         m_listener.setFilter(req.post(fmt::format("{}/objects/{}/comments/{}/vote", HOST_URL, m_data.objectID, m_data.id)));
     })->show();
@@ -202,6 +206,10 @@ void OWCommentCell::onPin(CCObject*) {
                 req.header("Content-Type", "application/json");
                 req.bodyJSON(myjson);
                 req.userAgent(USER_AGENT);
+                auto certValid = Mod::get()->getSettingValue<bool>("cert-valid");
+                if (!certValid) {
+                    req.certVerification(certValid);
+                }
                 m_listener.setFilter(req.post(fmt::format("{}/objects/{}/comments/{}/pin", HOST_URL, m_data.objectID, m_data.id)));
             }
         },
@@ -237,6 +245,10 @@ void OWCommentCell::onDelete(CCObject*) {
                 req.header("Content-Type", "application/json");
                 req.bodyJSON(myjson);
                 req.userAgent(USER_AGENT);
+                auto certValid = Mod::get()->getSettingValue<bool>("cert-valid");
+                if (!certValid) {
+                    req.certVerification(certValid);
+                }
                 m_listener.setFilter(req.post(fmt::format("{}/objects/{}/comments/{}/delete", HOST_URL, m_data.objectID, m_data.id)));
             }
         },
