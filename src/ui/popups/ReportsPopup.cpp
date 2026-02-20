@@ -2,7 +2,8 @@
 #include "ObjectPopup.hpp"
 #include "../../utils.hpp"
 
-bool ReportsPopup::setup(std::vector<ReportData> reports, UserData user) {
+bool ReportsPopup::init(std::vector<ReportData> reports, UserData user) {
+    if (!Popup::init(250.f, 200.f)) return false;
     this->setTitle("Reports");
     auto bg = CCScale9Sprite::create("square02_small.png");
     bg->setOpacity(50);

@@ -8,7 +8,7 @@ using namespace geode::prelude;
 
 class CaseCell : public CCScale9Sprite {
     protected:
-        EventListener<web::WebTask> m_listener;
+        async::TaskHolder<geode::utils::web::WebResponse> m_listener;
         UserData m_user;
         CaseData m_case;
         std::function<void()> m_forceRefresh;

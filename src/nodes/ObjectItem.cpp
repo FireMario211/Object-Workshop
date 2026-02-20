@@ -7,7 +7,7 @@ CCNode* ObjectItem::createStars(double rating) {
             ->setAxisAlignment(AxisAlignment::Center)
             ->setAutoScale(false)
             ->setCrossAxisOverflow(false)
-            ->setGap(2)
+            ->setGap(2.f)
             ->setGrowCrossAxis(true)
     );
     for (int i = 0; i < 5; i++) {
@@ -20,10 +20,10 @@ CCNode* ObjectItem::createStars(double rating) {
         } else {
             star = CCSprite::createWithSpriteFrameName("GJ_starsIcon_gray_001.png");
         }
-        star->setScale(0.45F);
+        star->setScale(0.6F);
         node->addChild(star);
     }
-    node->setContentSize({90, 20});
+    node->setContentSize({93, 20});
     node->updateLayout();
     return node;
 }
@@ -90,13 +90,12 @@ CCMenu* ObjectItem::createClickableStars(CCObject* target, SEL_MenuHandler callb
     return node;
 }
 bool ObjectItem::init(LevelEditorLayer* editorLayer, ObjectData data) {
-    if (!CCScale9Sprite::init()) return false;
+    if (!CCNode::init()) return false;
     m_data = data;
-    this->setContentSize({ 86.0f, 100.0f });
+    this->setContentSize({ 97.0f, 113.0f });
     
     if (data.featured == 0) {
         bgSpr = cocos2d::extension::CCScale9Sprite::create("redBG.png"_spr);
-        bgSpr->setContentSize(this->getContentSize());
     } else {
         bgSpr = cocos2d::extension::CCScale9Sprite::create("GJ_button_04.png");
         bgSpr->setColor({255, 255, 170});
@@ -110,56 +109,33 @@ bool ObjectItem::init(LevelEditorLayer* editorLayer, ObjectData data) {
         auto particle_info = GameToolbox::particleFromString(fmt::format("30a-1a1.3a0.2a20a90a0a10a5a{}a{}a0a0a8a0a0a0a{}a1a0a0a1a0a0.968627a0a0.556863a0a1a0a1a1a0a0a1a0a0.858824a0a0.352941a0a1a0a0.27a0a0.27a0a0a0a0a0a0a0a0a2a1a0a0a0a0a0a0a0.25a0a0a0a0a0a0a0a0a0a0a0;", sizeParticle.x, sizeParticle.y, amountParticles), NULL, false);
         //CCParticleSystemQuad* particle_info = GameToolbox::particleFromString("51a-1a1a0.3a71a180a180a29a0a35a56a0a-214a22a0a0a0a5a1a17a0a1a0a0.886275a0a0.576471a0a1a0a3a1a0a0a1a0a0.74902a0a0.364706a0a1a0a0a0a0a0a44a0a57a0a-30a0a1a2a1a0a0a0a1a0a0a0a0a0a0a0a0a0a0a0a0a0a0;", NULL, false);
         particle_info->setZOrder(-100);
-        bgSpr->setContentSize(this->getContentSize());
         bgSpr->addChildAtPosition(particle_info, Anchor::Center);
     }
+    bgSpr->setContentSize(this->getContentSize());
 
-    auto title = CCLabelBMFont::create(data.name.c_str(), "bigFont.fnt");
-    title->limitLabelWidth(70.0F, 0.4F, 0.1F); // 0.425
-    auto author = CCLabelBMFont::create(fmt::format("By {}", data.authorName).c_str(), "goldFont.fnt");
-    author->limitLabelWidth(80.0F, 0.4F, 0.1F); // 0.4
-
-    auto previewBG = CCScale9Sprite::create("square02_small.png");
-    previewBG->setOpacity(60);
-    previewBG->setContentSize({ 72.F, 41.F });
-    
-    bgSpr->addChildAtPosition(title, Anchor::Center, {1, -4}); // 0.425
-    bgSpr->addChildAtPosition(author, Anchor::Center, {1, -14}); // 0.4
-
-    bgSpr->addChildAtPosition(createStars(data.rating), Anchor::BottomLeft, { -2, 13 });
-
-    auto objectsBG = CCScale9Sprite::create("square02_small.png");
-    objectsBG->setOpacity(60);
-    objectsBG->setScale(0.35F);
-    objectsBG->setContentSize({ 95.F, 30.F });
-    auto blockSpr = CCSprite::createWithSpriteFrameName("square_01_001.png");
-    blockSpr->setScale(0.75F);
-    auto objectsIcon = CircleButtonSprite::create(blockSpr);
-    objectsIcon->setScale(0.5F);
-    objectsBG->addChildAtPosition(objectsIcon, Anchor::Left, { 15, 0 });
+    Build<CCLabelBMFont>::create(data.name.c_str(), "bigFont.fnt").limitLabelWidth(85.F, 0.55F, 0.1F).parentAtPos(bgSpr, Anchor::Center, {0, 46.5f}); // 0.425
+    Build<CCLabelBMFont>::create(fmt::format("By {}", data.authorName).c_str(), "goldFont.fnt").limitLabelWidth(85.F, 0.45F, 0.1F).parentAtPos(bgSpr, Anchor::Center, {0, 35.5f});
+    auto previewBG = Build<CCScale9Sprite>::create("square02_small.png").opacity(60).contentSize({ 85.F, 45.F }).parentAtPos(bgSpr, Anchor::Top, { 0, -52 }).collect();
+    bgSpr->addChildAtPosition(createStars(data.rating), Anchor::BottomLeft, { 2, 3 });
 
     unsigned int objectCount = std::count(data.objectString.begin(), data.objectString.end(), ';');
-
-    auto objectsLabel = CCLabelBMFont::create(GameToolbox::intToShortString(objectCount).c_str(), "bigFont.fnt");
-    objectsLabel->limitLabelWidth(120.F, 0.6F, 0.4F);
-    objectsLabel->setAnchorPoint({0, 0.5});
-    objectsBG->addChildAtPosition(objectsLabel, Anchor::Left, { 32, 0 });
-
-    auto downloadsBG = CCScale9Sprite::create("square02_small.png");
-    downloadsBG->setOpacity(60);
-    downloadsBG->setScale(0.35F);
-    downloadsBG->setContentSize({ 95.F, 30.F });
-    auto downloadsIcon = CCSprite::createWithSpriteFrameName("GJ_downloadBtn_001.png");
-    downloadsIcon->setScale(0.5F);
-    downloadsBG->addChildAtPosition(downloadsIcon, Anchor::Left, { 15, 0 });
-    auto downloadsLabel = CCLabelBMFont::create(GameToolbox::intToShortString(data.downloads).c_str(), "bigFont.fnt");
-    downloadsLabel->limitLabelWidth(120.F, 0.6F, 0.4F);
-    downloadsLabel->setAnchorPoint({0, 0.5});
-    downloadsBG->addChildAtPosition(downloadsLabel, Anchor::Left, { 32, 0 });
-
-    bgSpr->addChildAtPosition(objectsBG, Anchor::BottomLeft, {22, 11});
-    bgSpr->addChildAtPosition(downloadsBG, Anchor::BottomRight, {-22, 11});
-
+    Build<CCScale9Sprite>::create("square02_small.png").opacity(60).scale(0.4f).contentSize({100.f, 30.f}).with([objectCount](CCScale9Sprite* node) {
+        node->_bottomLeft->setVisible(false);
+        node->_topLeft->setVisible(false);
+        node->_left->setVisible(false);
+        node->_scale9Image->setSkewX(20);
+        Build<CCSprite>::create("objects_icon.png"_spr).parentAtPos(node, Anchor::Left, {18,0});
+        Build<CCLabelBMFont>::create(GameToolbox::intToShortString(objectCount).c_str(), "chatFont.fnt").scale(1.25f).anchorPoint({0, 0.5}).parentAtPos(node, Anchor::Left, {37, 1});
+    }).parentAtPos(bgSpr, Anchor::BottomLeft, {26, 29});
+    Build<CCScale9Sprite>::create("square02_small.png").opacity(60).scale(0.4f).contentSize({90.f, 30.f}).with([data](CCScale9Sprite* node) {
+        node->_bottomLeft->setVisible(false);
+        node->_topLeft->setVisible(false);
+        node->_left->setVisible(false);
+        node->_scale9Image->setSkewX(20);
+        Build<CCSprite>::createSpriteName("GJ_downloadsIcon_001.png").scale(1.3F).parentAtPos(node, Anchor::Left, {17,0});
+        //limitLabelWidth(85.F, 1.2F, 0.6F)
+        Build<CCLabelBMFont>::create(GameToolbox::intToShortString(data.downloads).c_str(), "chatFont.fnt").scale(1.25f).anchorPoint({0, 0.5}).parentAtPos(node, Anchor::Left, {33, 1});
+    }).parentAtPos(bgSpr, Anchor::BottomRight, {-28, 29}).updateLayout();
     this->addChildAtPosition(bgSpr, Anchor::Center);
 
     CCLayerColor* mask = CCLayerColor::create({255, 255, 255});
@@ -202,8 +178,7 @@ bool ObjectItem::init(LevelEditorLayer* editorLayer, ObjectData data) {
     m_clippingNode->setStencil(mask);
     //m_clippingNode->setAlphaThreshold(0.05F);
     m_clippingNode->setZOrder(1);
-    bgSpr->addChildAtPosition(previewBG, Anchor::Top, { 0, -29 });
-    bgSpr->addChildAtPosition(m_clippingNode, Anchor::Top, { 0, -29 });
+    bgSpr->addChildAtPosition(m_clippingNode, Anchor::Top, { 0, -52 });
 
     return true;
 }

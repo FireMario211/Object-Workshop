@@ -1,39 +1,23 @@
 #include "WarningPopup.hpp"
 
-bool WarningPopup::setup(CaseData caseData, std::function<void()> callback) {
+using namespace geode::utils;
+
+bool WarningPopup::init(CaseData caseData, std::function<void()> callback) {
+    if (!Popup::init(260.f, 220.f)) return false;
     m_case = caseData;
     this->setTitle("Notice!");
     auto infoDesc = MDTextArea::create(fmt::format("## You have been <cy>warned</c> for the following reason:\n---\n{}\n\n---\n\nPlease be aware that repeated violations of the rules may result in more severe consequences.\n\n*By clicking **I acknowledge**, you confirm that you have read and understood this warning.*", m_case.reason), {220, 145});
     m_buttonMenu->addChildAtPosition(infoDesc, Anchor::Center);
-    auto footer = CCLabelBMFont::create(fmt::format("Case #{} - Warning #{}", m_case.id, m_case.number).c_str(), "chatFont.fnt");
-    footer->setColor({0,0,0});
-    footer->setOpacity(150);
-    footer->setAnchorPoint({0.5, 0});
-    footer->setScale(0.55F);
-    m_mainLayer->addChildAtPosition(footer, Anchor::Bottom, {0, 5});
+    Build<CCLabelBMFont>::create(fmt::format("Case #{} - Warning #{}", m_case.id, m_case.number).c_str(), "chatFont.fnt")
+        .color(0,0,0)
+        .opacity(150)
+        .anchorPoint(0.5, 0)
+        .scale(0.55f)
+        .parentAtPos(m_mainLayer, Anchor::Bottom, {0, 5});
     m_closeBtn->removeMeAndCleanup();
-    auto ackSpr = ButtonSprite::create("I acknowledge", "bigFont.fnt", "GJ_button_01.png");
-    ackSpr->setScale(0.5F);
-
-    m_listener.bind([this, callback] (web::WebTask::Event* e) {
-        if (web::WebResponse* value = e->getValue()) {
-            auto jsonRes = value->json().unwrapOrDefault();
-            Utils::notifError(jsonRes);
-            this->onClose(nullptr);
-            callback();
-            return;
-        } else if (web::WebProgress* progress = e->getProgress()) {
-            // The request is still in progress...
-        } else if (e->isCancelled()) {
-            log::error("Request was cancelled.");
-            this->onClose(nullptr);
-            callback();
-        }
-    });
-
-    auto ackBtn = CCMenuItemExt::createSpriteExtra(ackSpr, [this](CCObject* sender) {
+    Build<ButtonSprite>::create("I acknowledge", "bigFont.fnt", "GJ_button_01.png").scale(0.5F).intoMenuItem([this, callback]() {
         m_mainLayer->setVisible(false);
-        m_listener.getFilter().cancel();
+        m_listener.cancel();
         auto token = Mod::get()->getSettingValue<std::string>("token");
         web::WebRequest req = web::WebRequest();
         req.userAgent(USER_AGENT);
@@ -45,10 +29,16 @@ bool WarningPopup::setup(CaseData caseData, std::function<void()> callback) {
         myjson.set("token", token);
         req.header("Content-Type", "application/json");
         req.bodyJSON(myjson);
-        m_listener.setFilter(req.post(fmt::format("{}/case/{}/ack", HOST_URL, m_case.id)));
-    });
+        m_listener.spawn(
+            req.post(fmt::format("{}/case/{}/ack", HOST_URL, m_case.id)),
+            [this, callback](web::WebResponse value) {
+                auto jsonRes = value.json().unwrapOrDefault();
+                Utils::notifError(jsonRes);
+                this->onClose(nullptr);
+                callback();
+            }
+        );
 
-    m_buttonMenu->addChildAtPosition(ackBtn, Anchor::Bottom, {0, 25});
-
+    }).parentAtPos(m_buttonMenu, Anchor::Bottom, {0, 25});
     return true;
 }

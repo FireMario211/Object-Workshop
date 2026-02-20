@@ -6,19 +6,19 @@
 
 using namespace geode::prelude;
 
-class RolePopup : public geode::Popup<UserData, std::function<void(int)>> {
+class RolePopup : public geode::Popup {
 protected:
     std::vector<CCMenuItemSpriteExtra*> m_roleBtns;
     int m_selectedRole;
     UserData m_user;
-    bool setup(UserData, std::function<void(int)>) override;
+    bool init(UserData, std::function<void(int)>);
     std::function<void(int)> m_submitCallback;
 
     virtual void onClose(CCObject* sender) override;
 public:
     static RolePopup* create(UserData user, std::function<void(int)> callback) {
         auto ret = new RolePopup();
-        if (ret->initAnchored(50.F * ROLE_COUNT, 120.f, user, callback)) {
+        if (ret->init(user, callback)) {
             ret->autorelease();
             return ret;
         }

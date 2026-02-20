@@ -48,7 +48,7 @@ struct matjson::Serialize<CommentData> {
 
 class OWCommentCell : public CCScale9Sprite {
     protected:
-        EventListener<web::WebTask> m_listener;
+        async::TaskHolder<geode::utils::web::WebResponse> m_listener;
         std::function<void()> m_forceRefresh;
 
         CommentData m_data;
@@ -57,6 +57,7 @@ class OWCommentCell : public CCScale9Sprite {
         void onVote(CCObject*);
         void onPin(CCObject*);
         void onDelete(CCObject*);
+        void sendRequest(web::WebRequest, std::string url);
     public:
         std::string getComment() { return m_data.content; };
         CommentData getData() { return m_data; };

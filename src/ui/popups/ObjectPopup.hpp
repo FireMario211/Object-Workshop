@@ -6,10 +6,10 @@ using namespace geode::prelude;
 #include "../../nodes/ObjectItem.hpp"
 #include "../ObjectWorkshop.hpp"
 
-class ObjectPopup : public geode::Popup<ObjectData, UserData> {
+class ObjectPopup : public geode::Popup {
 protected:
     std::string m_token;
-    EventListener<web::WebTask> m_listener;
+    async::TaskHolder<geode::utils::web::WebResponse> m_listener;
     ObjectWorkshop* m_workshop;
 
     CCLabelBMFont* downloadsLabel;
@@ -26,7 +26,7 @@ protected:
     void onZoomOut(CCObject*);
     void onResetZoom(CCObject*);
 
-    bool setup(ObjectData, UserData) override;
+    bool init(ObjectData, UserData);
 
     void onAuthorBtn(CCObject*);
     void onRateBtn(CCObject*);
@@ -41,6 +41,7 @@ protected:
     void onReviewBtn(CCObject*);
     void onFeatureBtn(CCObject*);
     void onReportBtn(CCObject*);
+    void sendRequest(std::string url, bool exit = true);
 public:
     virtual void onClose(CCObject* sender) override;
     ObjectWorkshop* getWorkshop() {
@@ -51,7 +52,7 @@ public:
     }
     static ObjectPopup* create(ObjectData object, UserData user) {
         auto ret = new ObjectPopup();
-        if (ret->initAnchored(300.f, 275.f, object, user)) {
+        if (ret->init(object, user)) {
             ret->autorelease();
             return ret;
         }

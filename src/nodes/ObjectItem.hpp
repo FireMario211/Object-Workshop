@@ -82,7 +82,7 @@ struct matjson::Serialize<ObjectData> {
     }
 };
 
-class ObjectItem : public CCScale9Sprite {
+class ObjectItem : public CCNode {
     protected:
         CCClippingNode* m_clippingNode;
         ObjectData m_data;

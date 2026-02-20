@@ -4,39 +4,32 @@
 #include "../../nodes/ScrollLayerExt.hpp"
 #include "NewCasePopup.hpp"
 
-bool CasePopup::setup(UserData user, UserData managingUser) {
+bool CasePopup::init(UserData user, UserData managingUser) {
+    if (!Popup::init(250.f, 200.f)) return false;
     m_user = user;
     m_managingUser = managingUser;
     this->setTitle("Cases (N/A)");
-    m_casesBG = CCScale9Sprite::create("square02_small.png");
-    m_casesBG->setOpacity(50);
-    m_casesBG->setContentSize({205, 140});
-    m_mainLayer->addChildAtPosition(m_casesBG, Anchor::Center, {0, -5});
-
-    auto refreshSpr = CCSprite::createWithSpriteFrameName("GJ_updateBtn_001.png");
-    refreshSpr->setScale(0.75F);
-    auto refreshBtn = CCMenuItemSpriteExtra::create(refreshSpr, this, menu_selector(CasePopup::onLoadCases));
-    m_buttonMenu->addChildAtPosition(refreshBtn, Anchor::BottomLeft, {3, 3});
-
-    auto newCaseBtn = CCMenuItemExt::createSpriteExtraWithFrameName("GJ_plusBtn_001.png", 0.65F, [this](CCObject*) {
+    Build<CCScale9Sprite>::create("square02_small.png").opacity(50).contentSize(205, 140).store(m_casesBG).parentAtPos(m_mainLayer, Anchor::Center, {0, -5});
+    Build<CCSprite>::createSpriteName("GJ_updateBtn_001.png").scale(0.75f).intoMenuItem([this]() {
+        onLoadCases();
+    }).parentAtPos(m_buttonMenu, Anchor::BottomLeft, {3, 3});
+    Build<CCSprite>::createSpriteName("GJ_plusBtn_001.png").scale(0.65f).intoMenuItem([this]() {
         if (!m_user.authenticated) return FLAlertLayer::create("Error", "how is this even possible!?", "OK")->show();
         NewCasePopup::create(m_managingUser, [this]() {
-            onLoadCases(nullptr);
+            onLoadCases();
         })->show();
-    });
-    m_buttonMenu->addChildAtPosition(newCaseBtn, Anchor::BottomRight, {-3, 3});
-
-    onLoadCases(nullptr);
+    }).parentAtPos(m_buttonMenu, Anchor::BottomRight, {-3, 3});
+    onLoadCases();
     this->setID("CasesPopup"_spr);
     return true;
 }
 
 void CasePopup::onClose(CCObject* sender) {
-    m_listener.getFilter().cancel();
+    m_listener.cancel();
     Popup::onClose(sender);
 }
 
-void CasePopup::onLoadCases(CCObject*) {
+void CasePopup::onLoadCases() {
     m_casesBG->removeChildByID("commentscroll"_spr);
     m_mainLayer->removeChildByID("loadingCircle");
     auto loadingCircle = LoadingCircle::create();
@@ -46,16 +39,25 @@ void CasePopup::onLoadCases(CCObject*) {
     loadingCircle->setParentLayer(m_mainLayer);
     loadingCircle->show();
     loadingCircle->setID("loadingCircle");
-    m_listener.getFilter().cancel();
-    m_listener.bind([this, loadingCircle] (web::WebTask::Event* e) {
-        if (web::WebResponse* value = e->getValue()) {
+    m_listener.cancel();
+    web::WebRequest req = web::WebRequest();
+    req.userAgent(USER_AGENT);
+
+    auto token = Mod::get()->getSettingValue<std::string>("token");
+    auto myjson = matjson::Value();
+    myjson.set("token", token);
+    req.header("Content-Type", "application/json");
+    req.bodyJSON(myjson);
+    m_listener.spawn(
+        req.post(fmt::format("{}/user/{}/cases", HOST_URL, m_managingUser.account_id)),
+        [this, loadingCircle](web::WebResponse value) {
             loadingCircle->fadeAndRemove();
-            if (value->code() >= 500 && !value->ok()) {
+            if (value.code() >= 500 && !value.ok()) {
                 Notification::create("A server error occured. Check logs for info.", NotificationIcon::Error)->show();
-                log::error("{}", value->string().unwrapOrDefault());
+                log::error("{}", value.string().unwrapOrDefault());
                 return;
             }
-            auto jsonRes = value->json().unwrapOrDefault();
+            auto jsonRes = value.json().unwrapOrDefault();
             if (Utils::notifError(jsonRes)) return;
             auto arrayRes = jsonRes.get("results");
             auto c_total = jsonRes.get("total");
@@ -84,7 +86,7 @@ void CasePopup::onLoadCases(CCObject*) {
                 auto caseData = matjson::Serialize<CaseData>::fromJson(item);
                 if (caseData.isOk()) {
                     content->addChild(CaseCell::create(m_managingUser, caseData.unwrap(), [this]() {
-                        onLoadCases(nullptr);
+                        onLoadCases();
                     }));
                 } else {
                     log::error("Couldn't parse Case: {}", caseData.err());
@@ -109,19 +111,6 @@ void CasePopup::onLoadCases(CCObject*) {
             m_casesBG->addChildAtPosition(scrollLayer, Anchor::BottomLeft);
             scrollLayer->moveToTop();
             scrollLayer->fixTouchPrio();
-        } else if (web::WebProgress* progress = e->getProgress()) {
-            // The request is still in progress...
-        } else if (e->isCancelled()) {
-            log::error("Request was cancelled.");
         }
-    });
-    web::WebRequest req = web::WebRequest();
-    req.userAgent(USER_AGENT);
-
-    auto token = Mod::get()->getSettingValue<std::string>("token");
-    auto myjson = matjson::Value();
-    myjson.set("token", token);
-    req.header("Content-Type", "application/json");
-    req.bodyJSON(myjson);
-    m_listener.setFilter(req.post(fmt::format("{}/user/{}/cases", HOST_URL, m_managingUser.account_id)));
+    );
 }

@@ -1,7 +1,9 @@
 #include "ReportPopup.hpp"
 #include "../../config.hpp"
+#include "Geode/ui/Popup.hpp"
 
-bool ReportPopup::setup(ObjectData obj) {
+bool ReportPopup::init(ObjectData obj) {
+    if (!Popup::init(350.f, 100.f)) return false;
     m_object = obj;
     this->setTitle(fmt::format("Report {}", obj.name));
     m_reportInput = TextInput::create(300.0F, "Report Reason...", "chatFont.fnt");
@@ -31,26 +33,7 @@ void ReportPopup::onReportBtn(CCObject*) {
         [this](auto, bool btn2) {
             auto token = Mod::get()->getSettingValue<std::string>("token");
             if (btn2) {
-                m_listener.getFilter().cancel();
-                m_listener.bind([this] (web::WebTask::Event* e) {
-                    if (web::WebResponse* value = e->getValue()) {
-                        auto jsonRes = value->json().unwrapOrDefault();
-                        if (Utils::notifError(jsonRes)) return;
-                        auto message = jsonRes.get("message");
-                        if (message.isOk()) {
-                            Notification::create(message.unwrap().asString().unwrapOrDefault(), NotificationIcon::Success)->show();
-                        } else {
-                            log::error("Unknown response, expected message. {}", message.err());
-                            Notification::create("Got an unknown response, check logs for details.", NotificationIcon::Warning)->show();
-                        }
-                        onClose(nullptr);
-                        return;
-                    } else if (web::WebProgress* progress = e->getProgress()) {
-                        // The request is still in progress...
-                    } else if (e->isCancelled()) {
-                        log::error("Request was cancelled.");
-                    }
-                });
+                m_listener.cancel();
                 web::WebRequest req = web::WebRequest();
                 req.userAgent(USER_AGENT);
                 auto certValid = Mod::get()->getSettingValue<bool>("cert-valid");
@@ -62,7 +45,21 @@ void ReportPopup::onReportBtn(CCObject*) {
                 myjson.set("reason", m_reportInput->getString());
                 req.header("Content-Type", "application/json");
                 req.bodyJSON(myjson);
-                m_listener.setFilter(req.post(fmt::format("{}/objects/{}/report", HOST_URL, m_object.id)));
+                m_listener.spawn(
+                    req.post(fmt::format("{}/objects/{}/report", HOST_URL, m_object.id)),
+                    [this](web::WebResponse value) {
+                        auto jsonRes = value.json().unwrapOrDefault();
+                        if (Utils::notifError(jsonRes)) return;
+                        auto message = jsonRes.get("message");
+                        if (message.isOk()) {
+                            Notification::create(message.unwrap().asString().unwrapOrDefault(), NotificationIcon::Success)->show();
+                        } else {
+                            log::error("Unknown response, expected message. {}", message.err());
+                            Notification::create("Got an unknown response, check logs for details.", NotificationIcon::Warning)->show();
+                        }
+                        onClose(nullptr);
+                    }
+                );
             }
         },
         true,

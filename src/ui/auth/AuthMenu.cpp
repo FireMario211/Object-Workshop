@@ -2,12 +2,10 @@
 #include "AuthMenu.hpp"
 #include "../ObjectWorkshop.hpp"
 
-EventListener<web::WebTask> m_authListener;
-EventListener<web::WebTask> m_iconListener;
+static bool s_hasEmitted = false;
 
-bool hasEmitted = false;
-
-bool AuthMenu::setup() {
+bool AuthMenu::init() {
+    if (!Popup::init(180.f, 140.f)) return false;
     this->setTitle("Authentication");
     auto dashAuthBtn = CCMenuItemSpriteExtra::create(
         ButtonSprite::create("DashAuth"),
@@ -79,70 +77,7 @@ void AuthMenu::onDashAuth(CCObject*) {
 }
 
 void AuthMenu::testAuth(std::string token, std::function<void(int)> callback) {
-    m_iconListener.bind([] (web::WebTask::Event* e) {
-        if (web::WebResponse* value = e->getValue()) {
-            hasEmitted = true;
-            log::info("Updated Icon");
-        }
-    });
-    m_authListener.bind([callback, token] (web::WebTask::Event* e) {
-        if (web::WebResponse* value = e->getValue()) {
-            if (value->json().isErr() && !value->ok() && value->code() >= 500) {
-                std::string err = value->string().unwrapOrDefault();
-                log::error("Couldn't get server. {}", err);
-                callback(-1);
-                return;
-            }
-            log::info("Request was finished!");
-            auto jsonRes = value->json().unwrapOrDefault();
-            if (jsonRes.isObject()) {
-                auto isError = jsonRes.get("error");
-                if (isError.isOk()) {
-                    log::error("{}", jsonRes.dump());
-                    callback(0);
-                } else {
-                    if (!hasEmitted) {
-                        web::WebRequest req = web::WebRequest();
-                        req.userAgent(USER_AGENT);
-                        auto certValid = Mod::get()->getSettingValue<bool>("cert-valid");
-                        if (!certValid) {
-                            req.certVerification(certValid);
-                        }
-                        if (auto gm = GameManager::sharedState()) {
-                            auto myjson = matjson::Value();
-                            std::vector<matjson::Value> iconSet;
-                            iconSet.push_back(gm->getPlayerFrame());
-                            iconSet.push_back(gm->getPlayerColor());
-                            iconSet.push_back(gm->getPlayerColor2());
-                            iconSet.push_back(gm->getPlayerGlowColor());
-                            iconSet.push_back(static_cast<int>(gm->getPlayerGlow()));
-                            myjson.set("token", token);
-                            myjson.set("icon", iconSet);
-                            req.header("Content-Type", "application/json");
-                            req.bodyJSON(myjson);
-                            m_iconListener.setFilter(req.post(fmt::format("{}/icon", HOST_URL)));
-                        }
-                    }
-                    log::info("The token provided is valid!");
-                    callback(1);
-                }
-            } else {
-                auto strValue = value->string().unwrapOrDefault();
-                log::error("Got value {}, expected valid JSON.", strValue);
-                callback(0);
-            }
-        } else if (web::WebProgress* progress = e->getProgress()) {
-            // The request is still in progress...
-        } else if (e->isCancelled()) {
-            log::error("Request was cancelled.");
-            callback(0);
-        } else {
-            log::error("what happened?");
-            callback(0);
-        }
-    });
     web::WebRequest req = web::WebRequest();
-    m_authListener.getFilter().cancel();
     auto myjson = matjson::Value();
     myjson.set("token", token);
     req.header("Content-Type", "application/json");
@@ -152,82 +87,124 @@ void AuthMenu::testAuth(std::string token, std::function<void(int)> callback) {
     if (!certValid) {
         req.certVerification(certValid);
     }
-    m_authListener.setFilter(req.post(fmt::format("{}/verify", HOST_URL)));
-}
-void AuthMenu::genAuthToken(AuthMethod method, std::string token, bool showFLAlert, std::function<void(int)> callback) {
-    m_authListener.bind([method, showFLAlert, callback] (web::WebTask::Event* e) {
-        if (web::WebResponse* value = e->getValue()) {
-            log::info("Request was finished!");
-            if (value->json().isErr() && !value->ok() && value->code() >= 500) {
-                std::string err = value->string().unwrapOrDefault();
-                log::error("Couldn't get server. {}", err);
-                callback(-1);
-                return;
-            }
-            auto jsonRes = value->json().unwrapOrDefault();
-            if (jsonRes.isObject()) {
-                auto isError = jsonRes.get("error");
-                if (isError.isOk()) {
-                    if (showFLAlert) {
-                        FLAlertLayer::create("Error", isError.unwrap().asString().unwrapOrDefault(), "OK")->show();
-                    }
-                    callback(0);
-                } else {
-                    auto token = jsonRes.get("token");
-                    if (token.isOk()) {
-                        Mod::get()->setSettingValue<std::string>("token", token.unwrap().asString().unwrapOrDefault());
-                        Mod::get()->setSettingValue<int64_t>("auth-server", method);
-                        callback(1);
-                    } else {
-                        log::error("Expected token, got an unknown result. {}", jsonRes.dump());
-                        callback(0);
-                    }
-                }
-            } else {
-                auto strValue = value->string().unwrapOrDefault();
-                log::error("Got value {}, expected valid JSON.", strValue);
-                if (showFLAlert) {
-                    FLAlertLayer::create("Error", "Something went wrong when trying to parse the request.", "OK")->show();
-                }
+    async::spawn(req.post(fmt::format("{}/verify", HOST_URL)), [callback, token](web::WebResponse value) {
+        if (value.json().isErr() && !value.ok() && value.code() >= 500) {
+            std::string err = value.string().unwrapOrDefault();
+            log::error("Couldn't get server. {}", err);
+            callback(-1);
+            return;
+        }
+        log::info("Request was finished!");
+        auto jsonRes = value.json().unwrapOrDefault();
+        if (jsonRes.isObject()) {
+            auto isError = jsonRes.get("error");
+            if (isError.isOk()) {
+                log::error("{}", jsonRes.dump());
                 callback(0);
+            } else {
+                if (!s_hasEmitted) {
+                    web::WebRequest req = web::WebRequest();
+                    req.userAgent(USER_AGENT);
+                    auto certValid = Mod::get()->getSettingValue<bool>("cert-valid");
+                    if (!certValid) {
+                        req.certVerification(certValid);
+                    }
+                    if (auto gm = GameManager::sharedState()) {
+                        auto myjson = matjson::Value();
+                        std::vector<matjson::Value> iconSet;
+                        iconSet.push_back(gm->getPlayerFrame());
+                        iconSet.push_back(gm->getPlayerColor());
+                        iconSet.push_back(gm->getPlayerColor2());
+                        iconSet.push_back(gm->getPlayerGlowColor());
+                        iconSet.push_back(static_cast<int>(gm->getPlayerGlow()));
+                        myjson.set("token", token);
+                        myjson.set("icon", iconSet);
+                        req.header("Content-Type", "application/json");
+                        req.bodyJSON(myjson);
+                        async::spawn(
+                            req.post(fmt::format("{}/icon", HOST_URL)),
+                            [](web::WebResponse) {
+                                s_hasEmitted = true;
+                                log::info("Updated Icon");
+                            }
+                        );
+                    }
+                }
+                log::info("The token provided is valid!");
+                callback(1);
             }
-        } else if (web::WebProgress* progress = e->getProgress()) {
-            // The request is still in progress...
-        } else if (e->isCancelled()) {
-            log::error("Request was cancelled.");
-            callback(0);
         } else {
-            log::error("what happened?");
+            auto strValue = value.string().unwrapOrDefault();
+            log::error("Got value {}, expected valid JSON.", strValue);
             callback(0);
         }
     });
-        web::WebRequest req = web::WebRequest();
-        m_authListener.getFilter().cancel();
-        req.header("Content-Type", "application/json");
-        log::info("Authenticated! Now sending token to backend...");
-        auto myjson = matjson::Value();
-        myjson.set("token", token);
-        if (method == AuthMethod::Argon) {
-            myjson.set("username", fmt::format("{}", GJAccountManager::get()->m_username));
-            myjson.set("account_id", GJAccountManager::get()->m_accountID);
+}
+
+void AuthMenu::genAuthToken(AuthMethod method, std::string token, bool showFLAlert, std::function<void(int)> callback) {
+    web::WebRequest req = web::WebRequest();
+    req.header("Content-Type", "application/json");
+    log::info("Authenticated! Now sending token to backend...");
+    auto myjson = matjson::Value();
+    myjson.set("token", token);
+    if (method == AuthMethod::Argon) {
+        myjson.set("username", fmt::format("{}", GJAccountManager::get()->m_username));
+        myjson.set("account_id", GJAccountManager::get()->m_accountID);
+    }
+    req.bodyJSON(myjson);
+    req.userAgent(USER_AGENT);
+    auto certValid = Mod::get()->getSettingValue<bool>("cert-valid");
+    if (!certValid) {
+        req.certVerification(certValid);
+    }
+    std::string url = fmt::format("{}/unknown", HOST_URL);
+    switch (method) {
+        case AuthMethod::Argon:
+            url = fmt::format("{}/argon", HOST_URL);
+            break;
+        case AuthMethod::DashAuth:
+            url = fmt::format("{}/dashauth", HOST_URL);
+            break;
+        default:
+            log::warn("Unknown Auth Method, can't send request!");
+            return;
+    }
+    async::spawn(req.post(url), [method, showFLAlert, callback](web::WebResponse value) {
+        log::info("Request was finished!");
+        if (value.json().isErr() && !value.ok() && value.code() >= 500) {
+            std::string err = value.string().unwrapOrDefault();
+            log::error("Couldn't get server. {}", err);
+            callback(-1);
+            return;
         }
-        req.bodyJSON(myjson);
-        req.userAgent(USER_AGENT);
-        auto certValid = Mod::get()->getSettingValue<bool>("cert-valid");
-        if (!certValid) {
-            req.certVerification(certValid);
+        auto jsonRes = value.json().unwrapOrDefault();
+        if (jsonRes.isObject()) {
+            auto isError = jsonRes.get("error");
+            if (isError.isOk()) {
+                if (showFLAlert) {
+                    FLAlertLayer::create("Error", isError.unwrap().asString().unwrapOrDefault(), "OK")->show();
+                }
+                callback(0);
+            } else {
+                auto token = jsonRes.get("token");
+                if (token.isOk()) {
+                    Mod::get()->setSettingValue<std::string>("token", token.unwrap().asString().unwrapOrDefault());
+                    Mod::get()->setSettingValue<int64_t>("auth-server", method);
+                    callback(1);
+                } else {
+                    log::error("Expected token, got an unknown result. {}", jsonRes.dump());
+                    callback(0);
+                }
+            }
+        } else {
+            auto strValue = value.string().unwrapOrDefault();
+            log::error("Got value {}, expected valid JSON.", strValue);
+            if (showFLAlert) {
+                FLAlertLayer::create("Error", "Something went wrong when trying to parse the request.", "OK")->show();
+            }
+            callback(0);
         }
-        switch (method) {
-            case AuthMethod::Argon:
-                m_authListener.setFilter(req.post(fmt::format("{}/argon", HOST_URL)));
-                break;
-            case AuthMethod::DashAuth:
-                m_authListener.setFilter(req.post(fmt::format("{}/dashauth", HOST_URL)));
-                break;
-            default:
-                log::warn("Unknown Auth Method, can't send request!");
-                break;
-        }
+    });
 }
 void AuthMenu::onArgon(CCObject*) {
     if (auto gjam = GJAccountManager::sharedState()) {
@@ -245,23 +222,20 @@ void AuthMenu::onArgon(CCObject*) {
             if (btn2) {
                 this->onClose(nullptr);
                 log::info("Authenticating with Argon...");
-                auto res = argon::startAuth([](Result<std::string> res) {
-                    if (!res) {
+                async::spawn(argon::startAuth(), [](Result<std::string> res) {
+                    if (res.isErr()) {
                         log::warn("Argon auth failed: {}", res.unwrapErr());
                         FLAlertLayer::create("Argon Error", "Failed to get token, view logs for reason.", "OK")->show();
-                        return;
+                        argon::clearToken();
+                    } else {
+                        auto token = std::move(res).unwrap();
+                        genAuthToken(AuthMethod::Argon, token, true, [](bool value) {
+                            if (value) {
+                                ObjectWorkshop::create(true)->show();
+                            }
+                        });
                     }
-                    auto token = std::move(res).unwrap();
-                    genAuthToken(AuthMethod::Argon, token, true, [](bool value) {
-                        if (value) {
-                            ObjectWorkshop::create(true)->show();
-                        }
-                    });
                 });
-                if (!res) {
-                    log::warn("Failed to start auth attempt: {}", res.unwrapErr());
-                    FLAlertLayer::create("Argon Error", "Failed to start auth attempt, view logs for reason.", "OK")->show();
-                }
             }
         },
         true,

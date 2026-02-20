@@ -5,12 +5,12 @@
 #include <argon/argon.hpp>
 #endif
 
-//#ifdef DASHAUTH
+#ifdef DASHAUTH
 #include <dashauth.hpp>
 
 //#include "dashauthloll.hpp"
 using namespace dashauth;
-//#endif
+#endif
 
 using namespace geode::prelude;
 
@@ -21,9 +21,9 @@ enum AuthMethod {
     Custom = 2
 };
 
-class AuthMenu : public geode::Popup<> {
+class AuthMenu : public geode::Popup {
 protected:
-    bool setup() override;
+    bool init();
     void onInfoBtn(CCObject*);
     void onDashAuth(CCObject*);
     void onArgon(CCObject*);
@@ -46,7 +46,7 @@ public:
     }
     static AuthMenu* create() {
         auto ret = new AuthMenu();
-        if (ret->initAnchored(180.f, 140.f)) {
+        if (ret->init()) {
             ret->autorelease();
             return ret;
         }

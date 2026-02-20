@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Geode/Geode.hpp>
+#include <UIBuilder.hpp>
 
 class Utils {
     public:
@@ -91,7 +92,7 @@ class Utils {
                 //return "Trending";
                 return "Featured";
             case 6:
-                return "Most Recent";
+                return "Recent";
             case 7:
                 return "Pending";
             case 8:

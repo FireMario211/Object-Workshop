@@ -5,19 +5,13 @@ bool ExtPreviewBG::init(LevelEditorLayer* editorLayer, std::string data, CCSize 
     if (!CCLayer::init()) return false;
     this->setContentSize(contentSize);
     this->setAnchorPoint({0.5, 0.5});
-    bg = CCScale9Sprite::create("square02_small.png");
-    bg->setOpacity(60);
-    bg->setContentSize(this->getContentSize());
-
-    auto previewLabel = CCLabelBMFont::create("Preview", "goldFont.fnt");
-    previewLabel->setScale(0.425F);
-    bg->addChildAtPosition(previewLabel, Anchor::Top, {0,-8});
-    this->addChildAtPosition(bg, Anchor::Center);
-
+    Build<CCScale9Sprite>::create("square02_small.png").opacity(60).contentSize(this->getContentSize()).with([](auto node) {
+        Build<CCLabelBMFont>::create("Preview", "goldFont.fnt").scale(0.425F).parentAtPos(node, Anchor::Top, {0, -8});
+    }).store(m_bg).parentAtPos(this, Anchor::Center);
     CCLayerColor* mask = CCLayerColor::create({255, 255, 255});
-    mask->setContentSize(bg->getContentSize());
+    mask->setContentSize(m_bg->getContentSize());
     m_clippingNode = CCClippingNode::create();
-    m_clippingNode->setContentSize(bg->getContentSize());
+    m_clippingNode->setContentSize(m_bg->getContentSize());
     m_clippingNode->setAnchorPoint({0.5, 0.5});
     if (data.length() > 0) {
         unsigned int objectCount = std::count(data.begin(), data.end(), ';');
@@ -61,8 +55,8 @@ bool ExtPreviewBG::init(LevelEditorLayer* editorLayer, std::string data, CCSize 
 bool ExtPreviewBG::ccTouchBegan(CCTouch* touch, CCEvent* event) {
     if (!CCLayer::ccTouchBegan(touch, event)) return false;
     auto touchPos = cocos2d::CCDirector::sharedDirector()->convertToGL(touch->getLocationInView());
-    auto nodeTouchPos = bg->convertToNodeSpace(touchPos);
-    auto boundingBox = bg->boundingBox();
+    auto nodeTouchPos = m_bg->convertToNodeSpace(touchPos);
+    auto boundingBox = m_bg->boundingBox();
     int offset = 16;
     auto newBoundingBox = CCRect(
         boundingBox.getMinX() + offset,
@@ -80,8 +74,8 @@ bool ExtPreviewBG::ccTouchBegan(CCTouch* touch, CCEvent* event) {
 void ExtPreviewBG::ccTouchMoved(CCTouch* touch, CCEvent* event) {
     CCLayer::ccTouchMoved(touch, event);
     auto touchPos = cocos2d::CCDirector::sharedDirector()->convertToGL(touch->getLocationInView());
-    auto nodeTouchPos1 = bg->convertToNodeSpace(touchPos);
-    auto nodeTouchPos2 = bg->convertToNodeSpace(m_touchStart);
+    auto nodeTouchPos1 = m_bg->convertToNodeSpace(touchPos);
+    auto nodeTouchPos2 = m_bg->convertToNodeSpace(m_touchStart);
     auto delta = nodeTouchPos1 - nodeTouchPos2;
     objSprite->setPosition(objSprite->getPosition() + delta);
     m_touchStart = touchPos;

@@ -5,7 +5,7 @@ using namespace geode::prelude;
 #include "ui/auth/AuthMenu.hpp"
 #include "config.hpp"
 #include "ui/auth/AuthLoadLayer.hpp"
-#include <alphalaneous.editortab_api/include/EditorTabs.hpp>
+#include <alphalaneous.editortab_api/include/EditorTabAPI.hpp>
 
 // 13 = custom objects
 void CustomObjects::onWorkshop(CCObject*) {
@@ -14,7 +14,7 @@ void CustomObjects::onWorkshop(CCObject*) {
         auto loadLayer = AuthLoadLayer::create();
         loadLayer->show();
         auto token = Mod::get()->getSettingValue<std::string>("token");
-        AuthMenu::testAuth(token, [loadLayer, authServerA, token](int value) {
+        AuthMenu::testAuth(token, [this, loadLayer, authServerA, token](int value) {
             int authServer = authServerA;
             if (value == 1) {
                 loadLayer->finished();
@@ -65,30 +65,29 @@ void CustomObjects::onWorkshop(CCObject*) {
                     }
                     case AuthMethod::Argon: {
 #ifdef ARGON
-                        auto res = argon::startAuth([loadLayer](Result<std::string> res) {
-                            if (!res) {
-                                log::warn("Argon auth failed: {}", res.unwrapErr());
-                                loadLayer->finished();
-                                FLAlertLayer::create("Argon Error", "Failed to get token, view logs for reason.", "OK")->show();
-                                return;
-                            }
-                            auto token = std::move(res).unwrap();
-                            AuthMenu::genAuthToken(AuthMethod::Argon, token, false, [loadLayer](int value) {
-                                loadLayer->finished();
-                                if (value == 1) {
-                                    ObjectWorkshop::create(true)->show();
-                                } else if (value == -1) {
-                                    FLAlertLayer::create("Error", "Currently, Object Workshop <cy>servers are down</c> at the moment! View your logs, or view announcements on the <cy>Discord Server</c> for more information, or if there are no announcements, inform the developer of this error!", "OK")->show();
+                        m_fields->m_argonListener.cancel();
+                        m_fields->m_argonListener.spawn(
+                            argon::startAuth(),
+                            [loadLayer](Result<std::string> res) {
+                                if (res.isErr()) {
+                                    log::warn("Argon auth failed: {}", res.unwrapErr());
+                                    loadLayer->finished();
+                                    FLAlertLayer::create("Argon Error", "Failed to get token, view logs for reason.", "OK")->show();
                                 } else {
-                                    FLAlertLayer::create("Error", "Something went wrong when <cy>trying to generate a new authentication token!</c>\nIf this issue happens again, please consider <cr>resetting your settings</c> to redo the authentication process.", "OK")->show();
+                                    auto token = std::move(res).unwrap();
+                                    AuthMenu::genAuthToken(AuthMethod::Argon, token, false, [loadLayer](int value) {
+                                        loadLayer->finished();
+                                        if (value == 1) {
+                                            ObjectWorkshop::create(true)->show();
+                                        } else if (value == -1) {
+                                            FLAlertLayer::create("Error", "Currently, Object Workshop <cy>servers are down</c> at the moment! View your logs, or view announcements on the <cy>Discord Server</c> for more information, or if there are no announcements, inform the developer of this error!", "OK")->show();
+                                        } else {
+                                            FLAlertLayer::create("Error", "Something went wrong when <cy>trying to generate a new authentication token!</c>\nIf this issue happens again, please consider <cr>resetting your settings</c> to redo the authentication process.", "OK")->show();
+                                        }
+                                    });
                                 }
-                            });
-                        });
-                        if (!res) {
-                            log::warn("Failed to start auth attempt: {}", res.unwrapErr());
-                            loadLayer->finished();
-                            FLAlertLayer::create("Argon Error", "Failed to start auth attempt, view logs for reason.", "OK")->show();
-                        }
+                            }
+                        );
 #else
                         loadLayer->finished();
                         FLAlertLayer::create("Error", "Unsupported <cy>authentication method</c>.", "OK")->show();
@@ -102,38 +101,11 @@ void CustomObjects::onWorkshop(CCObject*) {
         AuthMenu::create()->show();
     }
 }
-/*
-cocos2d::CCSprite* spriteFromObjectString(gd::string p0, bool p1, bool p2, int p3, cocos2d::CCArray *p4, cocos2d::CCArray *p5, GameObject *p6) {
-    //log::info("{} - {},{},{},{},{}",p0,p1,p2,p3,p4,p5,p6);
-    return EditorUI::spriteFromObjectString(p0,p1,p2,p3,p4,p5,p6);
-}*/
-
-/*
-#include <Geode/modify/LevelEditorLayer.hpp>
-
-class $modify(LevelEditorLayer) {
-    CCArray* createObjectsFromString(gd::string& str, bool p1, bool p2) {
-        //geode::log::info("create {} {} {}", p1, p2, str);
-        return LevelEditorLayer::createObjectsFromString(str, p1, p2);
-	}
-};
-*/
 
 bool CustomObjects::init(LevelEditorLayer* editorLayer) {
     if (!EditorUI::init(editorLayer)) return false;
-    EditorTabs::addTab(this, TabType::BUILD, "workshop"_spr, [this](EditorUI* ui, CCMenuItemToggler* toggler) -> CCNode* { //create the tab
-        auto folder = CCSprite::createWithSpriteFrameName("gj_folderBtn_001.png");
-        folder->setScale(0.4F);
-        auto labelC = CCLabelBMFont::create("C+", "bigFont.fnt");
-        labelC->setScale(0.4F);
-        folder->addChildAtPosition(labelC, Anchor::Center);
-        CCLabelBMFont* textLabelOn = CCLabelBMFont::create("C+", "bigFont.fnt");
-        textLabelOn->setScale(0.4f);
-        CCLabelBMFont* textLabelOff = CCLabelBMFont::create("C+", "bigFont.fnt");
-        textLabelOff->setScale(0.4f);
-
-        EditorTabUtils::setTabIcons(toggler, folder, folder);
-
+    alpha::editor_tabs::addTab("workshop"_spr, alpha::editor_tabs::BUILD, [this] { // Create the tab
+        std::vector<Ref<CCNode>> nodes;
         m_fields->menu = CCMenu::create();
         m_fields->menu->setID("ow-menu"_spr);
         auto label = CCLabelBMFont::create("Custom Objects", "goldFont.fnt");
@@ -188,35 +160,6 @@ bool CustomObjects::init(LevelEditorLayer* editorLayer) {
         auto token = Mod::get()->getSettingValue<std::string>("token");
         if (token != "" && !m_fields->hasCheckedUploads) {
             m_fields->hasCheckedUploads = true;
-            m_fields->m_listener.bind([this, labelOther1] (web::WebTask::Event* e) {
-                if (web::WebResponse* value = e->getValue()) {
-                    if (value->json().isErr()) {
-                        log::error("Invalid server response. {}", value->json().err());
-                        Notification::create("Object Workshop server gave invalid response.", NotificationIcon::Warning)->show();
-                        return;
-                    }
-                    auto jsonRes = value->json().unwrapOrDefault();
-                    if (!jsonRes.isObject()) return log::error("Response isn't object.");
-                    auto isError = jsonRes.get("error");
-                    if (isError.isOk()) return;
-                    auto uploadRes = jsonRes.get("uploads");
-
-                    if (uploadRes.isOk()) {
-                        auto uploads = uploadRes.unwrap().asInt().unwrapOrDefault();
-                        labelOther1->setString(
-                            fmt::format(
-                                "<cg>{}</c> Upload{} from you",
-                                uploads,
-                                (uploads == 1) ? "" : "s"
-                            )
-                        );
-                    }
-                } else if (web::WebProgress* progress = e->getProgress()) {
-                    // The request is still in progress...
-                } else if (e->isCancelled()) {
-                    log::error("Request was cancelled.");
-                }
-            });
             web::WebRequest req = web::WebRequest();
             auto myjson = matjson::Value();
             myjson.set("token", token);
@@ -227,13 +170,53 @@ bool CustomObjects::init(LevelEditorLayer* editorLayer) {
                 req.certVerification(certValid);
             }
             req.bodyJSON(myjson);
-            m_fields->m_listener.setFilter(req.post(fmt::format("{}/user/@me", HOST_URL)));
+            m_fields->m_listener.spawn(req.post(fmt::format("{}/user/@me", HOST_URL)), [this, labelOther1](web::WebResponse value) {
+                if (value.json().isErr()) {
+                    log::error("Invalid server response. {}", value.json().err());
+                    Notification::create("Object Workshop server gave invalid response.", NotificationIcon::Warning)->show();
+                    return;
+                }
+                auto jsonRes = value.json().unwrapOrDefault();
+                if (!jsonRes.isObject()) return log::error("Response isn't object.");
+                auto isError = jsonRes.get("error");
+                if (isError.isOk()) return;
+                auto uploadRes = jsonRes.get("uploads");
+
+                if (uploadRes.isOk()) {
+                    auto uploads = uploadRes.unwrap().asInt().unwrapOrDefault();
+                    labelOther1->setString(
+                        fmt::format(
+                            "<cg>{}</c> Upload{} from you",
+                            uploads,
+                            (uploads == 1) ? "" : "s"
+                        )
+                    );
+                }
+            });
         }
         auto winSize = CCDirector::sharedDirector()->getWinSize();
-        m_fields->menu->setPosition({winSize.width / 2, 45});
-        return m_fields->menu;
+        //m_fields->menu->setPosition({winSize.width / 2, 45});
+        //return alpha::editor_tabs::createEditButtonBar(m_fields->menu);
+        m_fields->menu->setContentSize({300, 90});
+        m_fields->menu->updateLayout();
+        nodes.push_back(m_fields->menu);
+        return alpha::editor_tabs::createEditButtonBar(nodes);
+    }, [] { // create the tab icon
+        auto folder = CCSprite::createWithSpriteFrameName("gj_folderBtn_001.png");
+        folder->setScale(0.4F);
+        auto labelC = CCLabelBMFont::create("C+", "bigFont.fnt");
+        labelC->setScale(0.4F);
+        folder->addChildAtPosition(labelC, Anchor::Center);
+        CCLabelBMFont* textLabelOn = CCLabelBMFont::create("C+", "bigFont.fnt");
+        textLabelOn->setScale(0.4f);
+        CCLabelBMFont* textLabelOff = CCLabelBMFont::create("C+", "bigFont.fnt");
+        textLabelOff->setScale(0.4f);
+        return folder;
+    }, [] (bool state, auto tab) { // do something when the tab is entered and exited
+        log::info("rawr-tab state: {}", state);
+    }, [] (int rows, int cols, auto tab) { // do something when the tab is reloaded
+        log::info("rawr tab rows: {}, cols: {}", rows, cols);
     });
-
     return true;
 }
 
@@ -291,7 +274,7 @@ class $modify(ObjectBypass, EditorUI) {
 class $modify(ProfilePage) {
     struct Fields {
         CCMenuItemSpriteExtra* customObjsBtn;
-        EventListener<web::WebTask> m_profileListener;
+        async::TaskHolder<geode::utils::web::WebResponse> m_profileListener;
     };
     void onClose(CCObject* sender) {
         m_fields->m_profileListener.getFilter().cancel();
@@ -441,10 +424,10 @@ class $modify(ProfilePage) {
 
 #include <Geode/modify/EditorUI.hpp>
 class $modify(EditorUI) {
-    void keyDown(enumKeyCodes key) {
+    void keyDown(enumKeyCodes key, double timestamp) {
         if (auto scene = CCScene::get()) {
             if (typeinfo_cast<ObjectWorkshop*>(scene->getChildByID("objectworkshop"_spr))) return;
         }
-        EditorUI::keyDown(key);
+        EditorUI::keyDown(key, timestamp);
     }
 };

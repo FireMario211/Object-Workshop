@@ -5,7 +5,8 @@
 #include "FiltersPopup.hpp"
 #include "Geode/utils/cocos.hpp"
 
-bool EditPopup::setup(ObjectData obj, std::unordered_set<std::string> availableTags, UserData user) {
+bool EditPopup::init(ObjectData obj, std::unordered_set<std::string> availableTags, UserData user) {
+    if (!Popup::init(350.f, 280.f)) return false;
     m_availableTags = availableTags;
     m_object = obj;
     m_user = user;
@@ -40,7 +41,7 @@ bool EditPopup::setup(ObjectData obj, std::unordered_set<std::string> availableT
     );
     filterSpr->setScale(0.75F);
     auto filterBtn = CCMenuItemExt::createSpriteExtra(filterSpr, [this](CCObject*) {
-        FiltersPopup::create(m_availableTags, m_object.tags, true, [this](std::unordered_set<std::string> selectedTags) {
+        FiltersPopup::create(m_availableTags, m_object.tags, 0, true, [this](std::unordered_set<std::string> selectedTags, bool, bool) {
             m_object.tags = selectedTags;
         })->show();
     });
@@ -167,67 +168,9 @@ void EditPopup::onOverwriteBtn(CCObject*) {
 
 void EditPopup::onUpdateBtn(CCObject*) {
     auto token = Mod::get()->getSettingValue<std::string>("token");
-    m_listener.getFilter().cancel();
+    m_listener.cancel();
     auto notif = Notification::create("Updating Object...", NotificationIcon::Loading);
     notif->show();
-    m_uploadListener.bind([this] (web::WebTask::Event* e) {
-        if (web::WebResponse* value = e->getValue()) {
-            auto jsonRes = value->json().unwrapOrDefault();
-            if (Utils::notifError(jsonRes)) return;
-            log::info("Overwrote object.");
-            this->onClose(nullptr);
-            Notification::create("Updated object!", NotificationIcon::Success)->show();
-        } else if (web::WebProgress* progress = e->getProgress()) {
-            // The request is still in progress...
-        } else if (e->isCancelled()) {
-            log::error("Request was cancelled.");
-            this->onClose(nullptr);
-        }
-    });
-    m_listener.bind([this, notif, token] (web::WebTask::Event* e) {
-        if (web::WebResponse* value = e->getValue()) {
-            auto jsonRes = value->json().unwrapOrDefault();
-            if (Utils::notifError(jsonRes)) return;
-            notif->hide();
-            auto message = jsonRes.get("message");
-            if (message.isOk()) {
-                if (m_previewBG->isVisible()) { // assume they want to overwrite
-                    if (auto editor = EditorUI::get()) {
-                        if (auto gameManager = GameManager::sharedState()) {
-                            if (editor->m_selectedObjectIndex < 0) { // genius robert!
-                                m_object.objectString = gameManager->stringForCustomObject(editor->m_selectedObjectIndex);
-                                web::WebRequest req = web::WebRequest();
-                                req.userAgent(USER_AGENT);
-                                auto certValid = Mod::get()->getSettingValue<bool>("cert-valid");
-                                if (!certValid) {
-                                    req.certVerification(certValid);
-                                }
-                                auto myjson = matjson::Value();
-                                myjson.set("token", token);
-                                myjson.set("data", m_object.objectString);
-                                req.header("Content-Type", "application/json");
-                                req.bodyJSON(myjson);
-                                m_uploadListener.setFilter(req.post(fmt::format("{}/objects/{}/overwrite", HOST_URL, m_object.id)));
-                                return this->setVisible(false);
-                            }
-                        }
-                    }
-                }
-                this->onClose(nullptr);
-                Notification::create(message.unwrap().asString().unwrapOrDefault(), NotificationIcon::Success)->show();
-            } else {
-                log::error("Unknown response, expected message. {}", message.err());
-                Notification::create("Got an unknown response, check logs for details.", NotificationIcon::Warning)->show();
-                this->onClose(nullptr);
-            }
-            return;
-        } else if (web::WebProgress* progress = e->getProgress()) {
-            // The request is still in progress...
-        } else if (e->isCancelled()) {
-            log::error("Request was cancelled.");
-            this->onClose(nullptr);
-        }
-    });
     if (m_objName != nullptr && m_objDesc->getString().length() > 0) {
         m_object.name = m_objName->getString();
     }
@@ -248,5 +191,53 @@ void EditPopup::onUpdateBtn(CCObject*) {
     myjson.set("tags", m_object.tags);
     req.header("Content-Type", "application/json");
     req.bodyJSON(myjson);
-    m_listener.setFilter(req.post(fmt::format("{}/objects/{}/update", HOST_URL, m_object.id)));
+
+    m_listener.spawn(
+        req.post(fmt::format("{}/objects/{}/update", HOST_URL, m_object.id)),
+        [this, notif, token](web::WebResponse value) {
+            auto jsonRes = value.json().unwrapOrDefault();
+            if (Utils::notifError(jsonRes)) return;
+            notif->hide();
+            auto message = jsonRes.get("message");
+            if (message.isOk()) {
+                if (m_previewBG->isVisible()) { // assume they want to overwrite
+                    if (auto editor = EditorUI::get()) {
+                        if (auto gameManager = GameManager::sharedState()) {
+                            if (editor->m_selectedObjectIndex < 0) { // genius robert!
+                                m_object.objectString = gameManager->stringForCustomObject(editor->m_selectedObjectIndex);
+                                web::WebRequest req = web::WebRequest();
+                                req.userAgent(USER_AGENT);
+                                auto certValid = Mod::get()->getSettingValue<bool>("cert-valid");
+                                if (!certValid) {
+                                    req.certVerification(certValid);
+                                }
+                                auto myjson = matjson::Value();
+                                myjson.set("token", token);
+                                myjson.set("data", m_object.objectString);
+                                req.header("Content-Type", "application/json");
+                                req.bodyJSON(myjson);
+                                async::spawn(
+                                    req.post(fmt::format("{}/objects/{}/overwrite", HOST_URL, m_object.id)),
+                                    [this](web::WebResponse value) {
+                                        auto jsonRes = value.json().unwrapOrDefault();
+                                        if (Utils::notifError(jsonRes)) return;
+                                        log::info("Overwrote object.");
+                                        this->onClose(nullptr);
+                                        Notification::create("Updated object!", NotificationIcon::Success)->show();
+                                    }
+                                );
+                                return this->setVisible(false);
+                            }
+                        }
+                    }
+                }
+                this->onClose(nullptr);
+                Notification::create(message.unwrap().asString().unwrapOrDefault(), NotificationIcon::Success)->show();
+            } else {
+                log::error("Unknown response, expected message. {}", message.err());
+                Notification::create("Got an unknown response, check logs for details.", NotificationIcon::Warning)->show();
+                this->onClose(nullptr);
+            }
+        }
+    );
 }

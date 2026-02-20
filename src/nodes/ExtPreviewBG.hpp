@@ -6,7 +6,7 @@ using namespace geode::prelude;
 class ExtPreviewBG : public CCLayer {
     protected:
         CCSprite* objSprite;
-        CCScale9Sprite* bg;
+        CCScale9Sprite* m_bg;
         CCPoint m_touchStart;
         CCClippingNode* m_clippingNode;
         float m_oldScale;

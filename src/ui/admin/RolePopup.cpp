@@ -2,7 +2,8 @@
 #include "../../utils.hpp"
 
 // definitely not inspired from globbd
-bool RolePopup::setup(UserData user, std::function<void(int)> callback) {
+bool RolePopup::init(UserData user, std::function<void(int)> callback) {
+    if (!Popup::init(50.F * ROLE_COUNT, 120.f)) return false;
     this->setTitle("Set User Role");
     m_user = user;
     m_submitCallback = callback;
@@ -12,7 +13,7 @@ bool RolePopup::setup(UserData user, std::function<void(int)> callback) {
     menu->setLayout(RowLayout::create());
     for (int i = 0; i < ROLE_COUNT; i++) {
         auto btn = CCMenuItemExt::createSpriteExtra(Utils::roleIDToSprite(i, 0.5F), [this](CCObject* sender) {
-            if (auto item = as<CCMenuItemSpriteExtra*>(sender)) {
+            if (auto item = static_cast<CCMenuItemSpriteExtra*>(sender)) {
                 m_selectedRole = item->getTag();
             }
             ccColor3B col = true ? ccWHITE : ccc3(125, 125, 125);

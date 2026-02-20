@@ -6,9 +6,9 @@
 #include <Geode/utils/web.hpp>
 using namespace geode::prelude;
 
-class CommentPopup : public geode::Popup<ObjectData, std::function<void()>> {
+class CommentPopup : public geode::Popup {
 protected:
-    EventListener<web::WebTask> m_listener;
+    async::TaskHolder<geode::utils::web::WebResponse> m_listener;
     ObjectData m_object;
     CCLabelBMFont* m_charCountLabel;
     std::string m_descText;
@@ -16,7 +16,7 @@ protected:
 
     bool m_closed = false; // prevent unnecessary crash because for some reason this can happen
 
-    bool setup(ObjectData obj, std::function<void()>) override;
+    bool init(ObjectData obj, std::function<void()>);
     void onSubmit(CCObject*);
     void updateCharCountLabel();
     void updateDescText(std::string string);
@@ -26,7 +26,7 @@ protected:
 public:
     static CommentPopup* create(ObjectData obj, std::function<void()> callback) {
         auto ret = new CommentPopup();
-        if (ret->initAnchored(400.f, 135.f, obj, callback)) {
+        if (ret->init(obj, callback)) {
             ret->autorelease();
             return ret;
         }

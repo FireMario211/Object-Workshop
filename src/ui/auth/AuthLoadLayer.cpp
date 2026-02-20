@@ -7,15 +7,13 @@ bool AuthLoadLayer::init() {
     this->m_buttonMenu = cocos2d::CCMenu::create();
     this->m_mainLayer->addChild(this->m_buttonMenu);
     this->addChild(this->m_mainLayer);
-    this->registerWithTouchDispatcher();
     this->setTouchEnabled(true);
-
     m_loadingCircle = LoadingCircle::create();
-    //m_loadingCircle->setPosition(winSize / 2);
     m_loadingCircle->setParentLayer(m_mainLayer);
     m_loadingCircle->show();
     return true;
 }
 void AuthLoadLayer::finished() {
+    this->setTouchEnabled(false);
     this->removeFromParentAndCleanup(true);
 }

@@ -1,7 +1,9 @@
 #include "FiltersPopup.hpp"
 #include "../../utils.hpp"
 
-bool FiltersPopup::setup(std::unordered_set<std::string> tags, std::unordered_set<std::string> selectedTags, bool uploading, std::function<void(std::unordered_set<std::string>)> callback) {
+// TODO: add "Reports" and maybe a star icon to indicate featured?
+bool FiltersPopup::init(std::unordered_set<std::string> tags, std::unordered_set<std::string> selectedTags, int role, bool uploading, std::function<void(std::unordered_set<std::string>, bool, bool)> callback) {
+    if (!Popup::init(350.f, 170.f)) return false;
     m_callback = callback;
     m_selectedTags = selectedTags;
 
@@ -77,6 +79,26 @@ bool FiltersPopup::setup(std::unordered_set<std::string> tags, std::unordered_se
         m_tagsMenu->addChild(btn);
     }
     m_tagsMenu->updateLayout();
+    if (role >= 2) {
+        Build<CCLabelBMFont>::create("Pending", "bigFont.fnt").anchorPoint(0, 0.5).scale(0.45f).parentAtPos(m_buttonMenu, Anchor::BottomLeft, {45, 23});
+        Build<CCMenuItemToggler>::createToggle(Build<CCSprite>::createSpriteName("GJ_checkOff_001.png").scale(0.65f).collect(), Build<CCSprite>::createSpriteName("GJ_checkOn_001.png").scale(0.65f).collect(), [this](auto toggler){
+            if (m_reportsBtn) {
+                if (m_reportsBtn->isToggled()) {
+                    m_reportsBtn->toggle(false);
+                }
+            }
+        }).toggle(uploading).store(m_pendingBtn).parentAtPos(m_buttonMenu, Anchor::BottomLeft, {30, 23});
+        if (role >= 3) {
+            Build<CCLabelBMFont>::create("Reports", "bigFont.fnt").anchorPoint(0, 0.5).scale(0.45f).parentAtPos(m_buttonMenu, Anchor::BottomRight, {-85, 23});
+            Build<CCMenuItemToggler>::createToggle(Build<CCSprite>::createSpriteName("GJ_checkOff_001.png").scale(0.65f).collect(), Build<CCSprite>::createSpriteName("GJ_checkOn_001.png").scale(0.65f).collect(), [this](auto toggler){
+                if (m_pendingBtn) {
+                    if (m_pendingBtn->isToggled()) {
+                        m_pendingBtn->toggle(false);
+                    }
+                }
+            }).store(m_reportsBtn).parentAtPos(m_buttonMenu, Anchor::BottomRight, {-100, 23});
+        }
+    }
     this->updateTags();
     return true;
 }
@@ -130,7 +152,15 @@ void FiltersPopup::onResetBtn(CCObject*) {
 }
 
 void FiltersPopup::onClose(CCObject* sender) {
-    m_callback(m_selectedTags);
+    if (m_pendingBtn) {
+        if (m_reportsBtn) {
+            m_callback(m_selectedTags, m_pendingBtn->isToggled(), m_reportsBtn->isToggled());
+        } else {
+            m_callback(m_selectedTags, m_pendingBtn->isToggled(), false);
+        }
+    } else {
+        m_callback(m_selectedTags, false, false);
+    }
     Popup::onClose(sender);
 }
 

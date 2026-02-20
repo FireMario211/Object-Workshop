@@ -5,7 +5,7 @@
 //#define DASHEND_URL "http://localhost:3001/api/v1"
 #define USER_AGENT "ObjectWorkshop/1.4.2"
 
-#define DASHAUTH 1
+//#define DASHAUTH 1
 #define ARGON 1 
 
 #define RESULT_LIMIT 9

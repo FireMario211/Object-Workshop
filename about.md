@@ -4,11 +4,12 @@
 This mod was made with most of the hard work done by me! <cp>Firee</c>!
 Thank you to <cj>Midair</c> for the mod idea, <cy>Alphalaneous</c> for the extra mod ui design / feedback, and <cy>[xvia](https://x.com/xviaexclusive)</c> for creating the ui concept!
 
-<cy>Additionally, thank you to these people for helping test the mod!</c>
+<cy>Additionally, thank you to these people for helping test or contribute towards the mod!</c>
 - TechStudent11
 - Erymanthus
 - uproxide
 - km7dev
+- sofabeddd
 
 # How to use
 - Simply open <cb>the editor</c> and navigate to the next page! There you should see a <cy>folder with a C+</c>.

@@ -47,11 +47,12 @@ void ObjectPopup::onInfoBtn(CCObject*) {
 }
 
 void ObjectPopup::onClose(CCObject* sender) {
-    m_listener.getFilter().cancel();
+    m_listener.cancel();
     Popup::onClose(sender);
 }
 
-bool ObjectPopup::setup(ObjectData objectData, UserData user) {
+bool ObjectPopup::init(ObjectData objectData, UserData user) {
+    if (!Popup::init(300.f, 275.f)) return false;
     m_object = objectData;
     m_user = user;
     m_token = Mod::get()->getSettingValue<std::string>("token");
@@ -330,40 +331,7 @@ void ObjectPopup::onTrashBtn(CCObject*) {
         "Yes",
         [this](auto, bool btn2) {
             if (btn2) {
-                m_listener.getFilter().cancel();
-                m_listener.bind([this] (web::WebTask::Event* e) {
-                    if (web::WebResponse* value = e->getValue()) {
-                        auto jsonRes = value->json().unwrapOrDefault();
-                        if (Utils::notifError(jsonRes)) return;
-                        auto message = jsonRes.get("message");
-                        if (message.isOk()) {
-                            Notification::create(message.unwrap().asString().unwrapOrDefault(), NotificationIcon::Success)->show();
-                        } else {
-                            log::error("Unknown response, expected message. {}", message.err());
-                            Notification::create("Got an unknown response, check logs for details.", NotificationIcon::Warning)->show();
-                        }
-                        if (m_workshop != nullptr) {
-                            this->onClose(nullptr);
-                            m_workshop->RegenCategory();
-                        }
-                        return;
-                    } else if (web::WebProgress* progress = e->getProgress()) {
-                        // The request is still in progress...
-                    } else if (e->isCancelled()) {
-                        log::error("Request was cancelled.");
-                    }
-                });
-                web::WebRequest req = web::WebRequest();
-                req.userAgent(USER_AGENT);
-                auto certValid = Mod::get()->getSettingValue<bool>("cert-valid");
-                if (!certValid) {
-                    req.certVerification(certValid);
-                }
-                auto myjson = matjson::Value();
-                myjson.set("token", m_token);
-                req.header("Content-Type", "application/json");
-                req.bodyJSON(myjson);
-                m_listener.setFilter(req.post(fmt::format("{}/objects/{}/delete", HOST_URL, m_object.id)));
+                sendRequest(fmt::format("{}/objects/{}/delete", HOST_URL, m_object.id));
             }
         },
         true,
@@ -378,40 +346,7 @@ void ObjectPopup::onEditBtn(CCObject*) {
 }
 void ObjectPopup::onReviewBtn(CCObject*) {
     auto popup = VotePopup::create("Review", [this](bool review) {
-        m_listener.getFilter().cancel();
-        m_listener.bind([this] (web::WebTask::Event* e) {
-            if (web::WebResponse* value = e->getValue()) {
-                auto jsonRes = value->json().unwrapOrDefault();
-                if (Utils::notifError(jsonRes)) return;
-                auto message = jsonRes.get("message");
-                if (message.isOk()) {
-                    Notification::create(message.unwrap().asString().unwrapOrDefault(), NotificationIcon::Success)->show();
-                } else {
-                    log::error("Unknown response, expected message. {}", message.err());
-                    Notification::create("Got an unknown response, check logs for details.", NotificationIcon::Warning)->show();
-                }
-                if (m_workshop != nullptr) {
-                    this->onClose(nullptr);
-                    m_workshop->RegenCategory();
-                }
-                return;
-            } else if (web::WebProgress* progress = e->getProgress()) {
-                // The request is still in progress...
-            } else if (e->isCancelled()) {
-                log::error("Request was cancelled.");
-            }
-        });
-        web::WebRequest req = web::WebRequest();
-        req.userAgent(USER_AGENT);
-        auto certValid = Mod::get()->getSettingValue<bool>("cert-valid");
-        if (!certValid) {
-            req.certVerification(certValid);
-        }
-        auto myjson = matjson::Value();
-        myjson.set("token", m_token);
-        req.header("Content-Type", "application/json");
-        req.bodyJSON(myjson);
-        m_listener.setFilter(req.post(fmt::format("{}/objects/{}/{}", HOST_URL, m_object.id, (review) ? "accept" : "reject")));
+        sendRequest(fmt::format("{}/objects/{}/{}", HOST_URL, m_object.id, (review) ? "accept" : "reject"));
     });
     popup->setWarning("Are you sure you want to <cy>accept this object</c>?", "Are you sure you want to <cy>reject this object</c>?");
     popup->show();
@@ -428,36 +363,7 @@ void ObjectPopup::onFeatureBtn(CCObject*) {
     "Yes",
     [this](auto, bool btn2) {
         if (btn2) {
-            m_listener.getFilter().cancel();
-            m_listener.bind([this] (web::WebTask::Event* e) {
-                if (web::WebResponse* value = e->getValue()) {
-                    auto jsonRes = value->json().unwrapOrDefault();
-                    if (Utils::notifError(jsonRes)) return;
-                    auto message = jsonRes.get("message");
-                    if (message.isOk()) {
-                        Notification::create(message.unwrap().asString().unwrapOrDefault(), NotificationIcon::Success)->show();
-                    } else {
-                        log::error("Unknown response, expected message. {}", message.err());
-                        Notification::create("Got an unknown response, check logs for details.", NotificationIcon::Warning)->show();
-                    }
-                    return;
-                } else if (web::WebProgress* progress = e->getProgress()) {
-                    // The request is still in progress...
-                } else if (e->isCancelled()) {
-                    log::error("Request was cancelled.");
-                }
-            });
-            web::WebRequest req = web::WebRequest();
-            req.userAgent(USER_AGENT);
-            auto certValid = Mod::get()->getSettingValue<bool>("cert-valid");
-            if (!certValid) {
-                req.certVerification(certValid);
-            }
-            auto myjson = matjson::Value();
-            myjson.set("token", m_token);
-            req.header("Content-Type", "application/json");
-            req.bodyJSON(myjson);
-            m_listener.setFilter(req.post(fmt::format("{}/objects/{}/feature", HOST_URL, m_object.id)));
+            sendRequest(fmt::format("{}/objects/{}/feature", HOST_URL, m_object.id));
         }
     });
 }
@@ -468,7 +374,7 @@ void ObjectPopup::onReportBtn(CCObject*) {
 
 void ObjectPopup::onRateBtn(CCObject* sender) {
     if (!m_user.authenticated) return FLAlertLayer::create("Error", "You cannot rate objects as you are <cy>not authenticated!</c>", "OK")->show();
-    m_listener.getFilter().cancel();
+    m_listener.cancel();
     auto menuItem = static_cast<CCMenuItemSpriteExtra*>(sender);
     auto menu = static_cast<CCMenu*>(menuItem->getParent());
     for (int i = 0; i < 5; i++) {
@@ -486,18 +392,6 @@ void ObjectPopup::onRateBtn(CCObject* sender) {
             }
         }
     }
-    m_listener.bind([this] (web::WebTask::Event* e) {
-        if (web::WebResponse* value = e->getValue()) {
-            auto jsonRes = value->json().unwrapOrDefault();
-            if (Utils::notifError(jsonRes)) return;
-            Notification::create("Rated!", NotificationIcon::Success)->show();
-            return;
-        } else if (web::WebProgress* progress = e->getProgress()) {
-            // The request is still in progress...
-        } else if (e->isCancelled()) {
-            log::error("Request was cancelled.");
-        }
-    });
     web::WebRequest req = web::WebRequest();
     req.userAgent(USER_AGENT);
     auto certValid = Mod::get()->getSettingValue<bool>("cert-valid");
@@ -509,7 +403,14 @@ void ObjectPopup::onRateBtn(CCObject* sender) {
     myjson.set("stars", std::stoi(menuItem->getID()));
     req.header("Content-Type", "application/json");
     req.bodyJSON(myjson);
-    m_listener.setFilter(req.post(fmt::format("{}/objects/{}/rate", HOST_URL, m_object.id)));
+    m_listener.spawn(
+        req.post(fmt::format("{}/objects/{}/rate", HOST_URL, m_object.id)),
+        [this](web::WebResponse value) {
+            auto jsonRes = value.json().unwrapOrDefault();
+            if (Utils::notifError(jsonRes)) return;
+            Notification::create("Rated!", NotificationIcon::Success)->show();
+        }
+    );
 }
 
 void ObjectPopup::actuallyDownload() {
@@ -545,20 +446,7 @@ void ObjectPopup::onDownloadBtn(CCObject*) {
         );
     } else {
         if (m_object.status == ObjectStatus::PENDING) return actuallyDownload();
-        m_listener.getFilter().cancel();
-        m_listener.bind([this] (web::WebTask::Event* e) {
-            if (web::WebResponse* value = e->getValue()) {
-                if (value->json().isErr()) return log::error("Response is not JSON.");
-                auto jsonRes = value->json().unwrapOrDefault();
-                if (Utils::notifError(jsonRes)) return;
-                if (downloadsLabel != nullptr) downloadsLabel->setString(std::to_string(m_object.downloads).c_str());
-                return;
-            } else if (web::WebProgress* progress = e->getProgress()) {
-                // The request is still in progress...
-            } else if (e->isCancelled()) {
-                log::error("Request was cancelled.");
-            }
-        });
+        m_listener.cancel();
         m_object.downloads++;
         if (m_workshop != nullptr) {
             m_workshop->m_user.downloaded.push_back(m_object.id);
@@ -574,16 +462,35 @@ void ObjectPopup::onDownloadBtn(CCObject*) {
         myjson.set("token", m_token);
         req.header("Content-Type", "application/json");
         req.bodyJSON(myjson);
-        m_listener.setFilter(req.post(fmt::format("{}/objects/{}/download", HOST_URL, m_object.id)));
+        m_listener.spawn(
+            req.post(fmt::format("{}/objects/{}/download", HOST_URL, m_object.id)),
+            [this](web::WebResponse value) {
+                if (value.json().isErr()) return log::error("Response is not JSON.");
+                auto jsonRes = value.json().unwrapOrDefault();
+                if (Utils::notifError(jsonRes)) return;
+                if (downloadsLabel != nullptr) downloadsLabel->setString(std::to_string(m_object.downloads).c_str());
+            }
+        );
     }
 }
 
 void ObjectPopup::onFavBtn(CCObject*) {
     if (!m_user.authenticated) return FLAlertLayer::create("Error", "You cannot favorite levels as you are <cy>not authenticated!</c>", "OK")->show();
-    m_listener.getFilter().cancel();
-    m_listener.bind([this] (web::WebTask::Event* e) {
-        if (web::WebResponse* value = e->getValue()) {
-            auto jsonRes = value->json().unwrapOrDefault();
+    m_listener.cancel();
+    web::WebRequest req = web::WebRequest();
+    req.userAgent(USER_AGENT);
+    auto certValid = Mod::get()->getSettingValue<bool>("cert-valid");
+    if (!certValid) {
+        req.certVerification(certValid);
+    }
+    auto myjson = matjson::Value();
+    myjson.set("token", m_token);
+    req.header("Content-Type", "application/json");
+    req.bodyJSON(myjson);
+    m_listener.spawn(
+        req.post(fmt::format("{}/objects/{}/favorite", HOST_URL, m_object.id)),
+        [this](web::WebResponse value) {
+            auto jsonRes = value.json().unwrapOrDefault();
             if (Utils::notifError(jsonRes)) return;
             auto message = jsonRes.get("message");
             if (message.isOk()) {
@@ -606,24 +513,8 @@ void ObjectPopup::onFavBtn(CCObject*) {
                 }
             }
             if (favoritesLabel != nullptr) favoritesLabel->setString(std::to_string(m_object.favorites).c_str());
-            return;
-        } else if (web::WebProgress* progress = e->getProgress()) {
-            // The request is still in progress...
-        } else if (e->isCancelled()) {
-            log::error("Request was cancelled.");
         }
-    });
-    web::WebRequest req = web::WebRequest();
-    req.userAgent(USER_AGENT);
-    auto certValid = Mod::get()->getSettingValue<bool>("cert-valid");
-    if (!certValid) {
-        req.certVerification(certValid);
-    }
-    auto myjson = matjson::Value();
-    myjson.set("token", m_token);
-    req.header("Content-Type", "application/json");
-    req.bodyJSON(myjson);
-    m_listener.setFilter(req.post(fmt::format("{}/objects/{}/favorite", HOST_URL, m_object.id)));
+    );
 }
 
 void ObjectPopup::onCommentsBtn(CCObject*) {
@@ -635,4 +526,38 @@ void ObjectPopup::onAuthorBtn(CCObject*) {
         m_workshop->onClickUser(m_object.authorAccId);
         this->onClose(nullptr);
     }
+}
+
+void ObjectPopup::sendRequest(std::string url, bool exit) {
+    m_listener.cancel();
+    web::WebRequest req = web::WebRequest();
+    req.userAgent(USER_AGENT);
+    auto certValid = Mod::get()->getSettingValue<bool>("cert-valid");
+    if (!certValid) {
+        req.certVerification(certValid);
+    }
+    auto myjson = matjson::Value();
+    myjson.set("token", m_token);
+    req.header("Content-Type", "application/json");
+    req.bodyJSON(myjson);
+    m_listener.spawn(
+        req.post(url),
+        [this, exit](web::WebResponse value) {
+            auto jsonRes = value.json().unwrapOrDefault();
+            if (Utils::notifError(jsonRes)) return;
+            auto message = jsonRes.get("message");
+            if (message.isOk()) {
+                Notification::create(message.unwrap().asString().unwrapOrDefault(), NotificationIcon::Success)->show();
+            } else {
+                log::error("Unknown response, expected message. {}", message.err());
+                Notification::create("Got an unknown response, check logs for details.", NotificationIcon::Warning)->show();
+            }
+            if (exit) {
+                if (m_workshop != nullptr) {
+                    this->onClose(nullptr);
+                    m_workshop->RegenCategory();
+                }
+            }
+        }
+    );
 }

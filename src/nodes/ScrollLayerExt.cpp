@@ -12,6 +12,44 @@ void ScrollLayerExt::scrollWheel(float pointX, float pointY) {
 bool ScrollLayerExt::ccTouchBegan(cocos2d::CCTouch *touch, cocos2d::CCEvent *event) {
     if (nodeIsVisible(this)) {
         bool value = CCScrollLayerExt::ccTouchBegan(touch, event);
+        if (m_contentLayer->getChildrenCount() == 1) {
+            auto mainMenu = static_cast<CCMenu*>(m_contentLayer->getChildren()->objectAtIndex(0));
+            if (mainMenu->getChildrenCount() >= 2) {
+                if (auto menu = mainMenu->getChildByType<CCMenu>(0)) {
+                    for (int i = 0; i < menu->getChildrenCount(); i++) {
+                        if (menu->getChildByType<CCMenuItemSpriteExtra>(0)) {
+                            if (auto node = static_cast<CCMenuItemSpriteExtra*>(menu->getChildren()->objectAtIndex(i))) {
+                                node->setEnabled(value);
+                            }
+                        } else {
+                            break;
+                        }
+                    }
+                }
+                if (auto menu = mainMenu->getChildByType<CCMenu>(1)) {
+                    for (int i = 0; i < menu->getChildrenCount(); i++) {
+                        if (menu->getChildByType<CCMenuItemSpriteExtra>(0)) {
+                            if (auto node = static_cast<CCMenuItemSpriteExtra*>(menu->getChildren()->objectAtIndex(i))) {
+                                node->setEnabled(value);
+                            }
+                        } else {
+                            break;
+                        }
+                    }
+                }
+                if (auto menu = mainMenu->getChildByType<CCMenu>(2)) {
+                    for (int i = 0; i < menu->getChildrenCount(); i++) {
+                        if (menu->getChildByType<CCMenuItemSpriteExtra>(0)) {
+                            if (auto node = static_cast<CCMenuItemSpriteExtra*>(menu->getChildren()->objectAtIndex(i))) {
+                                node->setEnabled(value);
+                            }
+                        } else {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
         if (value) {
             m_touchStart = touch;
             auto touchPos = cocos2d::CCDirector::sharedDirector()->convertToGL(m_touchStart->getLocationInView());
@@ -124,9 +162,14 @@ ScrollLayerExt::ScrollLayerExt(CCRect const& rect, bool scrollWheelEnabled, bool
 }
 
 void ScrollLayerExt::visit() {
+    int previousRect[4];
+    bool previousScissor = glIsEnabled(GL_SCISSOR_TEST);
     if (m_cutContent && this->isVisible()) {
-        glEnable(GL_SCISSOR_TEST);
-            
+        if (previousScissor) {
+            glGetIntegerv(GL_SCISSOR_BOX, previousRect);
+        } else {
+            glEnable(GL_SCISSOR_TEST);
+        }
         if (this->getParent()) {
             // CCPoint const offset = this->isIgnoreAnchorPointForPosition() 
             //     ? ccp(0, 0) : CCPoint(this->getContentSize() * -this->getAnchorPoint());
@@ -138,11 +181,13 @@ void ScrollLayerExt::visit() {
             CCEGLView::get()->setScissorInPoints(bottomLeft.x, bottomLeft.y, size.width, size.height);
         }
     }
-
     CCNode::visit();
-
     if (m_cutContent && this->isVisible()) {
-        glDisable(GL_SCISSOR_TEST);
+        if (previousScissor) {
+            glScissor(previousRect[0], previousRect[1], previousRect[2], previousRect[3]);
+        } else {
+            glDisable(GL_SCISSOR_TEST);
+        }
     }
 }
 

@@ -2,14 +2,12 @@
 #include "RolePopup.hpp"
 #include "CasePopup.hpp"
 #include "../../utils.hpp"
-#include "../../config.hpp"
 
-bool AdminPopup::setup(UserData user, UserData managingUser) {
+bool AdminPopup::init(UserData user, UserData managingUser) {
+    if (!Popup::init(300.f, 150.f)) return false;
     m_user = user;
     m_managingUser = managingUser;
-    auto nameLabel = CCLabelBMFont::create(managingUser.name.c_str(), "bigFont.fnt");
-    nameLabel->limitLabelWidth(160.F, 0.8F, 0.1F);
-    m_mainLayer->addChildAtPosition(nameLabel, Anchor::Top, {0, -20});
+    Build<CCLabelBMFont>::create(managingUser.name.c_str(), "bigFont.fnt").limitLabelWidth(160.F, 0.8F, 0.1F).parentAtPos(m_mainLayer, Anchor::Top, {0, -20});
     m_buttonMenu->addChildAtPosition(
         CCMenuItemExt::createSpriteExtra(Utils::roleIDToSprite(m_managingUser.role, 0.6F), [this](CCObject* sender) {
             if (m_managingUser.role < 0) return FLAlertLayer::create("Error", "You cannot <cy>set a role</c> for this user as they are currently <cr>banned</c>!", "OK")->show();

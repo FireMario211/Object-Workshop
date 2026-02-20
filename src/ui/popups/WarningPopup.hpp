@@ -66,18 +66,18 @@ struct matjson::Serialize<CaseData> {
     }
 };
 
-class WarningPopup : public geode::Popup<CaseData, std::function<void()>> {
+class WarningPopup : public geode::Popup {
 protected:
-    EventListener<web::WebTask> m_listener;
+    async::TaskHolder<geode::utils::web::WebResponse> m_listener;
     CaseData m_case;
-    bool setup(CaseData, std::function<void()>) override;
-    void keyDown(cocos2d::enumKeyCodes) override {};
+    bool init(CaseData, std::function<void()>);
+    void keyDown(cocos2d::enumKeyCodes, double timestamp) override {};
     virtual void keyBackClicked() override {};
     void onAcknowledge(CCObject*);
 public:
     static WarningPopup* create(CaseData caseData, std::function<void()> callback) {
         auto ret = new WarningPopup();
-        if (ret->initAnchored(260.f, 220.f, caseData, callback)) {
+        if (ret && ret->init(caseData, callback)) {
             ret->autorelease();
             return ret;
         }

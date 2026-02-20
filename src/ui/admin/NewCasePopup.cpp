@@ -23,32 +23,9 @@ std::string getCurrentDateFormatted() {
     return oss.str();
 }
 
-bool NewCasePopup::setup(UserData user, std::function<void()> callback) {
+bool NewCasePopup::init(UserData user, std::function<void()> callback) {
+    if (!Popup::init(260.f, 180.f)) return false;
     this->setTitle("New Case");
-
-    m_listener.bind([this, callback] (web::WebTask::Event* e) {
-        if (web::WebResponse* value = e->getValue()) {
-            auto jsonRes = value->json().unwrapOrDefault();
-            if (Utils::notifError(jsonRes)) return this->onClose(nullptr);
-            auto message = jsonRes.get("message");
-            if (message.isOk()) {
-                Notification::create(message.unwrap().asString().unwrapOrDefault(), NotificationIcon::Success)->show();
-                callback();
-                this->onClose(nullptr);
-            } else {
-                log::error("Unknown response, expected message. {}", message.err());
-                Notification::create("Got an unknown response, check logs for details.", NotificationIcon::Warning)->show();
-                this->onClose(nullptr);
-            }
-            return;
-        } else if (web::WebProgress* progress = e->getProgress()) {
-            // The request is still in progress...
-        } else if (e->isCancelled()) {
-            log::error("Request was cancelled.");
-            this->onClose(nullptr);
-        }
-    });
-
     auto expirationInput = TextInput::create(100.F, "Expiration Date...", "chatFont.fnt");
     expirationInput->setString(getCurrentDateFormatted());
     expirationInput->setMaxCharCount(11);
@@ -81,8 +58,8 @@ m_mainLayer->addChildAtPosition(expirationInput, Anchor::Center, {0, 10});
     reasonInput->setCommonFilter(CommonFilter::Any);
     m_mainLayer->addChildAtPosition(reasonInput, Anchor::Center, {0, -23});
     m_buttonMenu->addChildAtPosition(
-        CCMenuItemExt::createSpriteExtra(ButtonSprite::create("Submit", "bigFont.fnt", "GJ_button_01.png", 0.5F), [this, user, reasonInput, expirationInput](CCObject*) {
-            m_listener.getFilter().cancel();
+        CCMenuItemExt::createSpriteExtra(ButtonSprite::create("Submit", "bigFont.fnt", "GJ_button_01.png", 0.5F), [this, user, reasonInput, expirationInput, callback](CCObject*) {
+            m_listener.cancel();
             if (reasonInput->getString().empty()) return FLAlertLayer::create("Error", "You must <cg>enter a reason</c>!", "OK")->show();
             web::WebRequest req = web::WebRequest();
             req.userAgent(USER_AGENT);
@@ -95,7 +72,23 @@ m_mainLayer->addChildAtPosition(expirationInput, Anchor::Center, {0, 10});
             myjson.set("expiration", expirationInput->getString());
             req.header("Content-Type", "application/json");
             req.bodyJSON(myjson);
-            m_listener.setFilter(req.post(fmt::format("{}/case/create", HOST_URL)));
+            m_listener.spawn(
+                req.post(fmt::format("{}/case/create", HOST_URL)),
+                [this, callback](web::WebResponse value) {
+                    auto jsonRes = value.json().unwrapOrDefault();
+                    if (Utils::notifError(jsonRes)) return this->onClose(nullptr);
+                    auto message = jsonRes.get("message");
+                    if (message.isOk()) {
+                        Notification::create(message.unwrap().asString().unwrapOrDefault(), NotificationIcon::Success)->show();
+                        callback();
+                        this->onClose(nullptr);
+                    } else {
+                        log::error("Unknown response, expected message. {}", message.err());
+                        Notification::create("Got an unknown response, check logs for details.", NotificationIcon::Warning)->show();
+                        this->onClose(nullptr);
+                    }
+                }
+            );
             m_mainLayer->setVisible(false);
         }),
         Anchor::Bottom,
@@ -105,6 +98,6 @@ m_mainLayer->addChildAtPosition(expirationInput, Anchor::Center, {0, 10});
 }
 
 void NewCasePopup::onClose(CCObject* sender) {
-    m_listener.getFilter().cancel();
+    m_listener.cancel();
     Popup::onClose(sender);
 }

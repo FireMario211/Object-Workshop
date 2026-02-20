@@ -6,9 +6,9 @@
 
 using namespace geode::prelude;
 
-class NewCasePopup : public geode::Popup<UserData, std::function<void()>> {
+class NewCasePopup : public geode::Popup {
 protected:
-    EventListener<web::WebTask> m_listener;
+    async::TaskHolder<geode::utils::web::WebResponse> m_listener;
     std::vector<std::string> caseTypes = {"Warning", "Upload Ban (T)", "Comment Ban (T)", "Account Ban (T)", "Upload Ban (P)", "Comment Ban (P)", "Account Ban (P)"};
     int caseCurrentIndex = 0;
     
@@ -22,13 +22,13 @@ protected:
         }
     }
 
-    bool setup(UserData, std::function<void()>) override;
+    bool init(UserData, std::function<void()>);
 
     virtual void onClose(CCObject* sender) override;
 public:
     static NewCasePopup* create(UserData user, std::function<void()> callback) {
         auto ret = new NewCasePopup();
-        if (ret->initAnchored(260.f, 180.f, user, callback)) {
+        if (ret->init(user, callback)) {
             ret->autorelease();
             return ret;
         }

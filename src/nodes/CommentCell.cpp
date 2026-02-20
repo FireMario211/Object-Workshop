@@ -147,23 +147,23 @@ bool OWCommentCell::init(CommentData data, ObjectData obj, UserData user, std::f
     return true;
 }
 
+void OWCommentCell::sendRequest(web::WebRequest req, std::string url) {
+    m_listener.cancel();
+    m_listener.spawn(
+        req.post(url),
+        [this](web::WebResponse value) {
+            auto jsonRes = value.json().unwrapOrDefault();
+            if (!jsonRes.isObject()) return log::error("Response isn't object.");
+            Utils::notifMessage(jsonRes, m_forceRefresh);
+        }
+    );
+}
+
 void OWCommentCell::onVote(CCObject*) {
     if (!m_user.authenticated) return FLAlertLayer::create("Error", "You cannot vote on comments as you are <cy>not authenticated!</c>", "OK")->show();
     VotePopup::create("Vote", [this](bool like) {
         auto token = Mod::get()->getSettingValue<std::string>("token");
-        m_listener.getFilter().cancel();
-        m_listener.bind([this, token] (web::WebTask::Event* e) {
-            if (web::WebResponse* value = e->getValue()) {
-                auto jsonRes = value->json().unwrapOrDefault();
-                if (!jsonRes.isObject()) return log::error("Response isn't object.");
-                Utils::notifMessage(jsonRes, m_forceRefresh);
-                return;
-            } else if (web::WebProgress* progress = e->getProgress()) {
-                // The request is still in progress...
-            } else if (e->isCancelled()) {
-                log::error("Request was cancelled.");
-            }
-        });
+        m_listener.cancel();
         web::WebRequest req = web::WebRequest();
         auto myjson = matjson::Value();
         myjson.set("token", token);
@@ -175,7 +175,7 @@ void OWCommentCell::onVote(CCObject*) {
             req.certVerification(certValid);
         }
         req.bodyJSON(myjson);
-        m_listener.setFilter(req.post(fmt::format("{}/objects/{}/comments/{}/vote", HOST_URL, m_data.objectID, m_data.id)));
+        sendRequest(req, fmt::format("{}/objects/{}/comments/{}/vote", HOST_URL, m_data.objectID, m_data.id));
     })->show();
 }
 void OWCommentCell::onPin(CCObject*) {
@@ -187,19 +187,7 @@ void OWCommentCell::onPin(CCObject*) {
         [this](auto, bool btn2) {
             auto token = Mod::get()->getSettingValue<std::string>("token");
             if (btn2) {
-                m_listener.getFilter().cancel();
-                m_listener.bind([this] (web::WebTask::Event* e) {
-                    if (web::WebResponse* value = e->getValue()) {
-                        auto jsonRes = value->json().unwrapOrDefault();
-                        if (!jsonRes.isObject()) return log::error("Response isn't object.");
-                        Utils::notifMessage(jsonRes, m_forceRefresh);
-                        return;
-                    } else if (web::WebProgress* progress = e->getProgress()) {
-                        // The request is still in progress...
-                    } else if (e->isCancelled()) {
-                        log::error("Request was cancelled.");
-                    }
-                });
+                m_listener.cancel();
                 web::WebRequest req = web::WebRequest();
                 auto myjson = matjson::Value();
                 myjson.set("token", token);
@@ -210,7 +198,7 @@ void OWCommentCell::onPin(CCObject*) {
                 if (!certValid) {
                     req.certVerification(certValid);
                 }
-                m_listener.setFilter(req.post(fmt::format("{}/objects/{}/comments/{}/pin", HOST_URL, m_data.objectID, m_data.id)));
+                sendRequest(req, fmt::format("{}/objects/{}/comments/{}/pin", HOST_URL, m_data.objectID, m_data.id));
             }
         },
         true,
@@ -226,19 +214,6 @@ void OWCommentCell::onDelete(CCObject*) {
         [this](auto, bool btn2) {
             auto token = Mod::get()->getSettingValue<std::string>("token");
             if (btn2) {
-                m_listener.getFilter().cancel();
-                m_listener.bind([this] (web::WebTask::Event* e) {
-                    if (web::WebResponse* value = e->getValue()) {
-                        auto jsonRes = value->json().unwrapOrDefault();
-                        if (!jsonRes.isObject()) return log::error("Response isn't object.");
-                        Utils::notifMessage(jsonRes, m_forceRefresh);
-                        return;
-                    } else if (web::WebProgress* progress = e->getProgress()) {
-                        // The request is still in progress...
-                    } else if (e->isCancelled()) {
-                        log::error("Request was cancelled.");
-                    }
-                });
                 web::WebRequest req = web::WebRequest();
                 auto myjson = matjson::Value();
                 myjson.set("token", token);
@@ -249,7 +224,7 @@ void OWCommentCell::onDelete(CCObject*) {
                 if (!certValid) {
                     req.certVerification(certValid);
                 }
-                m_listener.setFilter(req.post(fmt::format("{}/objects/{}/comments/{}/delete", HOST_URL, m_data.objectID, m_data.id)));
+                sendRequest(req, fmt::format("{}/objects/{}/comments/{}/delete", HOST_URL, m_data.objectID, m_data.id));
             }
         },
         true,

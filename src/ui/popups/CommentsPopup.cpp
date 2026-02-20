@@ -4,7 +4,8 @@
 #include "../../nodes/CommentCell.hpp"
 #include "../../config.hpp"
 
-bool CommentsPopup::setup(ObjectData object, UserData user) {
+bool CommentsPopup::init(ObjectData object, UserData user) {
+    if (!Popup::init(300.f, 200.f)) return false;
     m_object = object;
     m_user = user;
     this->setTitle("Comments (N/A)");
@@ -102,16 +103,23 @@ void CommentsPopup::onLoadComments(CCObject*) {
     loadingCircle->setParentLayer(m_mainLayer);
     loadingCircle->show();
     loadingCircle->setID("loadingCircle");
-    m_listener.getFilter().cancel();
-    m_listener.bind([this, loadingCircle] (web::WebTask::Event* e) {
-        if (web::WebResponse* value = e->getValue()) {
+    m_listener.cancel();
+    web::WebRequest req = web::WebRequest();
+    req.userAgent(USER_AGENT);
+    auto certValid = Mod::get()->getSettingValue<bool>("cert-valid");
+    if (!certValid) {
+        req.certVerification(certValid);
+    }
+    m_listener.spawn(
+        req.get(fmt::format("{}/objects/{}/comments?limit=10&page={}&filter={}", HOST_URL, m_object.id, m_object.commentPage, m_currentFilter)),
+        [this, loadingCircle](web::WebResponse value) {
             loadingCircle->fadeAndRemove();
-            if (value->code() >= 500 && !value->ok()) {
+            if (value.code() >= 500 && !value.ok()) {
                 Notification::create("A server error occured. Check logs for info.", NotificationIcon::Error)->show();
-                log::error("{}", value->string().unwrapOrDefault());
+                log::error("{}", value.string().unwrapOrDefault());
                 return;
             }
-            auto jsonRes = value->json().unwrapOrDefault();
+            auto jsonRes = value.json().unwrapOrDefault();
             if (Utils::notifError(jsonRes)) {
                 leftArrowBtn->setEnabled(false);
                 rightArrowBtn->setEnabled(false);
@@ -180,19 +188,8 @@ void CommentsPopup::onLoadComments(CCObject*) {
             scrollLayer->moveToTop();
             scrollLayer->fixTouchPrio();
             pageLabel->setString(fmt::format("Page {} of {}", m_object.commentPage, m_object.maxCommentPage).c_str());
-        } else if (web::WebProgress* progress = e->getProgress()) {
-            // The request is still in progress...
-        } else if (e->isCancelled()) {
-            log::error("Request was cancelled.");
         }
-    });
-    web::WebRequest req = web::WebRequest();
-    req.userAgent(USER_AGENT);
-    auto certValid = Mod::get()->getSettingValue<bool>("cert-valid");
-    if (!certValid) {
-        req.certVerification(certValid);
-    }
-    m_listener.setFilter(req.get(fmt::format("{}/objects/{}/comments?limit=10&page={}&filter={}", HOST_URL, m_object.id, m_object.commentPage, m_currentFilter)));
+    );
 }
 
 void CommentsPopup::updateCategoryBG() {
@@ -213,6 +210,6 @@ void CommentsPopup::onCategoryButton(CCObject* sender) {
 }
 
 void CommentsPopup::onClose(CCObject* sender) {
-    m_listener.getFilter().cancel();
+    m_listener.cancel();
     Popup::onClose(sender);
 }

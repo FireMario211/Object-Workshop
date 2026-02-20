@@ -5,9 +5,9 @@
 #include "../ObjectWorkshop.hpp"
 using namespace geode::prelude;
 
-class CommentsPopup : public geode::Popup<ObjectData, UserData> {
+class CommentsPopup : public geode::Popup {
 protected:
-    EventListener<web::WebTask> m_listener;
+    async::TaskHolder<geode::utils::web::WebResponse> m_listener;
     ObjectData m_object;
     UserData m_user;
     CCMenu* filterMenu;
@@ -18,7 +18,7 @@ protected:
     CCMenuItemSpriteExtra* leftArrowBtn;
     CCMenuItemSpriteExtra* rightArrowBtn;
 
-    bool setup(ObjectData obj, UserData user) override;
+    bool init(ObjectData obj, UserData user);
     void updateCategoryBG();
     
     void onLoadComments(CCObject*);
@@ -28,7 +28,7 @@ public:
     virtual void onClose(CCObject* sender) override;
     static CommentsPopup* create(ObjectData obj, UserData user) {
         auto ret = new CommentsPopup();
-        if (ret->initAnchored(300.f, 200.f, obj, user)) {
+        if (ret->init(obj, user)) {
             ret->autorelease();
             return ret;
         }

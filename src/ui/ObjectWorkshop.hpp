@@ -25,7 +25,8 @@ struct CustomObjects : Modify<CustomObjects, EditorUI> {
         CCMenuItemSpriteExtra* customObjsLabel;
         CCLabelBMFont* myObjsLabel;
         std::string currentObjString;
-        EventListener<web::WebTask> m_listener;
+        async::TaskHolder<geode::utils::web::WebResponse> m_listener;
+        async::TaskHolder<Result<std::string>> m_argonListener;
         bool hasCheckedUploads;
 
         CCMenu* menu;
@@ -80,33 +81,29 @@ struct matjson::Serialize<UserData> {
 };
 
 // do i really need a bunch of event listeners
-class ObjectWorkshop : public geode::Popup<bool>, public TextInputDelegate {
+class ObjectWorkshop : public geode::Popup, public TextInputDelegate {
 protected:
-    std::unordered_set<std::string> m_availableTags;
-    EventListener<web::WebTask> m_listener2;
-    EventListener<web::WebTask> m_listener1;
-    EventListener<web::WebTask> m_listener0;
-    EventListener<web::WebTask> m_tagsListener;
-    EventListener<web::WebTask> m_caseListener;
+    async::TaskHolder<geode::utils::web::WebResponse> m_listener2;
+    async::TaskHolder<geode::utils::web::WebResponse> m_listener1;
+    async::TaskHolder<geode::utils::web::WebResponse> m_listener;
     bool m_authenticated = false;
     int m_amountItems = 0;
     std::string m_token;
+    CCMenu* m_categoryButtonsTop;
     CCMenu* m_categoryButtons;
 
     CCNode* myUploadsBar;
-    CCNode* categoryBar;
+    CCMenu* m_categoryBar;
     CCMenu* myUploadsMenu;
     CCMenu* categoryItems;
 
-    CCLabelBMFont* pageLabel;
-    CCLabelBMFont* bottomPageLabel;
+    CCLabelBMFont* m_pageLabel;
     int m_currentPage = 1;
     int m_maxPage = 1;
-    void onLeftPage(CCObject*);
-    void onRightPage(CCObject*);
+    bool m_leftSide = false;
     void textInputOpened(CCTextInputNode* input) override;
     void textInputClosed(CCTextInputNode* input) override;
-    void keyDown(cocos2d::enumKeyCodes) override;
+    void keyDown(cocos2d::enumKeyCodes, double timestamp) override;
     virtual void keyBackClicked() override;
 
     LoadingCircle* loadingCircle;
@@ -114,14 +111,10 @@ protected:
     TextInput* m_pageInput;
     bool isSearching = false;
 
-    bool setup(bool authenticated) override;
-    void onProfileSelf(CCObject*);
+    bool init(bool authenticated);
     void onSearchBtn(CCObject*);
-    void onFilterBtn(CCObject*);
-    void onReloadBtn(CCObject*);
     void onPendingBtn(CCObject*);
-    void createCategoryBtn(const char* string, int menuIndex);
-    void createCategoryBtn(const char* string, int menuIndex, bool disabled);
+    void createCategoryBtn(const char* string, bool isSpriteFrame, int menuIndex, bool top);
     void onSideButton(CCObject*);
     void showProfile(int userID, bool self);
     void load();
@@ -175,10 +168,13 @@ protected:
             400.0F
         )->show();
     };
+    void handleRequest1(web::WebResponse res);
+    void handleRequest2(web::WebResponse res);
+
     TextInput* m_objName;
     TextInput* m_objDesc;
     //TextInputNode* m_objDesc;
-    EventListener<web::WebTask> m_uploadListener;
+    async::TaskHolder<geode::utils::web::WebResponse> m_uploadListener;
 
     CCArray* m_oldCustomObjectButtonArray = nullptr;
 
@@ -197,10 +193,10 @@ public:
     UserData m_user;
     void RegenCategory();
     void onClickUser(int accountID);
-    std::unordered_set<std::string> getTags() { return m_availableTags; };
+    std::unordered_set<std::string> getTags();
     static ObjectWorkshop* create(bool authenticated) {
         auto ret = new ObjectWorkshop();
-        if (ret->initAnchored(425.f, 290.f, authenticated)) {
+        if (ret->init(authenticated)) {
             ret->autorelease();
             return ret;
         }
@@ -209,7 +205,7 @@ public:
     }
     static ObjectWorkshop* createToUser(bool authenticated, int accountID) {
         auto ret = new ObjectWorkshop();
-        if (ret->initAnchored(425.f, 290.f, authenticated)) {
+        if (ret->init(authenticated)) {
             ret->autorelease();
             ret->onClickUser(accountID);
             return ret;
