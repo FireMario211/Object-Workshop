@@ -73,11 +73,13 @@ class Utils {
     }
     static std::string menuIndexToString(int menuIndex) {
         switch (menuIndex) {
+            case 0:
+                return "My Objects";
             case -1:
             default:
                 return "Uploads";
-            case 0:
-                return "My Objects";
+            case 10:
+                return "Downloads";
             case 1:
                 return "Favorites";
             /*case 5:

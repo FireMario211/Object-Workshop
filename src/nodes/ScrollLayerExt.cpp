@@ -153,7 +153,7 @@ ScrollLayerExt::ScrollLayerExt(CCRect const& rect, bool scrollWheelEnabled, bool
     this->addChild(m_contentLayer);
 
     m_touchStartPosition2 = cocos2d::CCPointMake(0.f, 0.f);
-	m_touchPosition2 = cocos2d::CCPointMake(0.f, 0.f);
+    m_touchPosition2 = cocos2d::CCPointMake(0.f, 0.f);
 
     this->setID("ScrollLayerExt"_spr);
 

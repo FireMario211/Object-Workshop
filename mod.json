@@ -1,93 +1,78 @@
 {
-	"geode": "4.6.1",
+	"geode": "5.0.0",
 	"gd": {
-		"win": "2.2074",
-		"android": "2.2074",
-		"mac": "2.2074",
-		"ios": "2.2074"
+		"win": "2.2081",
+		"android": "2.2081",
+		"mac": "2.2081",
+		"ios": "2.2081"
 	},
 	"id": "firee.object-workshop",
 	"name": "Object Workshop",
 	"version": "v1.4.8",
 	"developer": "Firee",
 	"description": "Download, upload, or find custom objects made by other creators!",
-    "resources": {
-        "sprites": [
-            "resources/*.png"
-        ]
-    },
-    "links": {
-        "community": "https://discord.gg/XGBMVVvJ7J",
-        "source": "https://github.com/FireMario211/Object-Workshop"
-    },
-    "tags": ["online", "utility", "content", "editor", "interface"],
-    "settings": {
-        "token": {
-            "name": "Auth Token",
-            "description": "Authentication Token (DO NOT SHARE)",
-            "type": "string",
-            "default": ""
-        },
-        "auth-server": {
-            "name": "Auth Server",
-            "description": "Authentication Server (-1 = None, 0 = DashAuth, 1 = Argon, 2 = Custom Auth (Ignores the test auth))",
-            "type": "int",
-            "default": -1,
-            "min": -1,
-            "max": 2
-        },
-        "object-bypass": {
-            "name": "Custom Object Bypass",
-            "description": "Removes the limit for 1000 objects and removes the limit of 750 maximum custom objects.",
-            "default": true,
-            "type": "bool"
-        },
-        "render-objects": {
-            "name": "Render Objects",
-            "description": "The amount of objects that should be shown. Decrease for performance. (0 = Unlimited)",
-            "type": "int",
-            "default": 0,
-            "min": 0,
-            "max": 50000
-        },
-        "prerender-objects": {
-            "name": "Pre-Render Object Capacity",
-            "description": "The amount of objects needed before they are \"pre-rendered\" for faster performance. Will cause a stutter upon loading. This <cr>does not</c> count for viewing more information about the object. (0 = Always Enable)",
-            "type": "int",
-            "default": 5000,
-            "min": 0,
-            "max": 50000
-        },
-        "prerender-full": {
-            "name": "Pre-Render Full View",
-            "description": "Whether or not to also pre-render when viewing more information about the object. Do note this will disable particles. (When they get added)",
-            "type": "bool",
-            "default": false
-        },
-        "cert-valid": {
-            "name": "Cert Validation",
-            "description": "Whether or not to validate the certificate when making web requests to Object Workshop. (Only disable if you know what this is for!)",
-            "type": "bool",
-            "default": true
-        }
-    },
-    "dependentold": [
-        {
-            "id": "fig.authentication",
-            "version": ">=v1.0.2",
-            "importance": "recommended"
-        }
-    ],
-    "dependencies": [
-        {
-            "id": "alphalaneous.editortab_api",
-            "version": ">=v1.0.16",
-            "importance": "required"
-        },
-        {
-            "id": "geode.node-ids",
-            "version": ">=1.21.1",
-            "importance": "required"
-        }
-    ]
+	"resources": {
+		"sprites": [
+			"resources/*.png"
+		]
+	},
+	"links": {
+		"community": "https://discord.gg/XGBMVVvJ7J",
+		"source": "https://github.com/FireMario211/Object-Workshop"
+	},
+	"tags": ["online", "utility", "content", "editor", "interface"],
+	"settings": {
+		"token": {
+			"name": "Auth Token",
+			"description": "Authentication Token (DO NOT SHARE)",
+			"type": "string",
+			"default": ""
+		},
+		"auth-server": {
+			"name": "Auth Server",
+			"description": "Authentication Server (-1 = None, 0 = DashAuth, 1 = Argon, 2 = Custom Auth (Ignores the test auth))",
+			"type": "int",
+			"default": -1,
+			"min": -1,
+			"max": 2
+		},
+		"object-bypass": {
+			"name": "Custom Object Bypass",
+			"description": "Removes the limit for 1000 objects and removes the limit of 750 maximum custom objects.",
+			"default": true,
+			"type": "bool"
+		},
+		"render-objects": {
+			"name": "Render Objects",
+			"description": "The amount of objects that should be shown. Decrease for performance. (0 = Unlimited)",
+			"type": "int",
+			"default": 0,
+			"min": 0,
+			"max": 50000
+		},
+		"prerender-objects": {
+			"name": "Pre-Render Object Capacity",
+			"description": "The amount of objects needed before they are \"pre-rendered\" for faster performance. Will cause a stutter upon loading. This <cr>does not</c> count for viewing more information about the object. (0 = Always Enable)",
+			"type": "int",
+			"default": 5000,
+			"min": 0,
+			"max": 50000
+		},
+		"prerender-full": {
+			"name": "Pre-Render Full View",
+			"description": "Whether or not to also pre-render when viewing more information about the object. Do note this will disable particles. (When they get added)",
+			"type": "bool",
+			"default": false
+		},
+		"cert-valid": {
+			"name": "Cert Validation",
+			"description": "Whether or not to validate the certificate when making web requests to Object Workshop. (Only disable if you know what this is for!)",
+			"type": "bool",
+			"default": true
+		}
+	},
+	"dependencies": {
+		"alphalaneous.editortab_api": ">=2.0.1",
+		"geode.node-ids": ">=1.21.1"
+	}
 }

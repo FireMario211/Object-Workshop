@@ -97,6 +97,8 @@ protected:
     CCMenu* myUploadsMenu;
     CCMenu* categoryItems;
 
+    CCMenu* m_topMenu;
+
     CCLabelBMFont* m_pageLabel;
     int m_currentPage = 1;
     int m_maxPage = 1;

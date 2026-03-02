@@ -9,6 +9,7 @@ Thank you to <cj>Midair</c> for the mod idea, <cy>Alphalaneous</c> for the extra
 - Erymanthus
 - uproxide
 - km7dev
+- Alphalaneous
 - sofabeddd
 
 # How to use

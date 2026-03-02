@@ -6,6 +6,8 @@ using namespace geode::prelude;
 class CategoryButton : public CCNode {
     protected:
         virtual bool init(const char* sprName, bool isSpriteFrame, bool bgVisible);
+        CCSprite* m_bgSpr = nullptr;
+        CCScale9Sprite* m_bgSpr9 = nullptr;
         CCSprite* m_bgSprBehind;
     public:
         void setIndicatorState(bool enabled);

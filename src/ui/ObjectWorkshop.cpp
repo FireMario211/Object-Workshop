@@ -10,6 +10,8 @@
 int currentMenuIndexGD = 2;
 std::unordered_set<std::string> g_availableTags;
 
+static float s_scrollHeight = 227.f;
+
 bool ObjectWorkshop::init(bool authenticated) {
     if (!Popup::init(425.f, 290.f)) return false;
     m_leftSide = true;
@@ -52,7 +54,7 @@ bool ObjectWorkshop::init(bool authenticated) {
         }
     );
 
-    Build<CCNode>::create().anchorPoint(0.5, 0.5).contentSize(360, 243).store(objectInfoNode).parentAtPos(m_mainLayer, Anchor::Center, {53, -4});
+    Build<CCNode>::create().anchorPoint(0.5, 0.5).contentSize(360, s_scrollHeight).store(objectInfoNode).parentAtPos(m_mainLayer, Anchor::Center, {53, -4});
     auto backSpr = CCSprite::createWithSpriteFrameName("GJ_arrow_01_001.png");
     backSpr->setScale(0.5F);
     obj_backBtn = CCMenuItemSpriteExtra::create(
@@ -64,7 +66,7 @@ bool ObjectWorkshop::init(bool authenticated) {
     obj_backBtn->setVisible(false);
     m_closeBtn->setZOrder(1);
 
-    Build<CCLabelBMFont>::create("Object Workshop", "goldFont.fnt").scale(0.6F).zOrder(5).parentAtPos(m_mainLayer, Anchor::Top, {(m_leftSide) ? 16.f : -24.f, -14});
+    Build<CCLabelBMFont>::create("Object Workshop", "goldFont.fnt").scale(0.675F).zOrder(5).parentAtPos(m_mainLayer, Anchor::Top, {(m_leftSide) ? 10.f : -24.f, -14});
     Build<CCScale9Sprite>::create("square02_small.png").opacity(60).contentSize({27, 120}).anchorPoint(0.5, 1).parentAtPos(m_buttonMenu, (m_leftSide) ? Anchor::TopLeft : Anchor::TopRight, {(m_leftSide) ? 24.f : -27.f, -25});
 
     Build<CCSprite>::createSpriteName("GJ_profileButton_001.png").scale(0.7f).intoMenuItem([this]() {
@@ -80,7 +82,7 @@ bool ObjectWorkshop::init(bool authenticated) {
                 ->setCrossAxisOverflow(false)
                 ->setAxisAlignment(AxisAlignment::Even)
         ).store(m_categoryButtonsTop).parentAtPos(m_buttonMenu, (m_leftSide) ? Anchor::TopLeft : Anchor::TopRight, {(m_leftSide) ? 24.f : -27.f, -45});
-        createCategoryBtn("GJ_downloadBtn_001.png", true, 0, true); // [My Recently Downloaded Objects] [0]
+        createCategoryBtn("GJ_downloadBtn_001.png", true, 10, true); // [My Recently Downloaded Objects] [10]
         createCategoryBtn("gj_heartOn_001.png", true, 1, true); // [My Favorited Objects] [1]
         createCategoryBtn("rankIcon_1_001.png", true, 9, true); // [Leaderboard] (Creator Points, Downloads, etc) [??]
     }
@@ -98,31 +100,26 @@ bool ObjectWorkshop::init(bool authenticated) {
     createCategoryBtn("GJ_sTrendingIcon_001.png", true, 3, false); // 1 [Most Popular]
     createCategoryBtn("GJ_sRecentIcon_001.png", true, 6, false); // 4 [Most Recent]
 
-    float searchInputWidth = 340.f;
+    Build<CCMenu>::create().anchorPoint({0.5, 1}).contentSize({360, 25}).layout(
+        RowLayout::create()
+            ->setAutoScale(false)
+            ->setCrossAxisOverflow(false)
+            ->setAxisAlignment(AxisAlignment::Between)
+    ).store(m_topMenu).parentAtPos(m_buttonMenu, Anchor::Top, {13, -30});
+
+    float searchInputWidth = 360.f; // 340
     m_searchInput = TextInput::create(searchInputWidth, "Search...");
     m_searchInput->setMaxCharCount(64);
     m_searchInput->setCommonFilter(CommonFilter::Any);
     m_searchInput->setScale(0.775F);
     m_searchInput->setAnchorPoint({ 0, .5f });
+    m_searchInput->getBGSprite()->setContentHeight(45);
     m_searchInput->setTextAlign(TextInputAlign::Left);
-    m_searchInput->hideBG();
-    Build<CCSprite>::create("GJ_progressBar_001.png").zOrder(-1).color(0,0,0).opacity(90).scaleX(1.01f).textureRect({0.f, 0.f, searchInputWidth, 20.f }).parentAtPos(m_searchInput, Anchor::Center, {0, -0.5f});
-    m_buttonMenu->addChildAtPosition(m_searchInput, Anchor::BottomLeft, { (m_leftSide) ? 72.f : 65.f, 17 });
-
-    Build<CCSprite>::createSpriteName("gj_findBtn_001.png").scale(.7f).intoMenuItem([this]() {
-        if (m_searchInput != nullptr) {
-            if (m_searchInput->getString().empty()) return FLAlertLayer::create("Error", "You must enter in a <cy>search query</c>!", "OK")->show();
-            if (currentMenuIndexGD < 2) return FLAlertLayer::create("Error", "You cannot search in <cy>My Objects</c> or <cy>Favorites</c>! Please select another category.", "OK")->show();
-            m_currentPage = 1;
-            m_pageInput->setString("1");
-            isSearching = true;
-            RegenCategory();
-        }
-    }).parentAtPos(m_buttonMenu, (m_leftSide) ? Anchor::BottomRight : Anchor::BottomLeft, {(m_leftSide) ? -28.f : 46.f, 18});
+    m_topMenu->addChild(m_searchInput);
     if (auto item = typeinfo_cast<CCMenuItemSpriteExtra*>(m_categoryButtons->getChildByID(fmt::format("category-{}"_spr, currentMenuIndexGD)))) {
         static_cast<CategoryButton*>(item->getChildren()->objectAtIndex(0))->setIndicatorState(true);
     }
-    if (auto item = typeinfo_cast<CCMenuItemSpriteExtra*>(m_buttonMenu->getChildByID(fmt::format("category-{}"_spr, currentMenuIndexGD)))) {
+    if (auto item = typeinfo_cast<CCMenuItemSpriteExtra*>(m_categoryButtonsTop->getChildByID(fmt::format("category-{}"_spr, currentMenuIndexGD)))) {
         static_cast<CategoryButton*>(item->getChildren()->objectAtIndex(0))->setIndicatorState(true);
     }
     Build<ButtonSprite>::create(
@@ -134,7 +131,7 @@ bool ObjectWorkshop::init(bool authenticated) {
         false,
         "GJ_button_04.png",
         false
-    ).scale(.525f).intoMenuItem([this]() {
+    ).scale(.4f).intoMenuItem([this]() {
         FiltersPopup::create(g_availableTags, m_filterTags, m_user.role, currentMenuIndexGD == 7, [this](std::unordered_set<std::string> selectedTags, bool pending, bool reports) {
             bool regenCate = false;
             int newID = 0;
@@ -154,13 +151,13 @@ bool ObjectWorkshop::init(bool authenticated) {
                     isSearching = false;
                     onBackBtn(nullptr);
                     if (newID != currentMenuIndexGD) {
-                        if (auto oldItem = typeinfo_cast<CCMenuItemSpriteExtra*>(m_buttonMenu->getChildByID(fmt::format("category-{}"_spr, currentMenuIndexGD)))) {
+                        if (auto oldItem = typeinfo_cast<CCMenuItemSpriteExtra*>(m_categoryButtonsTop->getChildByID(fmt::format("category-{}"_spr, currentMenuIndexGD)))) {
                             static_cast<CategoryButton*>(oldItem->getChildren()->objectAtIndex(0))->setIndicatorState(false);
                         }
                         if (auto oldItem = typeinfo_cast<CCMenuItemSpriteExtra*>(m_categoryButtons->getChildByID(fmt::format("category-{}"_spr, currentMenuIndexGD)))) {
                             static_cast<CategoryButton*>(oldItem->getChildren()->objectAtIndex(0))->setIndicatorState(false);
                         }
-                        if (auto newItem = typeinfo_cast<CCMenuItemSpriteExtra*>(m_buttonMenu->getChildByID(fmt::format("category-{}"_spr, newID)))) {
+                        if (auto newItem = typeinfo_cast<CCMenuItemSpriteExtra*>(m_categoryButtonsTop->getChildByID(fmt::format("category-{}"_spr, newID)))) {
                             static_cast<CategoryButton*>(newItem->getChildren()->objectAtIndex(0))->setIndicatorState(true);
                         }
                         currentMenuIndexGD = newID;
@@ -171,19 +168,45 @@ bool ObjectWorkshop::init(bool authenticated) {
                 RegenCategory();
             }
         })->show();
-    }).parentAtPos(m_buttonMenu, Anchor::BottomLeft, {(m_leftSide) ? 55.f : 22.f, 18});
+    }).parent(m_topMenu);
+    Build<CCSprite>::createSpriteName("gj_findBtn_001.png").scale(.5f).intoMenuItem([this]() {
+        if (m_searchInput != nullptr) {
+            if (m_searchInput->getString().empty()) return FLAlertLayer::create("Error", "You must enter in a <cy>search query</c>!", "OK")->show();
+            if (currentMenuIndexGD < 2) return FLAlertLayer::create("Error", "You cannot search in <cy>My Objects</c> or <cy>Favorites</c>! Please select another category.", "OK")->show();
+            m_currentPage = 1;
+            m_pageInput->setString("1");
+            isSearching = true;
+            RegenCategory();
+        }
+    }).parent(m_topMenu);
     rightBg = CCScale9Sprite::create("square02_small.png");
     rightBg->setOpacity(60);
     rightBg->setZOrder(1);
-    rightBg->setContentSize({360, 243}); // 295, 225
-    m_mainLayer->addChildAtPosition(rightBg, Anchor::Center, {(m_leftSide) ? 13.f : -21.f, 7});
+    rightBg->setContentSize({360, s_scrollHeight}); // 295, 225
+    m_mainLayer->addChildAtPosition(rightBg, Anchor::Center, {(m_leftSide) ? 13.f : -21.f, -23.f});
 
-    m_scrollLayer = ScrollLayerExt::create({ 0, 0, 340.F, 243.F }, true); // 360
+    m_scrollLayer = ScrollLayerExt::create({ 0, 0, 340.F, s_scrollHeight }, true); // 360
     m_scrollLayer->setPositionX(10);
     m_content = CCMenu::create();
     m_content->setZOrder(2);
     m_content->setPositionX(45);
     m_content->registerWithTouchDispatcher();
+
+    // auto topG = Build<CCSprite>::createSpriteName("d_gradient_01_001.png").opacity(0).zOrder(1).flipY(true).color(0,0,0).anchorPoint(0,1).scaleToMatchX(rightBg->getContentWidth()).parent(rightBg).posY(227).collect();
+    // auto bottomG = Build<CCSprite>::createSpriteName("d_gradient_01_001.png").opacity(120).zOrder(1).color(0,0,0).anchorPoint(0,0).scaleToMatchX(rightBg->getContentWidth()).parent(rightBg).collect();
+    //
+    // m_scrollLayer->setCallbackMove([topG, bottomG, this]() {
+    //     if (m_scrollLayer->m_contentLayer->getPositionY() >= -130) {
+    //         topG->runAction(CCSequence::create(CCFadeTo::create(0.2f, 120.f), nullptr));
+    //     } else {
+    //         topG->runAction(CCSequence::create(CCFadeTo::create(0.2f, 0.f), nullptr));
+    //     }
+    //     if (!(m_scrollLayer->m_contentLayer->getPositionY() >= -10)) {
+    //         bottomG->runAction(CCSequence::create(CCFadeTo::create(0.2f, 120.f), nullptr));
+    //     } else {
+    //         bottomG->runAction(CCSequence::create(CCFadeTo::create(0.2f, 0.f), nullptr));
+    //     }
+    // });
 
     m_scrollLayer->m_contentLayer->addChild(m_content);
 
@@ -261,7 +284,7 @@ bool ObjectWorkshop::init(bool authenticated) {
         }
         m_pageInput->setString(std::to_string(m_currentPage).c_str());
         RegenCategory();
-    }).parentAtPos(m_buttonMenu, Anchor::Left, {(m_leftSide) ? 54.f : 16.f, 10});
+    }).parentAtPos(m_buttonMenu, Anchor::Left, {(m_leftSide) ? 54.f : 16.f, -27});
     Build<CCSprite>::createSpriteName("GJ_arrow_01_001.png").scale(0.8f).flipX(true).intoMenuItem([this]() {
         if ((m_currentPage + 1) <= m_maxPage) {
             m_currentPage++;
@@ -270,21 +293,11 @@ bool ObjectWorkshop::init(bool authenticated) {
         }
         m_pageInput->setString(std::to_string(m_currentPage).c_str());
         RegenCategory();
-    }).parentAtPos(m_buttonMenu, Anchor::Right, {(m_leftSide) ? -30.f : -54.f, 10});
-    Build<CCSprite>::createSpriteName("particle_204_001.png").intoMenuItem([this]() {
+    }).parentAtPos(m_buttonMenu, Anchor::Right, {(m_leftSide) ? -30.f : -54.f, -27});
+    Build<CCSprite>::createSpriteName("GJ_updateBtn_001.png").scale(0.8f).intoMenuItem([this]() {
         onBackBtn(nullptr);
         RegenCategory();
-    }).parentAtPos(m_buttonMenu, Anchor::TopLeft, {(m_leftSide) ? 58.f : 25.f, -35});
-    Build<CCMenuItemToggler>::createToggle(
-        Build<CCSprite>::createSpriteName("GJ_starsIcon_001.png").scale(0.65f).collect(),
-        Build<CCSprite>::createSpriteName("GJ_starsIcon_gray_001.png").scale(0.65f).collect(),
-        [](CCMenuItemToggler* toggler){
-            if (toggler->isOn()) {
-
-            }
-            log::debug("{},{}", toggler->isOn(), toggler->isToggled());
-        }
-    ).parentAtPos(m_buttonMenu, Anchor::TopRight, {(m_leftSide) ? -32.f : -66.f, -35});
+    }).parentAtPos(m_buttonMenu, Anchor::TopRight, {22, -16});
 
     m_pageInput = TextInput::create(65.0F, "Page...");
     m_pageInput->setString("1");
@@ -293,15 +306,16 @@ bool ObjectWorkshop::init(bool authenticated) {
     m_pageInput->setCommonFilter(CommonFilter::Uint);
     m_pageInput->setAnchorPoint({1, 0.5f});
     m_pageInput->setDelegate(this);
-    m_buttonMenu->addChildAtPosition(m_pageInput, Anchor::BottomRight, {(m_leftSide) ? -45.f : -55.f, 17});
+    m_topMenu->addChild(m_pageInput);
     if (m_leftSide) {
         m_closeBtn->updateAnchoredPosition(Anchor::TopLeft, {-22, -16});
         auto scrollBar = Scrollbar::create(m_scrollLayer);
         if (auto bg = scrollBar->getChildByType<CCScale9Sprite>(0)) {
             bg->setOpacity(60);
         }
-        m_mainLayer->addChildAtPosition(scrollBar, (m_leftSide) ? Anchor::Right : Anchor::Left, {(m_leftSide) ? -11.f : 11.f, 7});
+        m_mainLayer->addChildAtPosition(scrollBar, (m_leftSide) ? Anchor::Right : Anchor::Left, {(m_leftSide) ? -11.f : 11.f, -23});
     }
+    m_topMenu->updateLayout();
 
     RegenCategory();
 
@@ -318,10 +332,11 @@ void ObjectWorkshop::onSideButton(CCObject* pSender) {
     onBackBtn(pSender);
     auto item = static_cast<CCMenuItemSpriteExtra*>(pSender);
     auto idStr = item->getID().view();
-    idStr.remove_prefix(idStr.length() - 1);
+    //idStr.remove_prefix(idStr.length() - 1);
+    idStr.remove_prefix(fmt::format("category-"_spr).length());
     int id = numFromString<int>(idStr).unwrapOrDefault();;
     if (id != currentMenuIndexGD) {
-        if (auto oldItem = typeinfo_cast<CCMenuItemSpriteExtra*>(m_buttonMenu->getChildByID(fmt::format("category-{}"_spr, currentMenuIndexGD)))) {
+        if (auto oldItem = typeinfo_cast<CCMenuItemSpriteExtra*>(m_categoryButtonsTop->getChildByID(fmt::format("category-{}"_spr, currentMenuIndexGD)))) {
             static_cast<CategoryButton*>(oldItem->getChildren()->objectAtIndex(0))->setIndicatorState(false);
         }
         if (auto oldItem = typeinfo_cast<CCMenuItemSpriteExtra*>(m_categoryButtons->getChildByID(fmt::format("category-{}"_spr, currentMenuIndexGD)))) {
@@ -417,6 +432,7 @@ void ObjectWorkshop::RegenCategory() {
         Build<CCMenu>::create().with([](auto node) {
             int barSize = 40;
             switch (currentMenuIndexGD) {
+                case -2:
                 case 0:
                 case 3:
                 case 4:
@@ -562,9 +578,9 @@ void ObjectWorkshop::handleRequest1(web::WebResponse value) {
                 o_page.unwrap().asInt().unwrapOrDefault(),
                 o_pageAmount.unwrap().asInt().unwrapOrDefault()
             ).c_str(), "goldFont.fnt"
-        ).scale(0.425f).id("pageLabel"_spr).store(m_pageLabel).intoMenuItem([total]() {
+        ).scale(.425f).id("pageLabel"_spr).store(m_pageLabel).intoMenuItem([total]() {
             FLAlertLayer::create("Page", fmt::format("There are a total of <cy>{} objects</c> based on your filters.", total).c_str(), "OK")->show();
-        }).anchorPoint(0.5f, 1).id("pageLabelBtn"_spr).parentAtPos(m_buttonMenu, Anchor::TopRight, {(m_leftSide) ? -55.f : -95.f, -4});
+        }).anchorPoint(0.5f, 1).id("pageLabelBtn"_spr).parentAtPos(m_buttonMenu, Anchor::TopRight, {(m_leftSide) ? -48.f : -95.f, -6});
         m_maxPage = o_pageAmount.unwrap().asInt().unwrapOrDefault();
     }
     m_scrollLayer->setTouchEnabled(true);
@@ -575,8 +591,8 @@ void ObjectWorkshop::handleRequest1(web::WebResponse value) {
                 categoryItems->getContentWidth(),
                 355.F // 310
             });
-            myUploadsBar->setPosition({127, 138});
-            m_categoryBar->setPosition({127, 74});
+            myUploadsBar->setPosition({125, 138});
+            m_categoryBar->setPosition({125, 74});
             categoryItems->setPosition({140, -299});
 
             m_scrollLayer->m_contentLayer->setContentSize({
@@ -589,8 +605,8 @@ void ObjectWorkshop::handleRequest1(web::WebResponse value) {
                 categoryItems->getContentWidth(),
                 225.F
             });
-            myUploadsBar->setPosition({127, 138});
-            m_categoryBar->setPosition({127, 74});
+            myUploadsBar->setPosition({125, 138});
+            m_categoryBar->setPosition({125, 74});
             categoryItems->setPosition({138, -160});
 
             m_scrollLayer->m_contentLayer->setContentSize({
@@ -601,7 +617,7 @@ void ObjectWorkshop::handleRequest1(web::WebResponse value) {
         }
 
         myUploadsMenu->removeAllChildrenWithCleanup(true);
-        myUploadsBar->setPosition({127, 285});
+        myUploadsBar->setPosition({125, 285});
         myUploadsMenu->updateLayout();
         myUploadsBar->updateLayout();
         m_categoryBar->updateLayout();
@@ -766,10 +782,10 @@ void ObjectWorkshop::handleRequest1(web::WebResponse value) {
         auto goProfileBtn = CCMenuItemSpriteExtra::create(goProfileSpr, this, menu_selector(ObjectWorkshop::onGoProfileBtn));
         myUploadsMenu->addChildAtPosition(goProfileBtn, Anchor::Right, {-42, 7});
 
-        myUploadsMenu->setPosition({127,0});
+        myUploadsMenu->setPosition({125,0});
         m_scrollLayer->setTouchEnabled(true);
         if (m_amountItems > 3) {
-            m_categoryBar->setPosition({127, 63});
+            m_categoryBar->setPosition({125, 63});
             categoryItems->setPosition({138, -171});
 
             m_scrollLayer->m_contentLayer->setContentSize({
@@ -778,7 +794,7 @@ void ObjectWorkshop::handleRequest1(web::WebResponse value) {
             });
             m_content->setPositionY(165);
         } else { // 74
-            m_categoryBar->setPosition({127, 63});
+            m_categoryBar->setPosition({125, 63});
             categoryItems->setPosition({138, -116});
 
             m_scrollLayer->m_contentLayer->setContentSize({
@@ -827,7 +843,7 @@ void ObjectWorkshop::handleRequest2(web::WebResponse value) {
         myUploadsMenu->addChild(cell);
     }
     if (array.size() > 0) {
-        myUploadsMenu->setPosition({127,-36});
+        myUploadsMenu->setPosition({125,-36});
         auto uploadSpr = CCSprite::create("upload.png"_spr);
         uploadSpr->setScale(0.625F);
         auto uploadBtn = CCMenuItemSpriteExtra::create(uploadSpr, this, menu_selector(ObjectWorkshop::onUploadBtn));
@@ -845,7 +861,7 @@ void ObjectWorkshop::handleRequest2(web::WebResponse value) {
                 ->setGrowCrossAxis(true)
         );
     } else {
-        myUploadsMenu->setPosition({127,-5});
+        myUploadsMenu->setPosition({125,-5});
         myUploadsMenu->setLayout(
             RowLayout::create()
                 ->setAxisAlignment(AxisAlignment::Center)
@@ -859,8 +875,8 @@ void ObjectWorkshop::handleRequest2(web::WebResponse value) {
     m_scrollLayer->setTouchEnabled(true);
     if (m_amountItems > 3) {
         if (array.size() > 0) {
-            myUploadsBar->setPosition({127, 138});
-            m_categoryBar->setPosition({127, 14});
+            myUploadsBar->setPosition({125, 138});
+            m_categoryBar->setPosition({125, 14});
             categoryItems->setPosition({138, -220});
 
             m_scrollLayer->m_contentLayer->setContentSize({
@@ -869,8 +885,8 @@ void ObjectWorkshop::handleRequest2(web::WebResponse value) {
             });
             m_content->setPositionY(215);
         } else {
-            myUploadsBar->setPosition({127, 138});
-            m_categoryBar->setPosition({127, 74});
+            myUploadsBar->setPosition({125, 138});
+            m_categoryBar->setPosition({125, 74});
             categoryItems->setPosition({138, -160});
 
             m_scrollLayer->m_contentLayer->setContentSize({
@@ -881,8 +897,8 @@ void ObjectWorkshop::handleRequest2(web::WebResponse value) {
         }
     } else {
         if (array.size() > 0) {
-            myUploadsBar->setPosition({127, 138});
-            m_categoryBar->setPosition({127, 14});
+            myUploadsBar->setPosition({125, 138});
+            m_categoryBar->setPosition({125, 14});
             categoryItems->setPosition({138, -165});
 
             m_scrollLayer->m_contentLayer->setContentSize({
@@ -891,8 +907,8 @@ void ObjectWorkshop::handleRequest2(web::WebResponse value) {
             });
             m_content->setPositionY(125);
         } else {
-            myUploadsBar->setPosition({127, 138});
-            m_categoryBar->setPosition({127, 74});
+            myUploadsBar->setPosition({125, 138});
+            m_categoryBar->setPosition({125, 74});
             categoryItems->setPosition({138, -105});
 
             m_scrollLayer->m_contentLayer->setContentSize({
@@ -978,8 +994,9 @@ void ObjectWorkshop::load() {
     }
     if (currentMenuIndexGD < 2 || currentMenuIndexGD > 6) {
         if (m_user.authenticated || currentMenuIndexGD == -1) {
-            if (currentMenuIndexGD == 0) { // my uploads
-                searchReq(fmt::format("{}/user/@me/objects?page={}&limit=false", HOST_URL, m_currentPage, m_currentPage), false);
+            if (currentMenuIndexGD == 10) { // downloads
+                //searchReq(fmt::format("{}/user/@me/objects?page={}&limit=false", HOST_URL, m_currentPage, m_currentPage), false);
+                searchReq(fmt::format("{}/user/@me/downloads?page={}&limit={}", HOST_URL, m_currentPage, RESULT_LIMIT), false);
             } else if (currentMenuIndexGD == 1) { // favorited
                 searchReq(fmt::format("{}/user/@me/favorites?page={}&limit={}", HOST_URL, m_currentPage, RESULT_LIMIT), false);
             } else if (currentMenuIndexGD == 7) { // pending 
@@ -1029,7 +1046,7 @@ void ObjectWorkshop::createCategoryBtn(const char* string, bool isSpriteFrame, i
 }
 
 void ObjectWorkshop::onClickUser(int accountID) {
-    if (auto oldItem = typeinfo_cast<CCMenuItemSpriteExtra*>(m_buttonMenu->getChildByID(fmt::format("category-{}"_spr, currentMenuIndexGD)))) {
+    if (auto oldItem = typeinfo_cast<CCMenuItemSpriteExtra*>(m_categoryButtonsTop->getChildByID(fmt::format("category-{}"_spr, currentMenuIndexGD)))) {
         static_cast<CategoryButton*>(oldItem->getChildren()->objectAtIndex(0))->setIndicatorState(false);
     }
     if (auto oldItem = typeinfo_cast<CCMenuItemSpriteExtra*>(m_categoryButtons->getChildByID(fmt::format("category-{}"_spr, currentMenuIndexGD)))) {
