@@ -158,6 +158,7 @@ protected:
     void onDownloadBtn(CCObject*);
 
     std::unordered_set<std::string> m_filterTags;
+    bool m_selectedFeatured;
     void onUpload(CCObject*);
     void onUploadFilterBtn(CCObject*);
     void onRulesBtn(CCObject*) {

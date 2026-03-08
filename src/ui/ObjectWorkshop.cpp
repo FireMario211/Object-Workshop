@@ -132,7 +132,7 @@ bool ObjectWorkshop::init(bool authenticated) {
         "GJ_button_04.png",
         false
     ).scale(.4f).intoMenuItem([this]() {
-        FiltersPopup::create(g_availableTags, m_filterTags, m_user.role, currentMenuIndexGD == 7, [this](std::unordered_set<std::string> selectedTags, bool pending, bool reports) {
+        FiltersPopup::create(g_availableTags, m_filterTags, m_selectedFeatured, m_user.role, currentMenuIndexGD == 7, [this](std::unordered_set<std::string> selectedTags, bool featured, bool pending, bool reports) {
             bool regenCate = false;
             int newID = 0;
             if (pending && currentMenuIndexGD != 7) {
@@ -144,6 +144,10 @@ bool ObjectWorkshop::init(bool authenticated) {
             }
             if (m_filterTags != selectedTags) {
                 m_filterTags = selectedTags;
+                regenCate = true;
+            }
+            if (featured != m_selectedFeatured) {
+                m_selectedFeatured = featured;
                 regenCate = true;
             }
             if (regenCate || newID > 0) {
@@ -1012,15 +1016,16 @@ void ObjectWorkshop::load() {
         }
     } else {
         if (m_filterTags.empty()) {
-            searchReq(fmt::format("{}/objects?page={}&category={}&limit={}", HOST_URL, m_currentPage, Utils::intToCategory(currentMenuIndexGD), RESULT_LIMIT));
+            searchReq(fmt::format("{}/objects?page={}&category={}&featured={}&limit={}", HOST_URL, m_currentPage, Utils::intToCategory(currentMenuIndexGD), m_selectedFeatured ? "true" : "false", RESULT_LIMIT));
         } else {
             searchReq(
                 fmt::format(
-                    "{}/objects?page={}&category={}&tags={}&limit={}",
+                    "{}/objects?page={}&category={}&tags={}&featured={}&limit={}",
                     HOST_URL,
                     m_currentPage,
                     Utils::intToCategory(currentMenuIndexGD),
                     Utils::url_encode(fmt::format("{}",fmt::join(m_filterTags, ","))),
+                    m_selectedFeatured ? "true" : "false",
                     RESULT_LIMIT
                 )
             );
@@ -1308,7 +1313,7 @@ void ObjectWorkshop::onPendingBtn(CCObject*) {
 }
 
 void ObjectWorkshop::onUploadFilterBtn(CCObject*) {
-    FiltersPopup::create(g_availableTags, m_filterTags, 0, true, [this](std::unordered_set<std::string> selectedTags, bool, bool) {
+    FiltersPopup::create(g_availableTags, m_filterTags, true, 0, true, [this](std::unordered_set<std::string> selectedTags, bool, bool, bool) {
         m_filterTags = selectedTags;
     })->show();
 }

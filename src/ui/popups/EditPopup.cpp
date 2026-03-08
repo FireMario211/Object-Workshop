@@ -41,7 +41,7 @@ bool EditPopup::init(ObjectData obj, std::unordered_set<std::string> availableTa
     );
     filterSpr->setScale(0.75F);
     auto filterBtn = CCMenuItemExt::createSpriteExtra(filterSpr, [this](CCObject*) {
-        FiltersPopup::create(m_availableTags, m_object.tags, 0, true, [this](std::unordered_set<std::string> selectedTags, bool, bool) {
+        FiltersPopup::create(m_availableTags, m_object.tags, true, 0, true, [this](std::unordered_set<std::string> selectedTags, bool, bool, bool) {
             m_object.tags = selectedTags;
         })->show();
     });

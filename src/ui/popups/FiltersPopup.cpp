@@ -2,12 +2,12 @@
 #include "../../utils.hpp"
 
 // TODO: add "Reports" and maybe a star icon to indicate featured?
-bool FiltersPopup::init(std::unordered_set<std::string> tags, std::unordered_set<std::string> selectedTags, int role, bool uploading, std::function<void(std::unordered_set<std::string>, bool, bool)> callback) {
+bool FiltersPopup::init(std::unordered_set<std::string> tags, std::unordered_set<std::string> selectedTags, bool selectedFeatured, int role, bool uploading, std::function<void(std::unordered_set<std::string>, bool, bool, bool)> callback) {
     if (!Popup::init(350.f, 170.f)) return false;
     m_callback = callback;
     m_selectedTags = selectedTags;
 
-    this->setTitle((uploading) ? "Set Tags" : "Search Filters");
+    this->setTitle((uploading && role == 0) ? "Set Tags" : "Search Filters");
 
     // loader/src/ui/mods/popups/FiltersPopup.cpp
     auto tagsContainer = CCNode::create();
@@ -39,15 +39,20 @@ bool FiltersPopup::init(std::unordered_set<std::string> tags, std::unordered_set
 
     auto tagsTitle = CCLabelBMFont::create("Tags", "bigFont.fnt");
     tagsTitleMenu->addChild(tagsTitle);
-
     tagsTitleMenu->addChild(SpacerNode::create());
-
-    auto resetSpr = CCSprite::createWithSpriteFrameName("GJ_trashBtn_001.png");
-    auto resetBtn = CCMenuItemSpriteExtra::create(
-        resetSpr, this, menu_selector(FiltersPopup::onResetBtn)
-    );
-    tagsTitleMenu->addChild(resetBtn);
-
+    if (!uploading) {
+        Build<CCMenuItemToggler>::createToggle(
+            Build<CCSprite>::createSpriteName("GJ_starsIcon_001.png").scale(1.25f).collect(),
+            Build<CCSprite>::createSpriteName("GJ_starsIcon_gray_001.png").scale(1.25f).collect(),
+            [this](CCMenuItemToggler* toggler){
+                m_selectedFeatured = toggler->isOn();
+            }
+        ).parent(tagsTitleMenu).toggle(!selectedFeatured);
+    }
+    Build<CCSprite>::createSpriteName("GJ_trashBtn_001.png").intoMenuItem([this]() {
+        m_selectedTags.clear();
+        this->updateTags();
+    }).parent(tagsTitleMenu);
     tagsTitleMenu->setLayout(
         RowLayout::create()
             ->setDefaultScaleLimits(.1f, .4f)
@@ -146,20 +151,16 @@ void FiltersPopup::onSelectTag(CCObject* sender) {
     }
     this->updateTags();
 }
-void FiltersPopup::onResetBtn(CCObject*) {
-    m_selectedTags.clear();
-    this->updateTags();
-}
 
 void FiltersPopup::onClose(CCObject* sender) {
     if (m_pendingBtn) {
         if (m_reportsBtn) {
-            m_callback(m_selectedTags, m_pendingBtn->isToggled(), m_reportsBtn->isToggled());
+            m_callback(m_selectedTags, m_selectedFeatured, m_pendingBtn->isToggled(), m_reportsBtn->isToggled());
         } else {
-            m_callback(m_selectedTags, m_pendingBtn->isToggled(), false);
+            m_callback(m_selectedTags, m_selectedFeatured, m_pendingBtn->isToggled(), false);
         }
     } else {
-        m_callback(m_selectedTags, false, false);
+        m_callback(m_selectedTags, m_selectedFeatured, false, false);
     }
     Popup::onClose(sender);
 }
