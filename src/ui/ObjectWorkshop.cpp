@@ -358,7 +358,7 @@ void ObjectWorkshop::textInputOpened(CCTextInputNode* input) {
 
 void ObjectWorkshop::textInputClosed(CCTextInputNode* input) {
     if (input->getString().empty()) return m_pageInput->setString(std::to_string(m_currentPage).c_str());
-    int page = std::stoi(input->getString());
+    int page = numFromString<int>(input->getString()).unwrapOr(1);
     if (page == m_currentPage) return m_pageInput->setString(std::to_string(m_currentPage).c_str());
     if (page < 1) page = 1;
     if (page <= m_maxPage) {

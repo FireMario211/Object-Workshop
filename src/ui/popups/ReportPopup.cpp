@@ -42,7 +42,7 @@ void ReportPopup::onReportBtn(CCObject*) {
                 }
                 auto myjson = matjson::Value();
                 myjson.set("token", token);
-                myjson.set("reason", m_reportInput->getString());
+                myjson.set("reason", ZStringView(m_reportInput->getString()));
                 req.header("Content-Type", "application/json");
                 req.bodyJSON(myjson);
                 m_listener.spawn(
