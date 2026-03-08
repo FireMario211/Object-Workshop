@@ -13,7 +13,7 @@ bool ExtPreviewBG::init(LevelEditorLayer* editorLayer, std::string data, CCSize 
     m_clippingNode = CCClippingNode::create();
     m_clippingNode->setContentSize(m_bg->getContentSize());
     m_clippingNode->setAnchorPoint({0.5, 0.5});
-    if (data.length() > 0) {
+    if (!data.empty()) {
         unsigned int objectCount = std::count(data.begin(), data.end(), ';');
         int renderLimit = Mod::get()->getSettingValue<int64_t>("render-objects");
         int preRender = Mod::get()->getSettingValue<int64_t>("prerender-objects");

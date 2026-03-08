@@ -171,11 +171,11 @@ void EditPopup::onUpdateBtn(CCObject*) {
     m_listener.cancel();
     auto notif = Notification::create("Updating Object...", NotificationIcon::Loading);
     notif->show();
-    if (m_objName != nullptr && m_objDesc->getString().length() > 0) {
+    if (m_objName != nullptr && !m_objDesc->getString().empty()) {
         m_object.name = m_objName->getString();
     }
     m_object.description = "[No description provided]";
-    if (m_objDesc != nullptr && m_objDesc->getString().length() > 0) {
+    if (m_objDesc != nullptr && !m_objDesc->getString().empty()) {
         m_object.description = Utils::replaceAll(m_objDesc->getString(), "\\n", "\n");
     }
     web::WebRequest req = web::WebRequest();

@@ -68,8 +68,8 @@ m_mainLayer->addChildAtPosition(expirationInput, Anchor::Center, {0, 10});
             myjson.set("token", token);
             myjson.set("user", user.account_id);
             myjson.set("type", caseCurrentIndex);
-            myjson.set("reason", reasonInput->getString());
-            myjson.set("expiration", expirationInput->getString());
+            myjson.set("reason", ZStringView(reasonInput->getString()));
+            myjson.set("expiration", ZStringView(expirationInput->getString()));
             req.header("Content-Type", "application/json");
             req.bodyJSON(myjson);
             m_listener.spawn(

@@ -143,7 +143,7 @@ bool ObjectItem::init(LevelEditorLayer* editorLayer, ObjectData data) {
     m_clippingNode = CCClippingNode::create();
     m_clippingNode->setContentSize(previewBG->getContentSize());
     m_clippingNode->setAnchorPoint({0.5, 0.5});
-    if (data.objectString.length() > 0) {
+    if (!data.objectString.empty()) {
         // i love ghidra (i have no idea what params are what)
         /*
         gd::string - object string, duh 

@@ -1,0 +1,21 @@
+{
+  "name": "Geode Android64",
+  "image": "prevter/geode-sdk:android",
+  "containerEnv": {
+    "CPM_SOURCE_CACHE": "/opt/cpm-cache",
+    "GEODE_BINDINGS_REPO_PATH": "/opt/bindings"
+  },
+  "postCreateCommand": {
+    "bindings": "git clone https://github.com/geode-sdk/bindings.git /opt/bindings",
+    "git": ["git", "config", "--global", "--add", "safe.directory", "*"],
+    "clangd": "apt update && apt install clangd clang -y"
+  },
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-vscode.cmake-tools",
+        "llvm-vs-code-extensions.vscode-clangd"
+      ]
+    }
+  }
+}

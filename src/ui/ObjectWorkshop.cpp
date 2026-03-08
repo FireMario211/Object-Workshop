@@ -1333,7 +1333,7 @@ void ObjectWorkshop::onUpload(CCObject*) {
                 obj.objectString = gameManager->stringForCustomObject(editor->m_selectedObjectIndex);
             }
             if (obj.objectString == "") return FLAlertLayer::create("Error", "You must <cy>select an object</c>!", "OK")->show();
-            if (m_objDesc != nullptr && m_objDesc->getString().length() > 0) {
+            if (m_objDesc != nullptr && !m_objDesc->getString().empty()) {
                 obj.description = Utils::replaceAll(m_objDesc->getString(), "\\n", "\n");
             }
             obj.tags = m_filterTags;
