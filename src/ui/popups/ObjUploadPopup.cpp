@@ -17,8 +17,9 @@ namespace {
                 CCLayerColor* mask = CCLayerColor::create({255, 255, 255});
                 mask->setContentSize(bg->getContentSize());
                 Build<CCClippingNode>::create().contentSize(this->getContentSize()).anchorPoint(0.5f,0.5f).zOrder(1).with([editorLayer, data, mask](auto node) {
-                    unsigned int objectCount = std::count(data.begin(), data.end(), ';');
-                    if (!data.empty()) {
+                    auto zData = ZStringView(data);
+                    unsigned int objectCount = std::count(zData.begin(), zData.end(), ';');
+                    if (!zData.empty()) {
                         auto smartBlock = CCArray::create();
                         int renderLimit = Mod::get()->getSettingValue<int64_t>("render-objects");
                         int preRender = Mod::get()->getSettingValue<int64_t>("prerender-objects");
@@ -172,28 +173,6 @@ bool ObjUploadPopup::init(UserData user) {
     m_objName->setCommonFilter(CommonFilter::Any);
     m_mainLayer->addChildAtPosition(m_objName, Anchor::Center, {0, -20});
 
-    /*
-    m_objDesc = TextInputNode::create("Description [Optional]", 300, {270, 60}, 90);//{270.F, 30.F}, 90);
-    m_objDesc->getInput()->setScale(0.5F);
-    bottomBg->addChildAtPosition(m_objDesc, Anchor::Center, {-1, -3});
-    m_objDesc->addChildAtPosition(m_objDesc->getInput(), Anchor::Center);
-    m_objDesc->setUpdateCallback([this](std::string text) {
-        m_objDesc->getInput()->m_textArea->m_width = 300.0F / Utils::calculateScale(text, 50, 300, 1.0F, 0.5F);
-        m_objDesc->getInput()->setScale(Utils::calculateScale(text, 50, 300, 0.75F, 0.45F));
-        m_objDesc->getInput()->setPosition({
-            Utils::calculateScale(text, 50, 300, 100, 60),
-            Utils::calculateScale(text, 50, 300, 25, 20)
-        });
-    });
-    //m_objDesc->getBackground()->setScale(0.5F);
-    /\*m_objDesc->getBackground()->setContentSize({
-        (m_objDesc->getSize().width - 20.F) * 2.F,
-        (m_objDesc->getSize().height + 20.F) * 2.F
-    });*\/
-    /\*m_objDesc->getBackground()->setContentSize({
-        520, 100
-    });*/
-
 #ifndef GEODE_IS_ANDROID32
     auto textArea = TextArea::create("", "chatFont.fnt", 1.0F, 335.0F, {0.5, 0.5}, 20.0F, true);
     //             TextArea::create(&local_64,"chatFont.fnt",,0x439d8000,this_03,0x41a00000,1);
@@ -218,18 +197,6 @@ bool ObjUploadPopup::init(UserData user) {
         }
     );
 #endif
-    //"Rules", "bigFont.fnt", "GJ_button_03.png"
-    //const char* caption, int width, bool absolute, const char* font, const char* texture, float height, float scale
-    /*Build<ButtonSprite>::create("Rules", 200, false, "bigFont.fnt", "GJ_button_03.png", 30.f, 0.8f).intoMenuItem([]() {
-        FLAlertLayer::create(
-            nullptr,
-            "Rules",
-            "",
-            "OK",
-            nullptr,
-            400.0F
-        )->show();
-    }).store(m_rulesBtn).parentAtPos(m_buttonMenu, Anchor::Center, {0, -90});*/
     Build<ButtonSprite>::create("Upload", 205, true, "bigFont.fnt", "GJ_button_01.png", 30.f, 0.8f).intoMenuItem([this]() {
         if (Mod::get()->getSavedValue<int>("rule_ver") != RULES_VERSION) {
             RulesPopup::create([this]() {
