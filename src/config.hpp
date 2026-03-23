@@ -12,3 +12,4 @@
 #define MAX_ZOOM 10
 #define MIN_ZOOM 0.01
 #define ROLE_COUNT 4
+#define RULES_VERSION 1

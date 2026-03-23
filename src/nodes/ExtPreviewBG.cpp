@@ -1,26 +1,20 @@
 #include "ExtPreviewBG.hpp"
 #include "../ui/ObjectWorkshop.hpp"
 #include "../config.hpp"
-bool ExtPreviewBG::init(LevelEditorLayer* editorLayer, std::string data, CCSize contentSize) {
-    if (!CCLayer::init()) return false;
-    this->setContentSize(contentSize);
-    this->setAnchorPoint({0.5, 0.5});
-    Build<CCScale9Sprite>::create("square02_small.png").opacity(60).contentSize(this->getContentSize()).with([](auto node) {
-        Build<CCLabelBMFont>::create("Preview", "goldFont.fnt").scale(0.425F).parentAtPos(node, Anchor::Top, {0, -8});
-    }).store(m_bg).parentAtPos(this, Anchor::Center);
-    CCLayerColor* mask = CCLayerColor::create({255, 255, 255});
-    mask->setContentSize(m_bg->getContentSize());
-    m_clippingNode = CCClippingNode::create();
-    m_clippingNode->setContentSize(m_bg->getContentSize());
-    m_clippingNode->setAnchorPoint({0.5, 0.5});
+
+void ExtPreviewBG::setNewPreview(std::string data) {
+    if (m_clippingNode) {
+        m_clippingNode->removeAllChildrenWithCleanup(true);
+    }
     if (!data.empty()) {
+        m_data = data;
         unsigned int objectCount = std::count(data.begin(), data.end(), ';');
         int renderLimit = Mod::get()->getSettingValue<int64_t>("render-objects");
         int preRender = Mod::get()->getSettingValue<int64_t>("prerender-objects");
         auto smartBlock = CCArray::create();
         if (objectCount >= preRender && Mod::get()->getSettingValue<bool>("prerender-full")) {
-            auto sprite = editorLayer->m_editorUI->spriteFromObjectString(data, false, false, renderLimit, smartBlock, (CCArray *)0x0,(GameObject *)0x0);
-            editorLayer->updateObjectColors(smartBlock);
+            auto sprite = m_editorLayer->m_editorUI->spriteFromObjectString(data, false, false, renderLimit, smartBlock, (CCArray *)0x0,(GameObject *)0x0);
+            m_editorLayer->updateObjectColors(smartBlock);
 
             CCSize contentSize = sprite->getContentSize();
             sprite->setPosition(contentSize / 2);
@@ -32,8 +26,8 @@ bool ExtPreviewBG::init(LevelEditorLayer* editorLayer, std::string data, CCSize 
             objSprite->setContentSize(sprite->getContentSize());
             objSprite->addChildAtPosition(tex, Anchor::Center);
         } else {
-            objSprite = editorLayer->m_editorUI->spriteFromObjectString(data, false, false, renderLimit, smartBlock, (CCArray *)0x0,(GameObject *)0x0);
-            editorLayer->updateObjectColors(smartBlock);
+            objSprite = m_editorLayer->m_editorUI->spriteFromObjectString(data, false, false, renderLimit, smartBlock, (CCArray *)0x0,(GameObject *)0x0);
+            m_editorLayer->updateObjectColors(smartBlock);
         }
         
         objSprite->setScale((m_clippingNode->getContentSize().height - 20) / objSprite->getContentSize().height);
@@ -41,6 +35,22 @@ bool ExtPreviewBG::init(LevelEditorLayer* editorLayer, std::string data, CCSize 
         m_clippingNode->addChildAtPosition(objSprite, Anchor::Center, {0, -5});
         m_oldPos = objSprite->getPosition();
     }
+}
+
+bool ExtPreviewBG::init(LevelEditorLayer* editorLayer, std::string data, CCSize contentSize) {
+    if (!CCLayer::init()) return false;
+    m_editorLayer = editorLayer;
+    this->setContentSize(contentSize);
+    this->setAnchorPoint({0.5, 0.5});
+    Build<CCScale9Sprite>::create("square02_small.png").opacity(60).contentSize(this->getContentSize()).with([](auto node) {
+        Build<CCLabelBMFont>::create("Preview", "goldFont.fnt").scale(0.425F).parentAtPos(node, Anchor::Top, {0, -8});
+    }).store(m_bg).parentAtPos(this, Anchor::Center);
+    CCLayerColor* mask = CCLayerColor::create({255, 255, 255});
+    mask->setContentSize(m_bg->getContentSize());
+    m_clippingNode = CCClippingNode::create();
+    m_clippingNode->setContentSize(m_bg->getContentSize());
+    m_clippingNode->setAnchorPoint({0.5, 0.5});
+    setNewPreview(data);
     m_clippingNode->setStencil(mask);
     m_clippingNode->setZOrder(1);
     this->addChildAtPosition(m_clippingNode, Anchor::Center);

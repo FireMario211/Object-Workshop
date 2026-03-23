@@ -9,7 +9,6 @@
 #include "../nodes/ScrollLayerExt.hpp"
 #include "../nodes/ExtPreviewBG.hpp"
 #include "../nodes/TextInputNode.hpp"
-#include "../nodes/ScrollLayerExt.hpp"
 #include "popups/WarningPopup.hpp"
 
 using namespace geode::prelude;
@@ -161,16 +160,6 @@ protected:
     bool m_selectedFeatured;
     void onUpload(CCObject*);
     void onUploadFilterBtn(CCObject*);
-    void onRulesBtn(CCObject*) {
-        FLAlertLayer::create(
-            nullptr,
-            "Rules",
-            "1. Do not <cy>upload spam, duplicate, or useless objects.</c>\n2. Do not upload <cy>any stolen art</c>, objects that <cy>violate copyright</c>, or objects <cy>without the creators permission.</c>\n3. Do not upload objects that relate to anything that is <cy>inappropriate, explicit, sexual, or violent.</c>\n4. Use an <cy>appropriate name, and tags</c> when uploading.\n\nBreaking these rules will result in a <cr>temporary ban</c>, and possibly a <cr>permanent one</c> if <cy>too severe or repeated.</c>",
-            "OK",
-            nullptr,
-            400.0F
-        )->show();
-    };
     void handleRequest1(web::WebResponse res);
     void handleRequest2(web::WebResponse res);
 

@@ -1,6 +1,7 @@
 #include "../config.hpp"
 #include "ObjectWorkshop.hpp"
 #include "Geode/ui/Scrollbar.hpp"
+#include "popups/ObjUploadPopup.hpp"
 #include "popups/WarningPopup.hpp"
 #include "popups/includes.h"
 #include "admin/AdminPopup.hpp"
@@ -279,6 +280,9 @@ bool ObjectWorkshop::init(bool authenticated) {
                 }
             }
         );
+        Build<CCSprite>::createSpriteName("GJ_shareBtn_001.png").scale(0.5f).intoMenuItem([this]() {
+            ObjUploadPopup::create(m_user)->show();
+        }).parentAtPos(m_buttonMenu, Anchor::BottomRight, {22, 20});
     }
     Build<CCSprite>::createSpriteName("GJ_arrow_01_001.png").scale(0.8f).intoMenuItem([this]() {
         if (m_currentPage > 1) {
@@ -1100,197 +1104,7 @@ T* clonePointer(const T* original) {
 }
 
 void ObjectWorkshop::onUploadBtn(CCObject*) {
-    if (!m_inEditor) {
-        FLAlertLayer::create("Error", "You cannot <cy>upload objects</c> if you aren't in the <cl>Editor</c>!", "OK")->show();
-        return;
-    }
-    m_filterTags.clear();
-    m_currentMenu = 1;
-    rightBg->setVisible(false);
-    m_pageLabel->setVisible(false);
-    obj_backBtn->setVisible(true);
 
-    auto middleBg = CCScale9Sprite::create("square02_small.png");
-    middleBg->setOpacity(25);
-    middleBg->setContentSize({360, 238});
-    objectInfoNode->addChildAtPosition(middleBg, Anchor::Center, {0, 5});
-
-    auto previewBG = CCScale9Sprite::create("square02_small.png");
-    previewBG->setOpacity(60);
-    previewBG->setContentSize({ 360.F - 20.F, 82.F });
-    auto previewLabel = CCLabelBMFont::create("Select an Object", "goldFont.fnt");
-    previewLabel->setScale(0.425F);
-    previewBG->addChildAtPosition(previewLabel, Anchor::Top, {0,-8});
-    middleBg->addChildAtPosition(previewBG, Anchor::Top, {0, -50});
-
-    auto bottomBg = CCScale9Sprite::create("square02_small.png");
-    bottomBg->setOpacity(25);
-    bottomBg->setContentSize({275, 120});
-    middleBg->addChildAtPosition(bottomBg, Anchor::Center, {0, -45});
-
-    m_objName = TextInput::create(300.0F, "Object Name", "bigFont.fnt");
-    m_objName->setScale(0.8);
-    m_objName->setMaxCharCount(64);
-    m_objName->setCommonFilter(CommonFilter::Any);
-    bottomBg->addChildAtPosition(m_objName, Anchor::Top, {0, -20});
-
-    /*
-    m_objDesc = TextInputNode::create("Description [Optional]", 300, {270, 60}, 90);//{270.F, 30.F}, 90);
-    m_objDesc->getInput()->setScale(0.5F);
-    bottomBg->addChildAtPosition(m_objDesc, Anchor::Center, {-1, -3});
-    m_objDesc->addChildAtPosition(m_objDesc->getInput(), Anchor::Center);
-    m_objDesc->setUpdateCallback([this](std::string text) {
-        m_objDesc->getInput()->m_textArea->m_width = 300.0F / Utils::calculateScale(text, 50, 300, 1.0F, 0.5F);
-        m_objDesc->getInput()->setScale(Utils::calculateScale(text, 50, 300, 0.75F, 0.45F));
-        m_objDesc->getInput()->setPosition({
-            Utils::calculateScale(text, 50, 300, 100, 60),
-            Utils::calculateScale(text, 50, 300, 25, 20)
-        });
-    });
-    //m_objDesc->getBackground()->setScale(0.5F);
-    /\*m_objDesc->getBackground()->setContentSize({
-        (m_objDesc->getSize().width - 20.F) * 2.F,
-        (m_objDesc->getSize().height + 20.F) * 2.F
-    });*\/
-    /\*m_objDesc->getBackground()->setContentSize({
-        520, 100
-    });*/
-
-#ifndef GEODE_IS_ANDROID32
-    auto textArea = TextArea::create("", "chatFont.fnt", 1.0F, 270.0F, {0.5, 0.5}, 20.0F, true);
-    //             TextArea::create(&local_64,"chatFont.fnt",,0x439d8000,this_03,0x41a00000,1);
-#endif
-    m_objDesc = TextInput::create(270.0F, "Description [Optional]", "chatFont.fnt");
-#ifndef GEODE_IS_ANDROID32
-    m_objDesc->getInputNode()->addTextArea(textArea);
-    m_objDesc->getInputNode()->m_cursor->setOpacity(0);
-#endif
-    m_objDesc->getBGSprite()->setContentSize({520.0F, 100.0F});
-    m_objDesc->setMaxCharCount(300);
-    m_objDesc->setCommonFilter(CommonFilter::Any);
-    bottomBg->addChildAtPosition(m_objDesc, Anchor::Center, {0, -3});
-#ifndef GEODE_IS_ANDROID32
-    m_objDesc->setCallback(
-        [this, textArea](std::string p0) {
-            m_objDesc->getInputNode()->m_textLabel->setOpacity((p0.empty()) ? 255 : 0);
-            textArea->setScale(Utils::calculateScale(p0, 50, 300, 0.9F, 0.35F));
-            textArea->m_width = 220.0F / Utils::calculateScale(p0, 50, 300, 1.0F, 0.32F);
-            textArea->setString(m_objDesc->getInputNode()->getString());
-            //textArea->setString(p0.data());
-        }
-    );
-#endif
-    auto rulesSpr = ButtonSprite::create("Rules", "bigFont.fnt", "GJ_button_03.png");
-    rulesSpr->setScale(0.8F);
-    auto uploadSpr = ButtonSprite::create("Upload", "bigFont.fnt", "GJ_button_01.png");
-    uploadSpr->setScale(0.8F);
-    auto uploadBtn = CCMenuItemSpriteExtra::create(
-        uploadSpr,
-        this,
-        menu_selector(ObjectWorkshop::onUpload)
-    );
-    auto rulesBtn = CCMenuItemSpriteExtra::create(
-        rulesSpr,
-        this,
-        menu_selector(ObjectWorkshop::onRulesBtn)
-    );
-    uploadBtn->setID("uploadbtn"_spr);
-    rulesBtn->setID("rulesbtn"_spr);
-    auto filterSpr = ButtonSprite::create(
-        CCSprite::createWithSpriteFrameName("GJ_filterIcon_001.png"),
-        30,
-        0,
-        .0F,
-        1.0F,
-        false,
-        "GJ_button_04.png",
-        false
-    );
-    filterSpr->setScale(0.75F);
-    auto filterBtn = CCMenuItemSpriteExtra::create(
-        filterSpr,
-        this,
-        menu_selector(ObjectWorkshop::onUploadFilterBtn)
-    );
-    filterBtn->setID("tagbtn"_spr);
-
-    m_buttonMenu->addChildAtPosition(filterBtn, Anchor::Bottom, {-60, 57});
-    m_buttonMenu->addChildAtPosition(uploadBtn, Anchor::BottomRight, {-85, 57});
-    m_buttonMenu->addChildAtPosition(rulesBtn, Anchor::BottomRight, {-195, 57});
-    //bottomBg->addChildAtPosition(textArea, Anchor::Center, {0, -20});
-    if (auto editor = CustomObjects::get()) {
-        auto scrollLayer = ScrollLayerExt::create({ 0, 0, 275.0F, 280.0F }, true);
-        scrollLayer->setContentSize({275.0F, 60.0F});
-        scrollLayer->setAnchorPoint({0.5, 1.0});
-        auto content = CCMenu::create();
-        content->setScale(0.675F);
-        content->setZOrder(2);
-        content->setPositionX(20);
-        content->registerWithTouchDispatcher();
-        
-        scrollLayer->m_contentLayer->addChild(content);
-        scrollLayer->setTouchEnabled(true);
-
-        if (m_oldCustomObjectButtonArray == nullptr) {
-            m_oldCustomObjectButtonArray = editor->m_customObjectButtonArray;
-        }
-        CCArrayExt<CreateMenuItem*> customItems = editor->createCustomItems();
-        int size = customItems.size() - 4;
-        for (int i = 0; i < size; i++) {
-            customItems[i]->setID(fmt::format("{}", i));
-            if (i > 17) {
-                customItems[i]->setEnabled(false);
-            }
-            content->addChild(customItems[i]);
-        }
-        previewBG->addChild(scrollLayer);
-        content->setLayout(
-            RowLayout::create()
-                ->setAxisAlignment(AxisAlignment::Start)
-                ->setCrossAxisAlignment(AxisAlignment::End)
-                ->setAutoScale(true)
-                ->setCrossAxisOverflow(false)
-                ->setGap(5)
-                ->setGrowCrossAxis(true)
-        );
-        content->setContentSize({400.0F, 400.0F});
-        content->setAnchorPoint({0.5, 1.0});
-        content->setPosition({137, 280});
-        //content->setContentSize({265.0F, 230.0F});
-        content->updateLayout();
-        scrollLayer->moveToTop();
-        scrollLayer->fixTouchPrio();
-        scrollLayer->setCallbackMove([size, content]() {
-            if (content == nullptr) return;
-            for (int i = 0; i < size; i++) {
-                if (auto child = typeinfo_cast<CreateMenuItem*>(content->getChildByID(fmt::format("{}", i)))) {
-                    child->setEnabled(false);
-                }
-            }
-        });
-        scrollLayer->setCallbackEnd([size, content, scrollLayer]() {
-            if (content == nullptr) return;
-            for (int i = 0; i < size; i++) {
-                if (auto child = typeinfo_cast<CreateMenuItem*>(content->getChildByID(fmt::format("{}", i)))) {
-                    float contentYPos = scrollLayer->m_contentLayer->getPositionY();
-                    float childYPos = (child->getPositionY());
-
-                    child->setEnabled(!Utils::isInScrollSnapRange(contentYPos, childYPos));
-
-                    //float index = -(contentYPos + 220) / 30.F;
-                    //float lower_bound = 380.F + index * 35.F;
-                    //float upper_bound = lower_bound - 35;
-
-                    //child->setEnabled(upper_bound <= childYPos <= lower_bound);
-
-                    // 60 
-                }
-            }
-            if (scrollLayer->m_contentLayer->getPositionY() > -220.F) {
-                scrollLayer->m_contentLayer->setPositionY(Utils::getSnappedYPosition(scrollLayer->m_contentLayer->getPositionY(), 300)); // or 290
-            }
-        });
-    }
 }
 
 void ObjectWorkshop::onSearchBtn(CCObject*) {

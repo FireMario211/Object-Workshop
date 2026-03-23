@@ -191,6 +191,6 @@ ObjectItem* ObjectItem::create(LevelEditorLayer* editorLayer, ObjectData data) {
             return pRet;
         }
     }
-    CC_SAFE_DELETE(pRet);
+    delete pRet;
     return nullptr;
 };

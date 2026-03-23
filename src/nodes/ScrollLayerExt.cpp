@@ -159,6 +159,7 @@ ScrollLayerExt::ScrollLayerExt(CCRect const& rect, bool scrollWheelEnabled, bool
 
     this->setMouseEnabled(true);
     this->setTouchEnabled(true);
+    this->setUserFlag("alk.better-touch-prio/steals-touch");
 }
 
 void ScrollLayerExt::visit() {
