@@ -1,3 +1,11 @@
+# v1.5.0-beta.1 (Beta as it's not finished!)
+- Ported to Geode v5 (2.208!)
+- Revamped UI
+- Added My Downloads, meaning you can now view the objects you've downloaded
+- Added appealing objects in case it was unfairly rejected
+- Changed reports popup to have template reasons
+- Revamped how uploading UI looks (fixes the select object bug too, and allows previewing the object before uploading)
+- Temporarily disabled DashAuth (only allowing Argon for now)
 # v1.4.8
 - Bump geode version to support jitless
 - Add a new cert validation setting in case HTTPS doesn't work for some reason
