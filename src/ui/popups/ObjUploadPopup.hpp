@@ -2,7 +2,7 @@
 #include <Geode/ui/Popup.hpp>
 using namespace geode::prelude;
 #include "../ObjectWorkshop.hpp"
-class ObjUploadPopup : public geode::Popup, public UploadPopupDelegate {
+class ObjUploadPopup : public geode::Popup {
 protected:
     std::string m_token;
     async::TaskHolder<geode::utils::web::WebResponse> m_listener;
@@ -36,15 +36,6 @@ protected:
     void onSelectPickPage(CCObject*);
     void onObjectDetailsPage(CCObject*);
 
-    void onClosePopup(UploadActionPopup* popup) override {
-        m_listener.cancel();
-        if (popup) {
-            popup->m_delegate = nullptr;
-            if (popup->getParent()) {
-                popup->closePopup();
-            }
-        }
-    }
 public:
     static ObjUploadPopup* create(UserData user) {
         auto ret = new ObjUploadPopup();

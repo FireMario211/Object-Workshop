@@ -134,6 +134,13 @@ bool ObjectPopup::init(ObjectData objectData, UserData user) {
                     }).parent(menu);
                 }
             }
+            if (m_user.account_id == objectData.authorAccId) {
+                if (m_object.status == ObjectStatus::PENDING_DELETION) {
+                    Build<CCSprite>::createSpriteName("GJ_reportBtn_001.png").scale(0.5f).color(0,255,0).intoMenuItem([this]() {
+                        ReportPopup::create(m_object, ReportActionType::Appeal)->show();
+                    }).parent(menu);
+                }
+            }
         }).parentAtPos(node, Anchor::Center).updateLayout();
     }).parentAtPos(m_mainLayer, Anchor::Left, {17, 40});
 

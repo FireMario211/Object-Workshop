@@ -72,7 +72,8 @@ void AuthMenu::onDashAuth(CCObject*) {
         true
     );
 #else
-    FLAlertLayer::create("Error", "Unfortunately, RobTop's servers <cr>IP banned my server</c>, meaning this method <cr>is not available</c>.", "OK")->show();
+    //FLAlertLayer::create("Error", "Unfortunately, RobTop's servers <cr>IP banned my server</c>, meaning this method <cr>is not available</c>.", "OK")->show();
+    FLAlertLayer::create("Error", "Unfortunately, this method <cr>is not available</c> because I have not ported it to 2.208 yet, please use Argon instead.", "OK")->show();
 #endif
 }
 

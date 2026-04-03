@@ -213,6 +213,15 @@ ScrollLayerExt* ScrollLayerExt::create(CCSize const& size, bool scroll, bool ver
     return ScrollLayerExt::create({ 0, 0, size.width, size.height }, scroll, vertical);
 }
 
+static int less(const CCObject* p1, const CCObject* p2)
+{
+    return ((CCTouchHandler*)p1)->getPriority() < ((CCTouchHandler*)p2)->getPriority();
+}
+static void rearrangeHandlers(CCArray *pArray)
+{
+    std::sort(pArray->data->arr, pArray->data->arr + pArray->data->num, less);
+}
+
 void ScrollLayerExt::fixTouchPrio() {
     auto oldThis = this;
     //this->retain();
@@ -221,7 +230,16 @@ void ScrollLayerExt::fixTouchPrio() {
             Loader::get()->queueInMainThread([this, handler, delegate, oldThis]() {
                 if (oldThis != nullptr && handler != nullptr && delegate != nullptr) {
                     if (auto dispatcher = CCTouchDispatcher::get()) {
-                        dispatcher->setPriority(handler->m_nPriority - 2, delegate);
+                        //dispatcher->setPriority(handler->m_nPriority - 2, delegate);
+                        int nPriority = handler->m_nPriority - 2;
+                        auto handler = dispatcher->findHandler(delegate);
+                        if (!handler) return;
+                        auto currPrio = handler->getPriority();
+                        if (currPrio != nPriority) {
+                            handler->setPriority(nPriority);
+                            rearrangeHandlers(dispatcher->m_pTargetedHandlers);
+                            rearrangeHandlers(dispatcher->m_pStandardHandlers);
+                        }
                     }
                 }
             });

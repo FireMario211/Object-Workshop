@@ -3,6 +3,7 @@
 #include "../../utils.hpp"
 #include "FiltersPopup.hpp"
 #include "Geode/ui/Popup.hpp"
+#include "../auth/AuthLoadLayer.hpp"
 
 extern std::unordered_set<std::string> g_availableTags;
 
@@ -226,12 +227,14 @@ bool ObjUploadPopup::init(UserData user) {
 }
 
 void ObjUploadPopup::showUpload() {
-    auto popup = UploadActionPopup::create(this, "Uploading...");
-    popup->show();
-    if (m_previewBG->getData().empty() || m_objName == nullptr || m_objDesc == nullptr) return popup->showFailMessage("something must have gone very wrong\nfor this to happen.");
-    if (m_filterTags.size() == 0) return popup->showFailMessage("You must <cy>set a tag</c>!\nClick on the grey filter button!");
-    if (m_filterTags.size() > 5) return popup->showFailMessage("You cannot set more than <cy>5 tags</c>!");
-    if (m_objName != nullptr && m_objName->getString().empty()) return popup->showFailMessage("You must enter an\n<cy>object name</c>!");
+    //auto popup = UploadActionPopup::create(this, "Uploading...");
+    //popup->show();
+    if (m_previewBG->getData().empty() || m_objName == nullptr || m_objDesc == nullptr) return FLAlertLayer::create("Error", "something must have gone very wrong\nfor this to happen.", "OK")->show();
+    if (m_filterTags.size() == 0) return FLAlertLayer::create("Error", "You must <cy>set a tag</c>!\nClick on the grey filter button!", "OK")->show();
+    if (m_filterTags.size() > 5) return FLAlertLayer::create("Error", "You cannot set more than <cy>5 tags</c>!", "OK")->show();
+    if (m_objName != nullptr && m_objName->getString().empty()) return FLAlertLayer::create("Error", "You must enter an\n<cy>object name</c>!", "OK")->show();
+    auto loadLayer = AuthLoadLayer::create();
+    loadLayer->show();
     ObjectData obj = {
         0,
         m_objName->getString(),
@@ -262,28 +265,23 @@ void ObjUploadPopup::showUpload() {
     req.bodyJSON(myjson);
     m_listener.spawn(
         req.post(fmt::format("{}/objects/upload", HOST_URL)),
-        [this, popup](web::WebResponse value) {
-            if (popup) {
-                popup->m_delegate = nullptr;
-                if (popup->getParent()) {
-                    popup->closePopup();
-                }
-            }
+        [this, loadLayer](web::WebResponse value) {
+            loadLayer->finished();
             std::string errContent;
             auto jsonRes = value.json().unwrapOrDefault();
             if (!jsonRes.isObject()) {
-                geode::log::error("Response isn't object.");
+                geode::log::error("Response isn't object. Got this instead: {}", jsonRes.dump());
                 errContent = "An unknown error occured.";
             }
             auto isError = jsonRes.get("error");
             if (isError.isOk()) {
                 errContent = isError.unwrap().asString().unwrapOrDefault();
-            }
-            if (!value.ok()) {
+            } else if (!value.ok()) {
                 errContent = "An unknown error occured.";
             }
-            if (errContent.empty()) {
+            if (!errContent.empty()) {
                 FLAlertLayer::create("Error", errContent.c_str(), "OK")->show();
+                m_buttonMenu->setEnabled(true);
             } else {
                 geode::createQuickPopup("Success!", "Your object is now <cy>pending for review</c>! You can view your pending objects by tapping on your profile icon.", "OK", nullptr, [this](FLAlertLayer *, bool) {
                     this->onClose(nullptr);

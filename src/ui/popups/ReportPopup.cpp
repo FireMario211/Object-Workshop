@@ -93,7 +93,7 @@ bool ReportPopup::init(ObjectData obj, ReportActionType type) {
         m_reportInput->setMaxCharCount(500);
     }
     m_reportInput->setCommonFilter(CommonFilter::Any);
-    m_reportInput->setVisible(false);
+    m_reportInput->setVisible(type == ReportActionType::Appeal);
     m_mainLayer->addChildAtPosition(m_reportInput, Anchor::Center, {0, 20});
     
     std::string btnTitle = "Report";
@@ -157,7 +157,7 @@ void ReportPopup::onReportBtn(CCObject*) {
     } else {
         std::string desc = "Are you sure you want to <cy>report this object</c>?\n\nPlease make sure this object <cr>violates the guidelines</c> before reporting. Any misuse of this button will result in <cr>a ban</c>";
         if (m_type != ReportActionType::Report) {
-            desc = "Are you sure you want to <cg>appeal this object</c>?\n\nYou will receive a punishment if the object still violates guidelines if you submit an appeal."
+            desc = "Are you sure you want to <cg>appeal this object</c>?\n\nYou will receive a punishment if the object still violates guidelines if you submit an appeal.";
         }
         geode::createQuickPopup(
             "Warning",

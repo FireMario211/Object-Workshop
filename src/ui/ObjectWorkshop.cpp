@@ -72,7 +72,7 @@ bool ObjectWorkshop::init(bool authenticated) {
 
     Build<CCSprite>::createSpriteName("GJ_profileButton_001.png").scale(0.7f).intoMenuItem([this]() {
         if (!m_user.authenticated) return FLAlertLayer::create("Error", "You cannot view your profile as you are <cy>not authenticated!</c>", "OK")->show();
-        onClickUser(m_user.account_id);
+        onClickUser(-1);
     }).parentAtPos(m_buttonMenu, (m_leftSide) ? Anchor::TopLeft : Anchor::TopRight, {(m_leftSide) ? 23.f : -27.f, -26});
 
     if (authenticated) {
@@ -85,7 +85,7 @@ bool ObjectWorkshop::init(bool authenticated) {
         ).store(m_categoryButtonsTop).parentAtPos(m_buttonMenu, (m_leftSide) ? Anchor::TopLeft : Anchor::TopRight, {(m_leftSide) ? 24.f : -27.f, -45});
         createCategoryBtn("GJ_downloadBtn_001.png", true, 10, true); // [My Recently Downloaded Objects] [10]
         createCategoryBtn("gj_heartOn_001.png", true, 1, true); // [My Favorited Objects] [1]
-        createCategoryBtn("rankIcon_1_001.png", true, 9, true); // [Leaderboard] (Creator Points, Downloads, etc) [??]
+        createCategoryBtn("rankIcon_1_001.png", true, 900, true); // [Leaderboard] (Creator Points, Downloads, etc) [??]
     }
 
     Build<CCMenu>::create().anchorPoint({0.5, 1}).contentSize({30, 135}).layout(
@@ -120,8 +120,10 @@ bool ObjectWorkshop::init(bool authenticated) {
     if (auto item = typeinfo_cast<CCMenuItemSpriteExtra*>(m_categoryButtons->getChildByID(fmt::format("category-{}"_spr, currentMenuIndexGD)))) {
         static_cast<CategoryButton*>(item->getChildren()->objectAtIndex(0))->setIndicatorState(true);
     }
-    if (auto item = typeinfo_cast<CCMenuItemSpriteExtra*>(m_categoryButtonsTop->getChildByID(fmt::format("category-{}"_spr, currentMenuIndexGD)))) {
-        static_cast<CategoryButton*>(item->getChildren()->objectAtIndex(0))->setIndicatorState(true);
+    if (m_categoryButtonsTop) {
+        if (auto item = typeinfo_cast<CCMenuItemSpriteExtra*>(m_categoryButtonsTop->getChildByID(fmt::format("category-{}"_spr, currentMenuIndexGD)))) {
+            static_cast<CategoryButton*>(item->getChildren()->objectAtIndex(0))->setIndicatorState(true);
+        }
     }
     Build<ButtonSprite>::create(
         CCSprite::createWithSpriteFrameName("GJ_filterIcon_001.png"),
@@ -156,14 +158,18 @@ bool ObjectWorkshop::init(bool authenticated) {
                     isSearching = false;
                     onBackBtn(nullptr);
                     if (newID != currentMenuIndexGD) {
-                        if (auto oldItem = typeinfo_cast<CCMenuItemSpriteExtra*>(m_categoryButtonsTop->getChildByID(fmt::format("category-{}"_spr, currentMenuIndexGD)))) {
-                            static_cast<CategoryButton*>(oldItem->getChildren()->objectAtIndex(0))->setIndicatorState(false);
+                        if (m_categoryButtonsTop) {
+                            if (auto oldItem = typeinfo_cast<CCMenuItemSpriteExtra*>(m_categoryButtonsTop->getChildByID(fmt::format("category-{}"_spr, currentMenuIndexGD)))) {
+                                static_cast<CategoryButton*>(oldItem->getChildren()->objectAtIndex(0))->setIndicatorState(false);
+                            }
                         }
                         if (auto oldItem = typeinfo_cast<CCMenuItemSpriteExtra*>(m_categoryButtons->getChildByID(fmt::format("category-{}"_spr, currentMenuIndexGD)))) {
                             static_cast<CategoryButton*>(oldItem->getChildren()->objectAtIndex(0))->setIndicatorState(false);
                         }
-                        if (auto newItem = typeinfo_cast<CCMenuItemSpriteExtra*>(m_categoryButtonsTop->getChildByID(fmt::format("category-{}"_spr, newID)))) {
-                            static_cast<CategoryButton*>(newItem->getChildren()->objectAtIndex(0))->setIndicatorState(true);
+                        if (m_categoryButtonsTop) {
+                            if (auto newItem = typeinfo_cast<CCMenuItemSpriteExtra*>(m_categoryButtonsTop->getChildByID(fmt::format("category-{}"_spr, newID)))) {
+                                static_cast<CategoryButton*>(newItem->getChildren()->objectAtIndex(0))->setIndicatorState(true);
+                            }
                         }
                         currentMenuIndexGD = newID;
                     }
@@ -335,17 +341,25 @@ bool ObjectWorkshop::init(bool authenticated) {
 
 void ObjectWorkshop::onSideButton(CCObject* pSender) {
     isSearching = false;
-    m_currentPage = 1;
-    m_pageInput->setString("1");
-    onBackBtn(pSender);
     auto item = static_cast<CCMenuItemSpriteExtra*>(pSender);
     auto idStr = item->getID().view();
     //idStr.remove_prefix(idStr.length() - 1);
     idStr.remove_prefix(fmt::format("category-"_spr).length());
-    int id = numFromString<int>(idStr).unwrapOrDefault();;
+    int id = numFromString<int>(idStr).unwrapOrDefault();
+
+    if (id == 900) {
+        FLAlertLayer::create("Coming soon!", "<cy>Leaderboards</c> are not currently implemented yet!", "OK")->show();
+        return;
+    }
+
+    m_currentPage = 1;
+    m_pageInput->setString("1");
+    onBackBtn(pSender);
     if (id != currentMenuIndexGD) {
-        if (auto oldItem = typeinfo_cast<CCMenuItemSpriteExtra*>(m_categoryButtonsTop->getChildByID(fmt::format("category-{}"_spr, currentMenuIndexGD)))) {
-            static_cast<CategoryButton*>(oldItem->getChildren()->objectAtIndex(0))->setIndicatorState(false);
+        if (m_categoryButtonsTop) {
+            if (auto oldItem = typeinfo_cast<CCMenuItemSpriteExtra*>(m_categoryButtonsTop->getChildByID(fmt::format("category-{}"_spr, currentMenuIndexGD)))) {
+                static_cast<CategoryButton*>(oldItem->getChildren()->objectAtIndex(0))->setIndicatorState(false);
+            }
         }
         if (auto oldItem = typeinfo_cast<CCMenuItemSpriteExtra*>(m_categoryButtons->getChildByID(fmt::format("category-{}"_spr, currentMenuIndexGD)))) {
             static_cast<CategoryButton*>(oldItem->getChildren()->objectAtIndex(0))->setIndicatorState(false);
@@ -593,7 +607,7 @@ void ObjectWorkshop::handleRequest1(web::WebResponse value) {
     }
     m_scrollLayer->setTouchEnabled(true);
     m_amountItems = array.size();
-    if ((currentMenuIndexGD != 0 && currentMenuIndexGD != -1)) {
+    if ((currentMenuIndexGD != 0 || (currentMenuIndexGD == -1 && m_currentUserID == -1))) {
         if (m_amountItems > 6) {
             categoryItems->setContentSize({
                 categoryItems->getContentWidth(),
@@ -658,7 +672,7 @@ void ObjectWorkshop::handleRequest1(web::WebResponse value) {
                 this->handleRequest2(std::move(res));
             }
         );
-    } else if (currentMenuIndexGD == -1) {
+    } else if (currentMenuIndexGD == -1 && m_currentUserID != -1) {
         auto o_user = jsonRes.get("user");
         UserData user;
         myUploadsMenu->removeAllChildrenWithCleanup(true);
@@ -954,7 +968,7 @@ void ObjectWorkshop::load() {
     auto searchReq = [this](std::string url, bool get = true) {
         web::WebRequest request = web::WebRequest();
         request.userAgent(USER_AGENT);
-        if (currentMenuIndexGD != -1 && !get) {
+        if (!get) {
             auto myjson = matjson::Value();
             myjson.set("token", m_token);
             request.header("Content-Type", "application/json");
@@ -1012,7 +1026,11 @@ void ObjectWorkshop::load() {
             } else if (currentMenuIndexGD == 8) { // reports
                 searchReq(fmt::format("{}/objects/reports?page={}", HOST_URL, m_currentPage), false);
             } else if (currentMenuIndexGD == -1) { // a user
-                searchReq(fmt::format("{}/user/{}?page={}", HOST_URL, m_currentUserID, m_currentPage));
+                if (m_currentUserID == -1) {
+                    searchReq(fmt::format("{}/user/@me/objects?page={}&limit=false", HOST_URL, m_currentPage), false);
+                } else {
+                    searchReq(fmt::format("{}/user/{}?page={}", HOST_URL, m_currentUserID, m_currentPage));
+                }
             }
         } else {
             FLAlertLayer::create("Error", "You aren't <cy>authenticated!</c>", "OK")->show();
@@ -1044,7 +1062,7 @@ void ObjectWorkshop::createCategoryBtn(const char* string, bool isSpriteFrame, i
         menu_selector(ObjectWorkshop::onSideButton)
     );
     btn->setID(fmt::format("category-{}"_spr, menuIndex));
-    if (top) {
+    if (top && m_categoryButtonsTop) {
         m_categoryButtonsTop->addChild(btn);
         m_categoryButtonsTop->updateLayout();
     } else {
@@ -1055,8 +1073,10 @@ void ObjectWorkshop::createCategoryBtn(const char* string, bool isSpriteFrame, i
 }
 
 void ObjectWorkshop::onClickUser(int accountID) {
-    if (auto oldItem = typeinfo_cast<CCMenuItemSpriteExtra*>(m_categoryButtonsTop->getChildByID(fmt::format("category-{}"_spr, currentMenuIndexGD)))) {
-        static_cast<CategoryButton*>(oldItem->getChildren()->objectAtIndex(0))->setIndicatorState(false);
+    if (m_categoryButtonsTop) {
+        if (auto oldItem = typeinfo_cast<CCMenuItemSpriteExtra*>(m_categoryButtonsTop->getChildByID(fmt::format("category-{}"_spr, currentMenuIndexGD)))) {
+            static_cast<CategoryButton*>(oldItem->getChildren()->objectAtIndex(0))->setIndicatorState(false);
+        }
     }
     if (auto oldItem = typeinfo_cast<CCMenuItemSpriteExtra*>(m_categoryButtons->getChildByID(fmt::format("category-{}"_spr, currentMenuIndexGD)))) {
         static_cast<CategoryButton*>(oldItem->getChildren()->objectAtIndex(0))->setIndicatorState(false);
