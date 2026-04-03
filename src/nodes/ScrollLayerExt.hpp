@@ -53,12 +53,12 @@ class ScrollLayerExt : public CCScrollLayerExt, public CCScrollLayerExtDelegate 
         void ccTouchEnded(cocos2d::CCTouch*, cocos2d::CCEvent*) override;
         void ccTouchCancelled(cocos2d::CCTouch*, cocos2d::CCEvent*) override;
         void scrollWheel(float, float) override;
-        void scrollToTop();
         void visit() override;
         CCMenuItemSpriteExtra* itemForTouch(CCTouch*);
 
         ScrollLayerExt(CCRect const& rect, bool scrollWheelEnabled, bool vertical);
     public:
+        void scrollToTop();
         void fixTouchPrio();
         void setCallbackMove(std::function<void()> callbackMove);
         void setCallbackEnd(std::function<void()> callbackEnd);

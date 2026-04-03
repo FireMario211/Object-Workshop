@@ -6,15 +6,63 @@ bool WarningPopup::init(CaseData caseData, std::function<void()> callback) {
     if (!Popup::init(260.f, 220.f)) return false;
     m_case = caseData;
     this->setTitle("Notice!");
-    auto infoDesc = MDTextArea::create(fmt::format("## You have been <cy>warned</c> for the following reason:\n---\n{}\n\n---\n\nPlease be aware that repeated violations of the rules may result in more severe consequences.\n\n*By clicking **I acknowledge**, you confirm that you have read and understood this warning.*", m_case.reason), {220, 145});
-    m_buttonMenu->addChildAtPosition(infoDesc, Anchor::Center);
-    Build<CCLabelBMFont>::create(fmt::format("Case #{} - Warning #{}", m_case.id, m_case.number).c_str(), "chatFont.fnt")
-        .color(0,0,0)
-        .opacity(150)
-        .anchorPoint(0.5, 0)
-        .scale(0.55f)
-        .parentAtPos(m_mainLayer, Anchor::Bottom, {0, 5});
-    m_closeBtn->removeMeAndCleanup();
+    if (caseData.type == CaseType::Warning) {
+        auto infoDesc = MDTextArea::create(fmt::format("## You have been <cy>warned</c> for the following reason:\n---\n{}\n\n---\n\nPlease be aware that repeated violations of the rules may result in more severe consequences.\n\n*By clicking **I acknowledge**, you confirm that you have read and understood this warning.*", m_case.reason), {220, 145});
+        m_buttonMenu->addChildAtPosition(infoDesc, Anchor::Center);
+        Build<CCLabelBMFont>::create(fmt::format("Case #{} - Warning #{}", m_case.id, m_case.number).c_str(), "chatFont.fnt")
+            .color(0,0,0)
+            .opacity(150)
+            .anchorPoint(0.5, 0)
+            .scale(0.55f)
+            .parentAtPos(m_mainLayer, Anchor::Bottom, {0, 5});
+        m_closeBtn->removeMeAndCleanup();
+    } else {
+        std::string banType;
+        std::string willExpire;
+        switch (caseData.type) {
+            case CaseType::TBan:
+                banType = "**<co>temporarily banned</c>** (Account)";
+                break;
+            case CaseType::TCommentBan:
+                banType = "**<co>temporarily banned</c>** (Comment)";
+                break;
+            case CaseType::TUploadBan:
+                banType = "**<co>temporarily banned</c>** (Upload)";
+                break;
+            case CaseType::Ban:
+                banType = "**<cr>permanently banned</c>** (Account)";
+                break;
+            case CaseType::CommentBan:
+                banType = "**<cr>permanently banned</c>** (Comment)";
+                break;
+            case CaseType::UploadBan:
+                banType = "**<cr>permanently banned</c>** (Upload)";
+                break;
+            default:
+                banType = "<cr>unknown</c>";
+                break;
+        }
+        switch (caseData.type) {
+            case CaseType::TBan:
+            case CaseType::TCommentBan:
+            case CaseType::TUploadBan:
+                willExpire = fmt::format("The ban will expire on {}", m_case.expiration);
+                break;
+            default:
+                willExpire = "The ban will not expire. You will need to appeal on Discord if you wish to be unbanned.";
+                break;
+        }
+        auto infoDesc = MDTextArea::create(fmt::format("## You have been {} for the following reason:\n---\n{}\n\n---\n\n{}\n\n\n*By clicking **I acknowledge**, you confirm that you have read this notice.*", banType, m_case.reason, willExpire), {220, 145});
+        m_buttonMenu->addChildAtPosition(infoDesc, Anchor::Center);
+        Build<CCLabelBMFont>::create(fmt::format("Case #{} - Warning #{}", m_case.id, m_case.number).c_str(), "chatFont.fnt")
+            .color(0,0,0)
+            .opacity(150)
+            .anchorPoint(0.5, 0)
+            .scale(0.55f)
+            .parentAtPos(m_mainLayer, Anchor::Bottom, {0, 5});
+        m_closeBtn->removeMeAndCleanup();
+    }
+    
     Build<ButtonSprite>::create("I acknowledge", "bigFont.fnt", "GJ_button_01.png").scale(0.5F).intoMenuItem([this, callback]() {
         m_mainLayer->setVisible(false);
         m_listener.cancel();

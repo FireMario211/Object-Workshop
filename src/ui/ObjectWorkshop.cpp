@@ -1008,7 +1008,7 @@ void ObjectWorkshop::load() {
             } else if (currentMenuIndexGD == 1) { // favorited
                 searchReq(fmt::format("{}/user/@me/favorites?page={}&limit={}", HOST_URL, m_currentPage, RESULT_LIMIT), false);
             } else if (currentMenuIndexGD == 7) { // pending 
-                searchReq(fmt::format("{}/objects/pending?page={}", HOST_URL, m_currentPage), false);
+                searchReq(fmt::format("{}/objects/pending?page={}{}", HOST_URL, m_currentPage, m_selectedFeatured ? "&rejected=true" : ""), false);
             } else if (currentMenuIndexGD == 8) { // reports
                 searchReq(fmt::format("{}/objects/reports?page={}", HOST_URL, m_currentPage), false);
             } else if (currentMenuIndexGD == -1) { // a user

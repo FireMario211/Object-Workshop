@@ -8,7 +8,8 @@ enum ObjectStatus {
     PENDING = 0,
     LISTED = 1,
     UNLISTED = 2,
-    BANNED = 3
+    BANNED = 3,
+    PENDING_DELETION = 4
 };
 
 struct ReportData {
@@ -53,6 +54,7 @@ struct ObjectData {
     int maxCommentPage = 1;
 
     std::vector<ReportData> reports;
+    bool appealed;
 };
 
 template<>
@@ -76,6 +78,9 @@ struct matjson::Serialize<ObjectData> {
         GEODE_UNWRAP_INTO(data.updated, value["updated"].asString());
         GEODE_UNWRAP_INTO(data.version, value["version"].asInt());
         GEODE_UNWRAP_INTO(data.featured, value["featured"].asInt());
+        if (value.contains("appealed")) {
+            GEODE_UNWRAP_INTO(data.appealed, value["appealed"].asBool());
+        }
         data.tags = Utils::arrayToUnorderedSet<std::string>(o_tags);
         data.status = static_cast<ObjectStatus>(o_status);
         return Ok(data);

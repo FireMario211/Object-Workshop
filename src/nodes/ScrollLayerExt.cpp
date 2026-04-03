@@ -8,7 +8,6 @@ void ScrollLayerExt::scrollWheel(float pointX, float pointY) {
     }
 }
 
-
 bool ScrollLayerExt::ccTouchBegan(cocos2d::CCTouch *touch, cocos2d::CCEvent *event) {
     if (nodeIsVisible(this)) {
         bool value = CCScrollLayerExt::ccTouchBegan(touch, event);
@@ -146,6 +145,7 @@ ScrollLayerExt::ScrollLayerExt(CCRect const& rect, bool scrollWheelEnabled, bool
     m_disableHorizontal = vertical;
     m_cutContent = true;
 
+    this->setUserFlag("alk.better-touch-prio/steals-touch");
     m_contentLayer->removeFromParent();
     m_contentLayer = GenericContentLayer::create(rect.size.width, rect.size.height);
     m_contentLayer->setID("content-layer");
@@ -159,7 +159,6 @@ ScrollLayerExt::ScrollLayerExt(CCRect const& rect, bool scrollWheelEnabled, bool
 
     this->setMouseEnabled(true);
     this->setTouchEnabled(true);
-    this->setUserFlag("alk.better-touch-prio/steals-touch");
 }
 
 void ScrollLayerExt::visit() {

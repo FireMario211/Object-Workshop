@@ -15,4 +15,9 @@ export default interface ObjectData {
     created: string;
     updated: string;
     data: string;
+    /*staff_account_id: Array<number>;
+    reject_timestamp: string;
+    reject_reason: string,
+    appeal_reason: string,*/
+    appealed: boolean;
 };

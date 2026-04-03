@@ -27,6 +27,10 @@ void CustomObjects::onWorkshop(CCObject*) {
     authServer = 0; // fallback
     log::info("Argon disabled, fallback to DashAuth");
 #endif
+#if defined(ARGON) && !defined(DASHAUTH)
+    authServer = 1;
+    log::info("DashAuth disabled, fallback to Argon");
+#endif
                 switch (AuthMenu::intToAuth(authServer)) {
                     default:
                     case AuthMethod::None: {

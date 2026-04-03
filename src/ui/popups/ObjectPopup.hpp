@@ -12,8 +12,8 @@ protected:
     async::TaskHolder<geode::utils::web::WebResponse> m_listener;
     ObjectWorkshop* m_workshop;
 
-    CCLabelBMFont* downloadsLabel;
-    CCLabelBMFont* favoritesLabel;
+    CCLabelBMFont* m_downloadsLabel;
+    CCLabelBMFont* m_favoritesLabel;
     ObjectData m_object;
     UserData m_user;
 
@@ -24,26 +24,20 @@ protected:
     void onSliderZoom(CCObject*);
     void onZoomIn(CCObject*);
     void onZoomOut(CCObject*);
-    void onResetZoom(CCObject*);
 
     bool init(ObjectData, UserData);
 
-    void onAuthorBtn(CCObject*);
     void onRateBtn(CCObject*);
     void actuallyDownload();
     void onDownloadBtn(CCObject*);
     void onFavBtn(CCObject*);
-    void onCommentsBtn(CCObject*);
 
-    void onInfoBtn(CCObject*);
-    void onTrashBtn(CCObject*);
-    void onEditBtn(CCObject*);
-    void onReviewBtn(CCObject*);
-    void onFeatureBtn(CCObject*);
-    void onReportBtn(CCObject*);
     void sendRequest(std::string url, bool exit = true);
+    void generateContext();
 public:
-    virtual void onClose(CCObject* sender) override;
+    virtual void onClose(CCObject* sender) override {
+        Popup::onClose(sender);
+    }
     ObjectWorkshop* getWorkshop() {
         return m_workshop;
     }
