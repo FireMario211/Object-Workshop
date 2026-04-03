@@ -217,9 +217,9 @@ bool CustomObjects::init(LevelEditorLayer* editorLayer) {
         textLabelOff->setScale(0.4f);
         return folder;
     }, [] (bool state, auto tab) { // do something when the tab is entered and exited
-        log::info("rawr-tab state: {}", state);
+        //log::info("rawr-tab state: {}", state);
     }, [] (int rows, int cols, auto tab) { // do something when the tab is reloaded
-        log::info("rawr tab rows: {}, cols: {}", rows, cols);
+        //log::info("rawr tab rows: {}, cols: {}", rows, cols);
     });
     return true;
 }
