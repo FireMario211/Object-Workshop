@@ -10,6 +10,7 @@ on:
 
 env:
   MOD_ID: firee.object-workshop
+  BUILD_CONFIG: RelWithDebInfo
 
 jobs:
   build:
@@ -19,27 +20,22 @@ jobs:
         config:
         # - name: Windows
         #   target: windows
-        #   artifact-name: geode-build-win
-        #   platform: windows
+        #   platform: win
         #
         # - name: macOS
         #   target: macos
-        #   artifact-name: geode-build-mac
         #   platform: macos
         #
         # - name: iOS
         #   target: ios
-        #   artifact-name: geode-build-ios
         #   platform: ios
         #
         # - name: Android32
         #   target: android
-        #   artifact-name: geode-build-android32
         #   platform: android32
 
         - name: Android64
           target: android
-          artifact-name: geode-build-android64
           platform: android64
 
     name: ${{ matrix.config.name }}
@@ -65,17 +61,33 @@ jobs:
 
       - name: Configure & Build
         run: |
-          # TODO: change this to use cmake instead
-          GEODE_BINDINGS_REPO_PATH=/workspace/bindings geode build -p ${{ matrix.config.platform }} --config RelWithDebInfo
-          mkdir -p /workspace/out
-          # windows is win
-          cp build-android64/${{ env.MOD_ID }}.geode /workspace/out/
+          CMAKE_EXTRA_ARGS=""
+          if [ ${{ matrix.config.platform }} = "mac" ]; then
+            CMAKE_EXTRA_ARGS="-DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DGEODE_DISABLE_PRECOMPILED_HEADERS=OFF"
+          elif [ ${{ matrix.config.platform }} = "android32" ]; then
+            CMAKE_EXTRA_ARGS="-DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_ROOT/build/cmake/android.toolchain.cmake -DANDROID_STL=c++_shared -DANDROID_ABI=armeabi-v7a -DANDROID_PLATFORM=android-23"
+          elif [ ${{ matrix.config.platform }} = "android64" ]; then
+            CMAKE_EXTRA_ARGS="-DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_ROOT/build/cmake/android.toolchain.cmake -DANDROID_STL=c++_shared -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-23"
+          elif [ ${{ matrix.config.platform }} = "ios" ]; then
+            CMAKE_EXTRA_ARGS="-DCMAKE_SYSTEM_NAME=iOS -DGEODE_TARGET_PLATFORM=iOS -DGEODE_DISABLE_PRECOMPILED_HEADERS=OFF"
+          elif [ ${{ matrix.config.platform }} = "win" ]; then
+            CMAKE_EXTRA_ARGS="-DHOST_ARCH=x64 -DCMAKE_TOOLCHAIN_FILE=/root/.local/share/Geode/cross-tools/clang-msvc-sdk/clang-msvc.cmake -DSPLAT_DIR=/root/.local/share/Geode/cross-tools/splat"
+          fi
+          cmake -B build -DCMAKE_BUILD_TYPE=${{ env.BUILD_CONFIG }} -DGEODE_BINDINGS_REPO_PATH=/workspace/bindings -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DGEODE_CODEGEN_CMAKE_ARGS="-DCMAKE_C_COMPILER=clang;-DCMAKE_CXX_COMPILER=clang++;-G Ninja" -G Ninja $CMAKE_EXTRA_ARGS -DGEODE_DONT_INSTALL_MODS=ON
+          cmake --build build --config ${{ env.BUILD_CONFIG }} --parallel
+
+          mkdir /workspace/out
 
       - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        uses: https://data.forgejo.org/forgejo/upload-artifact@v4
         with:
-          name: ${{ matrix.config.artifact-name }}
-          path: /workspace/out/
+          name: "geode-build-${{ matrix.config.platform }}"
+          path: |
+            /workspace/out/*.geode
+            /workspace/out/*.pdb
+            /workspace/out/*.sym
+            /workspace/out/*.dbg
+            /workspace/out/*.dSYM
 
   package:
     name: Package builds
@@ -83,9 +95,8 @@ jobs:
     needs: ['build']
 
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: https://data.forgejo.org/forgejo/download-artifact@v4
         with:
-          merge-multiple: false
           path: ./artifacts
 
       # TODO: Fix this so it gets latest via https://api.github.com/repos/geode-sdk/cli/releases/latest
@@ -136,7 +147,7 @@ jobs:
           cp -R ./artifacts/geode-build-mac/*.dSYM out/ || true
           cp -R ./artifacts/geode-build-ios/*.dSYM out/ || true
 
-      - uses: actions/upload-artifact@v4
+      - uses: https://data.forgejo.org/forgejo/upload-artifact@v4
         with:
           name: Build Output
           path: ./out/
