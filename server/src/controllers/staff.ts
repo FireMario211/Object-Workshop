@@ -57,7 +57,7 @@ export function caseTypeToName(type: number, color: boolean): string {
             break;
     }
     if (color) {
-        return `<${ccolor}>${name}</${ccolor}>`
+        return `<${ccolor}>${name}</c>`
     } else {
         return name;
     }

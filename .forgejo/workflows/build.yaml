@@ -30,16 +30,16 @@ jobs:
         #   target: ios
         #   platform: ios
 
-        # - name: Android32
-        #   target: android
-        #   platform: android32
+        - name: Android32
+          target: android
+          platform: android32
 
         - name: Android64
           target: android
           platform: android64
 
     name: ${{ matrix.config.name }}
-    runs-on: codeberg-medium-lazy
+    runs-on: codeberg-medium
     container:
       image: prevter/geode-sdk:${{ matrix.config.target }}-latest
 
@@ -73,7 +73,7 @@ jobs:
           elif [ ${{ matrix.config.platform }} = "win" ]; then
             CMAKE_EXTRA_ARGS="-DHOST_ARCH=x64 -DCMAKE_TOOLCHAIN_FILE=/root/.local/share/Geode/cross-tools/clang-msvc-sdk/clang-msvc.cmake -DSPLAT_DIR=/root/.local/share/Geode/cross-tools/splat"
           fi
-          cmake -B build -DCMAKE_BUILD_TYPE=${{ env.BUILD_CONFIG }} -DGEODE_BINDINGS_REPO_PATH=/workspace/bindings -DCMAKE_C_COMPILER=clang -DCMAKE_CXX_COMPILER=clang++ -DGEODE_CODEGEN_CMAKE_ARGS="-DCMAKE_C_COMPILER=clang;-DCMAKE_CXX_COMPILER=clang++;-G Ninja" -G Ninja $CMAKE_EXTRA_ARGS -DGEODE_DONT_INSTALL_MODS=ON
+          cmake -B build -DCMAKE_BUILD_TYPE=${{ env.BUILD_CONFIG }} -DGEODE_BINDINGS_REPO_PATH=/workspace/bindings -G Ninja $CMAKE_EXTRA_ARGS -DGEODE_DONT_INSTALL_MODS=ON
           cmake --build build --config ${{ env.BUILD_CONFIG }} --parallel
 
           mkdir /workspace/out
