@@ -55,12 +55,13 @@ jobs:
 
       - name: Install SDK & Binaries
         run: |
-          geode sdk update stable
+          geode sdk update 5.4.1
           # geode sdk install-binaries -p ${{ matrix.config.platform }} # commenting this out for now as codeberg is ratelimited by github
-          curl -L "https://prefire.prevter.me/f/3402c83a2691435b91d720cd73782900/download" -o android64.zip
+          # curl -L "https://prefire.prevter.me/f/3402c83a2691435b91d720cd73782900/download" -o android64.zip
+          curl -L "https://prefire.prevter.me/f/ccfac9eb1fab4ccda2cc0e63130289a7/download" -o android64.zip
           mkdir -p $GEODE_SDK/bin
-          mkdir -p $GEODE_SDK/bin/5.5.3
-          unzip -o android64.zip -d $GEODE_SDK/bin/5.5.3
+          mkdir -p $GEODE_SDK/bin/5.4.1
+          unzip -o android64.zip -d $GEODE_SDK/bin/5.4.1
           git clone https://github.com/geode-sdk/bindings --depth=1 /workspace/bindings
 
       - name: Configure & Build
@@ -69,7 +70,7 @@ jobs:
           mkdir -p /workspace/out
           cp build/${{ env.MOD_ID }}.geode /workspace/out/
 
-      - name: Upload ${{ matrix.config.name }} artifact
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.config.artifact-name }}
