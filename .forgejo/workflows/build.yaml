@@ -17,25 +17,25 @@ jobs:
       fail-fast: false
       matrix:
         config:
-        - name: Windows
-          target: windows
-          artifact-name: geode-build-win
-          platform: windows
-
-        - name: macOS
-          target: macos
-          artifact-name: geode-build-mac
-          platform: macos
-
-        - name: iOS
-          target: ios
-          artifact-name: geode-build-ios
-          platform: ios
-
-        - name: Android32
-          target: android
-          artifact-name: geode-build-android32
-          platform: android32
+        # - name: Windows
+        #   target: windows
+        #   artifact-name: geode-build-win
+        #   platform: windows
+        #
+        # - name: macOS
+        #   target: macos
+        #   artifact-name: geode-build-mac
+        #   platform: macos
+        #
+        # - name: iOS
+        #   target: ios
+        #   artifact-name: geode-build-ios
+        #   platform: ios
+        #
+        # - name: Android32
+        #   target: android
+        #   artifact-name: geode-build-android32
+        #   platform: android32
 
         - name: Android64
           target: android
@@ -43,9 +43,9 @@ jobs:
           platform: android64
 
     name: ${{ matrix.config.name }}
-    runs-on: codeberg-medium
+    runs-on: codeberg-medium-lazy
     container:
-      image: prevter/geode-sdk:${{ matrix.config.image }}-latest
+      image: prevter/geode-sdk:${{ matrix.config.target }}-latest
 
     steps:
       - name: Checkout repository
@@ -73,7 +73,7 @@ jobs:
 
   package:
     name: Package builds
-    runs-on: codeberg-small
+    runs-on: codeberg-tiny-lazy
     needs: ['build']
 
     steps:
