@@ -1,0 +1,136 @@
+name: Build Geode Mod (Codeberg)
+
+# Thank you very much to https://github.com/altalk23/Allium
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "**"
+
+env:
+  MOD_ID: firee.object-workshop
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+        - name: Windows
+          target: windows
+          artifact-name: geode-build-win
+          platform: windows
+
+        - name: macOS
+          target: macos
+          artifact-name: geode-build-mac
+          platform: macos
+
+        - name: iOS
+          target: ios
+          artifact-name: geode-build-ios
+          platform: ios
+
+        - name: Android32
+          target: android
+          artifact-name: geode-build-android32
+          platform: android32
+
+        - name: Android64
+          target: android
+          artifact-name: geode-build-android64
+          platform: android64
+
+    name: ${{ matrix.config.name }}
+    runs-on: codeberg-medium
+    container:
+      image: prevter/geode-sdk:${{ matrix.config.image }}-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # rest is taken from Dockerfile
+
+      - name: Install SDK & Binaries
+        run: |
+          geode sdk update stable
+          geode sdk install-binaries -p ${{ matrix.config.platform }}
+          git clone https://github.com/geode-sdk/bindings --depth=1 /workspace/bindings
+
+      - name: Configure & Build
+        run: |
+          GEODE_BINDINGS_REPO_PATH=/workspace/bindings geode build -p ${{ matrix.config.platform }} --config RelWithDebInfo
+          mkdir -p /workspace/out
+          cp build/${{ env.MOD_ID }}.geode /workspace/out/
+
+      - name: Upload ${{ matrix.config.name }} artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.config.artifact-name }}
+          path: /workspace/out/
+
+  package:
+    name: Package builds
+    runs-on: codeberg-small
+    needs: ['build']
+
+    steps:
+      - uses: https://data.forgejo.org/forgejo/download-artifact@v4
+        with:
+          merge-multiple: false
+          path: ./artifacts
+
+      # TODO: Fix this so it gets latest via https://api.github.com/repos/geode-sdk/cli/releases/latest
+      - name: Download CLI
+        run: |
+          curl -L "https://github.com/geode-sdk/cli/releases/download/v3.7.4/geode-cli-v3.7.4-linux.zip" -o cli.zip
+          unzip cli.zip -d .
+          chmod +x ./geode
+      
+      - name: Merge Artifacts
+        run: |
+          mkdir -p out
+          MODS=$(find ./artifacts -name *.geode -type f -printf "%f\n" | sort -u)
+          for mod in $MODS; do
+            echo "Merging $mod"
+            PACKAGE_ARGS=""
+            if [ -f "./artifacts/geode-build-win/$mod" ]; then
+              PACKAGE_ARGS="$PACKAGE_ARGS ./artifacts/geode-build-win/$mod"
+            fi
+            if [ -f "./artifacts/geode-build-mac/$mod" ]; then
+              PACKAGE_ARGS="$PACKAGE_ARGS ./artifacts/geode-build-mac/$mod"
+            fi
+            if [ -f "./artifacts/geode-build-android32/$mod" ]; then
+              PACKAGE_ARGS="$PACKAGE_ARGS ./artifacts/geode-build-android32/$mod"
+            fi
+            if [ -f "./artifacts/geode-build-android64/$mod" ]; then
+              PACKAGE_ARGS="$PACKAGE_ARGS ./artifacts/geode-build-android64/$mod"
+            fi
+            if [ -f "./artifacts/geode-build-ios/$mod" ]; then
+              PACKAGE_ARGS="$PACKAGE_ARGS ./artifacts/geode-build-ios/$mod"
+            fi
+            ARG_LIST=($PACKAGE_ARGS)
+            # why does it merge into the first one instead of just an output..
+            FIRST="${ARG_LIST[0]}"
+            if [ ${#ARG_LIST[@]} != 1 ]; then
+              ./geode package merge $PACKAGE_ARGS
+            fi
+            cp $FIRST out
+          done
+          # Copy the .pdb file from windows artifact if it exists
+          cp ./artifacts/geode-build-win/*.pdb out/ || true
+          # Copy the .sym files from android artifacts if they exist
+          cp ./artifacts/geode-build-android32/*.sym out/ || true
+          cp ./artifacts/geode-build-android64/*.sym out/ || true
+          # Copy the other debug files from android and macos/ios
+          cp ./artifacts/geode-build-android32/*.dbg out/ || true
+          cp ./artifacts/geode-build-android64/*.dbg out/ || true
+          cp -R ./artifacts/geode-build-mac/*.dSYM out/ || true
+          cp -R ./artifacts/geode-build-ios/*.dSYM out/ || true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Build Output
+          path: ./out/
