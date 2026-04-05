@@ -7,6 +7,7 @@
 #include "admin/AdminPopup.hpp"
 #include "../nodes/CategoryButton.hpp"
 #include "../utils.hpp"
+#include <Geode/ui/GeodeUI.hpp>
 
 int currentMenuIndexGD = 2;
 std::unordered_set<std::string> g_availableTags;
@@ -312,6 +313,11 @@ bool ObjectWorkshop::init(bool authenticated) {
         onBackBtn(nullptr);
         RegenCategory();
     }).parentAtPos(m_buttonMenu, Anchor::TopRight, {22, -16});
+
+    // kofi
+    Build<CCSprite>::createSpriteName("geode.loader/gift.png").scale(1.15f).intoMenuItem([this]() {
+        geode::openSupportPopup(Mod::get());
+    }).parentAtPos(m_buttonMenu, Anchor::BottomLeft, {-22, 20});
 
     m_pageInput = TextInput::create(65.0F, "Page...");
     m_pageInput->setString("1");

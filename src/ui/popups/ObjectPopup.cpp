@@ -278,15 +278,16 @@ bool ObjectPopup::init(ObjectData objectData, UserData user) {
                 }
             });
         }).enabled((m_user.role >= 3)).parent(menu);
-        // add a disable for this
-        Build<CCSprite>::createSpriteName("accountBtn_blocked_001.png").scale(0.55f).intoMenuItem([this]{ 
-            ReportPopup::create(m_object, ReportActionType::ReviewAndCase, [this]() {
-                if (m_workshop != nullptr) {
-                    this->onClose(nullptr);
-                    m_workshop->RegenCategory();
-                }
-            })->show();
-        }).parent(menu);
+        if (objectData.status == 0) {
+            Build<CCSprite>::createSpriteName("accountBtn_blocked_001.png").scale(0.55f).intoMenuItem([this]{ 
+                ReportPopup::create(m_object, ReportActionType::ReviewAndCase, [this]() {
+                    if (m_workshop != nullptr) {
+                        this->onClose(nullptr);
+                        m_workshop->RegenCategory();
+                    }
+                })->show();
+            }).parent(menu);
+        }
         menu->setLayout(ColumnLayout::create()->setAxisAlignment(AxisAlignment::End)
             ->setCrossAxisAlignment(AxisAlignment::Center)
             ->setAutoScale(false)
