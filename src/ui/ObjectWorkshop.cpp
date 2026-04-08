@@ -202,7 +202,6 @@ bool ObjectWorkshop::init(bool authenticated) {
     m_content = CCMenu::create();
     m_content->setZOrder(2);
     m_content->setPositionX(45);
-    m_content->registerWithTouchDispatcher();
 
     // auto topG = Build<CCSprite>::createSpriteName("d_gradient_01_001.png").opacity(0).zOrder(1).flipY(true).color(0,0,0).anchorPoint(0,1).scaleToMatchX(rightBg->getContentWidth()).parent(rightBg).posY(227).collect();
     // auto bottomG = Build<CCSprite>::createSpriteName("d_gradient_01_001.png").opacity(120).zOrder(1).color(0,0,0).anchorPoint(0,0).scaleToMatchX(rightBg->getContentWidth()).parent(rightBg).collect();
@@ -341,7 +340,6 @@ bool ObjectWorkshop::init(bool authenticated) {
 
     this->setID("objectworkshop"_spr);
     log::debug("Finished with setup!");
-    //cocos::handleTouchPriority(m_scrollLayer);
     return true;
 }
 
@@ -528,7 +526,7 @@ void ObjectWorkshop::RegenCategory() {
             }
         }
         m_scrollLayer->moveToTop();
-        cocos::handleTouchPriority(m_buttonMenu);
+        //cocos::handleTouchPriority(m_buttonMenu);
         load();
     });
     setKeyboardEnabled(true);
@@ -651,8 +649,6 @@ void ObjectWorkshop::handleRequest1(web::WebResponse value) {
         m_categoryBar->updateLayout();
         categoryItems->updateLayout();
         if (loadingCircle != nullptr) loadingCircle->fadeAndRemove();
-        cocos::handleTouchPriority(m_content);
-        m_scrollLayer->fixTouchPrio();
         categoryItems->setVisible(true);
         myUploadsMenu->setVisible(true);
     }
@@ -837,8 +833,6 @@ void ObjectWorkshop::handleRequest1(web::WebResponse value) {
         myUploadsBar->updateLayout();
         m_categoryBar->updateLayout();
         categoryItems->updateLayout();
-        cocos::handleTouchPriority(m_content);
-        m_scrollLayer->fixTouchPrio();
         if (loadingCircle != nullptr) loadingCircle->fadeAndRemove();
         m_scrollLayer->moveToTop();
     }
@@ -953,8 +947,6 @@ void ObjectWorkshop::handleRequest2(web::WebResponse value) {
     myUploadsBar->updateLayout();
     m_categoryBar->updateLayout();
     categoryItems->updateLayout();
-    cocos::handleTouchPriority(m_content);
-    m_scrollLayer->fixTouchPrio();
     if (loadingCircle != nullptr) loadingCircle->fadeAndRemove();
     m_scrollLayer->moveToTop();
 }

@@ -1,16 +1,10 @@
-name: Build Geode Mod (Codeberg)
-
-# Thank you very much to https://github.com/altalk23/Allium
+name: Build Geode Mod
 
 on:
   workflow_dispatch:
   push:
     branches:
       - "**"
-
-env:
-  MOD_ID: firee.object-workshop
-  BUILD_CONFIG: RelWithDebInfo
 
 jobs:
   build:
@@ -19,134 +13,51 @@ jobs:
       matrix:
         config:
         - name: Windows
-          target: windows
-          platform: win
+          image: windows
+          target: Win64
 
         # - name: macOS
-        #   target: macos
-        #   platform: macos
+        #   image: macos
+        #   target: MacOS
         #
         # - name: iOS
-        #   target: ios
-        #   platform: ios
+        #   image: ios
+        #   target: iOS
 
         - name: Android32
-          target: android
-          platform: android32
+          image: android
+          target: Android32
 
         - name: Android64
-          target: android
-          platform: android64
+          image: android
+          target: Android64
 
     name: ${{ matrix.config.name }}
     runs-on: codeberg-medium
     container:
-      image: prevter/geode-sdk:${{ matrix.config.target }}-latest
+      image: prevter/geode-sdk:${{ matrix.config.image }}-latest
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # rest is taken from Dockerfile
-
-      - name: Install SDK & Binaries
-        run: |
-          geode sdk update 5.4.1
-          # geode sdk install-binaries -p ${{ matrix.config.platform }} # commenting this out for now as codeberg is ratelimited by github
-          curl -L "https://github.com/geode-sdk/geode/releases/download/v5.4.1/geode-v5.4.1-${{ matrix.config.platform }}.zip" -o geode-v5.4.1-${{ matrix.config.platform }}.zip
-          mkdir -p $GEODE_SDK/bin
-          mkdir -p $GEODE_SDK/bin/5.4.1
-          unzip -o geode-v5.4.1-${{ matrix.config.platform }}.zip -d $GEODE_SDK/bin/5.4.1
-          git clone https://github.com/geode-sdk/bindings --depth=1 /workspace/bindings
-
-      - name: Configure & Build
-        run: |
-          CMAKE_EXTRA_ARGS=""
-          if [ ${{ matrix.config.platform }} = "mac" ]; then
-            CMAKE_EXTRA_ARGS="-DCMAKE_OSX_DEPLOYMENT_TARGET=11.0 -DGEODE_DISABLE_PRECOMPILED_HEADERS=OFF"
-          elif [ ${{ matrix.config.platform }} = "android32" ]; then
-            CMAKE_EXTRA_ARGS="-DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_ROOT/build/cmake/android.toolchain.cmake -DANDROID_STL=c++_shared -DANDROID_ABI=armeabi-v7a -DANDROID_PLATFORM=android-23"
-          elif [ ${{ matrix.config.platform }} = "android64" ]; then
-            CMAKE_EXTRA_ARGS="-DCMAKE_TOOLCHAIN_FILE=$ANDROID_NDK_ROOT/build/cmake/android.toolchain.cmake -DANDROID_STL=c++_shared -DANDROID_ABI=arm64-v8a -DANDROID_PLATFORM=android-23"
-          elif [ ${{ matrix.config.platform }} = "ios" ]; then
-            CMAKE_EXTRA_ARGS="-DCMAKE_SYSTEM_NAME=iOS -DGEODE_TARGET_PLATFORM=iOS -DGEODE_DISABLE_PRECOMPILED_HEADERS=OFF"
-          elif [ ${{ matrix.config.platform }} = "win" ]; then
-            CMAKE_EXTRA_ARGS="-DHOST_ARCH=x64 -DCMAKE_TOOLCHAIN_FILE=/root/.local/share/Geode/cross-tools/clang-msvc-sdk/clang-msvc.cmake -DSPLAT_DIR=/root/.local/share/Geode/cross-tools/splat"
-          fi
-          cmake -B build -DCMAKE_BUILD_TYPE=${{ env.BUILD_CONFIG }} -DGEODE_BINDINGS_REPO_PATH=/workspace/bindings -G Ninja $CMAKE_EXTRA_ARGS -DGEODE_DONT_INSTALL_MODS=ON
-          cmake --build build --config ${{ env.BUILD_CONFIG }} --parallel
-
-          mkdir /workspace/out
-
-          for file in $(find ./build -name *.geode); do
-            cp $file "/workspace/out"
-          done
-
-      - name: Upload artifact
-        uses: https://code.forgejo.org/actions/upload-artifact@v3
+      - name: Build the mod
+        uses: https://codeberg.org/geode-sdk/build-geode-mod@main
         with:
-          name: "geode-build-${{ matrix.config.platform }}"
-          path: /workspace/out/
+          combine: true
+          target: ${{ matrix.config.target }}
 
   package:
     name: Package builds
-    runs-on: codeberg-tiny-lazy # note for me: lazy basically means you dont care if it takes a while for the job to start (ref: https://codeberg.org/actions/meta)
+    # '-lazy' means you don't care if it takes a while for the job to start (ref: https://codeberg.org/actions/meta)
+    runs-on: codeberg-tiny-lazy
     needs: ['build']
 
     steps:
-      - uses: https://code.forgejo.org/actions/download-artifact@v3
-        with:
-          path: ./artifacts
-
-      # TODO: Fix this so it gets latest via https://api.github.com/repos/geode-sdk/cli/releases/latest
-      - name: Download CLI
-        run: |
-          curl -L "https://github.com/geode-sdk/cli/releases/download/v3.7.4/geode-cli-v3.7.4-linux.zip" -o cli.zip
-          unzip cli.zip -d .
-          chmod +x ./geode
-      
-      - name: Merge Artifacts
-        run: |
-          mkdir -p out
-          MODS=$(find ./artifacts -name *.geode -type f -printf "%f\n" | sort -u)
-          for mod in $MODS; do
-            echo "Merging $mod"
-            PACKAGE_ARGS=""
-            if [ -f "./artifacts/geode-build-win/$mod" ]; then
-              PACKAGE_ARGS="$PACKAGE_ARGS ./artifacts/geode-build-win/$mod"
-            fi
-            if [ -f "./artifacts/geode-build-mac/$mod" ]; then
-              PACKAGE_ARGS="$PACKAGE_ARGS ./artifacts/geode-build-mac/$mod"
-            fi
-            if [ -f "./artifacts/geode-build-android32/$mod" ]; then
-              PACKAGE_ARGS="$PACKAGE_ARGS ./artifacts/geode-build-android32/$mod"
-            fi
-            if [ -f "./artifacts/geode-build-android64/$mod" ]; then
-              PACKAGE_ARGS="$PACKAGE_ARGS ./artifacts/geode-build-android64/$mod"
-            fi
-            if [ -f "./artifacts/geode-build-ios/$mod" ]; then
-              PACKAGE_ARGS="$PACKAGE_ARGS ./artifacts/geode-build-ios/$mod"
-            fi
-            ARG_LIST=($PACKAGE_ARGS)
-            # why does it merge into the first one instead of just an output..
-            FIRST="${ARG_LIST[0]}"
-            if [ ${#ARG_LIST[@]} != 1 ]; then
-              ./geode package merge $PACKAGE_ARGS
-            fi
-            cp $FIRST out
-          done
-          # Copy the .pdb file from windows artifact if it exists
-          cp ./artifacts/geode-build-win/*.pdb out/ || true
-          # Copy the .sym files from android artifacts if they exist
-          cp ./artifacts/geode-build-android32/*.sym out/ || true
-          cp ./artifacts/geode-build-android64/*.sym out/ || true
-          # Copy the other debug files from android and macos/ios
-          cp ./artifacts/geode-build-android32/*.dbg out/ || true
-          cp ./artifacts/geode-build-android64/*.dbg out/ || true
-          cp -R ./artifacts/geode-build-mac/*.dSYM out/ || true
-          cp -R ./artifacts/geode-build-ios/*.dSYM out/ || true
+      - uses: https://codeberg.org/geode-sdk/build-geode-mod/combine@main
+        id: build
 
       - uses: https://code.forgejo.org/forgejo/upload-artifact@v3
         with:
           name: Build Output
-          path: ./out/
+          path: ${{ steps.build.outputs.build-output }}

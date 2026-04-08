@@ -29,31 +29,35 @@ CCNode* ObjectItem::createStars(double rating) {
 }
 
 ccColor3B ObjectItem::starColor(double rating) {
-    ccColor3B ratingColor = { 255, 255, 0 };
     // yes i used chat jippity because i cant think at 2 am
-    if (rating != 5.0) {
-        if (rating >= 5.0) {
-            // Yellow
-            ratingColor = {255, 255, 0};
-        } else if (rating >= 4.0) {
-            // Green to Yellow
-            double t = (rating - 4.0);
-            ratingColor = {static_cast<GLubyte>(255 * t), 255, 0};
-        } else if (rating >= 3.0) {
-            // Orange to Green
-            double t = (rating - 3.0);
-            ratingColor = {static_cast<GLubyte>(255 * (1 - t)), static_cast<GLubyte>(165 * (1 - t)), 0};
-        } else if (rating >= 2.0) {
-            // Reddish Orange to Orange
-            double t = (rating - 2.0);
-            ratingColor = {255, static_cast<GLubyte>(70 + 95 * t), 0};
-        } else {
-            // Red to Reddish Orange
-            double t = (rating - 1.0);
-            ratingColor = {255, static_cast<GLubyte>(70 * t), 0};
-        }
+    
+    // Color stops: 1=Red, 2=Reddish Orange, 3=Orange, 4=Green, 5=Yellow
+    auto lerp = [](GLubyte a, GLubyte b, double t) -> GLubyte {
+        return static_cast<GLubyte>(a + (b - a) * t);
+    };
+    auto lerpColor = [&](ccColor3B a, ccColor3B b, double t) -> ccColor3B {
+        return { lerp(a.r, b.r, t), lerp(a.g, b.g, t), lerp(a.b, b.b, t) };
+    };
+    ccColor3B red          = { 255,   0, 0 };
+    ccColor3B reddishOrange = { 255,  70, 0 };
+    ccColor3B orange        = { 255, 165, 0 };
+    ccColor3B green         = {   0, 255, 0 };
+    ccColor3B yellow        = { 255, 255, 0 };
+    if (rating >= 5.0) {
+        return yellow;
+    } else if (rating >= 4.0) {
+        return lerpColor(green, yellow, rating - 4.0);
+    } else if (rating >= 3.0) {
+        return lerpColor(orange, green, rating - 3.0);
+    } else if (rating >= 2.0) {
+        return lerpColor(reddishOrange, orange, rating - 2.0);
+    } else if (rating >= 1.0) {
+        return lerpColor(red, reddishOrange, rating - 1.0);
+    } else if (rating == 0.0) {
+        return {255, 255, 255};
+    } else {
+        return red;
     }
-    return ratingColor;
 }
 
 CCMenu* ObjectItem::createClickableStars(CCObject* target, SEL_MenuHandler callback) {

@@ -18,8 +18,8 @@ Thank you to <cj>Midair</c> for the mod idea, <cy>Alphalaneous</c> for the extra
 - To upload, click on the <cy>My Objects</c> tab, and make sure that the object you want to upload is in your <co>custom objects</c> (C). Otherwise, you won't be able to <cy>upload an object</c>!
 
 # Authentication Methods
+- <cr>Argon</c> is an authentication method <cb>Globed</c> and other mods use. It's recommended to use this option as it's the most reliable. It does a similar method to <cp>DashAuth</c> where it <cy>sends a message to a bot</c> to confirm the authenticity of your <cy>GD account</c>.
 - <cp>DashAuth</c> is an authentication method that <cy>sends a message to a bot</c> to confirm the authenticity of your <cy>GD account</c>, similar to how mods like <cb>Globed</c> handles verifying your <cy>GD account</c>. Thanks to <cp>rooot</c> for creating it!
-- <cg>GDAuth</c> is an authentication method made by <cg>fig</c> which <cy>sends your GJP</c> (session token for GD) to <cg>fig's server</c> to confirm the authenticity of your <cy>GD account</c>. You should only use this <cy>if you trust fig's server</c>, as this method is like sending your GD account to <cy>fig's server</c>.
 - <cy>Do Later</c> is what it says. This will close the menu and open up the <cy>Object Workshop</c>. Although do note that you <cy>will be limited</c> in what features you can use.
 
 If none of the methods satisfy you, or you would like to receive an <cy>authentication token</c> without doing any of these methods, consider <cy>joining the Discord server</c> to ask me to verify you and give an <cy>authentication token</c> to you.

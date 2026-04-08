@@ -58,7 +58,6 @@ namespace {
             scrollBlock->setScale(0.3f);
             scrollBlock->setContentSize({s_width, scrollHeight});
             scrollBlock->setZOrder(-100);
-            scrollBlock->registerWithTouchDispatcher();
             scrollBlock->setID("scroll-block"_spr);
 
             auto scrollBlockButton = CCMenuItemSpriteExtra::create(
@@ -84,7 +83,6 @@ namespace {
 
             for (size_t i = 0; auto const& value : m_options) {
                 auto menu = cocos2d::CCMenu::create();
-                // menu->registerWithTouchDispatcher();
                 menu->setContentSize({s_width * 0.3f, 80.f * 0.3f});
                 auto itemBG = NineSlice::createWithSpriteFrameName("geode.loader/tab-bg.png");
                 itemBG->setColor({0,0,0});
@@ -112,9 +110,6 @@ namespace {
             }
             m_scrollLayer->m_contentLayer->updateLayout();
             m_scrollLayer->moveToTop();
-            Loader::get()->queueInMainThread([this]() {
-                m_scrollLayer->fixTouchPrio();
-            });
         }
 
         void updateLabel() const {
@@ -200,8 +195,6 @@ namespace {
             m_options = std::move(options);
             m_callback = std::move(callback);
             m_opened = std::move(opened);
-
-            this->setUserFlag("alk.better-touch-prio/steals-touch");
 
             this->setContentSize({ width, 28.f });
 

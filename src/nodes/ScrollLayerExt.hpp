@@ -4,31 +4,6 @@
 
 using namespace geode::prelude;
 
-// sorta stolen from TableView
-/*
-class ScrollLayerExt : public CCScrollLayerExt, public CCScrollLayerExtDelegate {
-    protected:
-        float m_fStartSwipe;
-		int m_iState;
-		bool m_bStealingTouchInProgress;
-		CCTouch* m_pScrollTouch;
-
-
-        ScrollLayerExt(CCRect const& rect, bool scrollWheelEnabled, bool vertical);
-        bool ccTouchBegan(CCTouch*, CCEvent*) override;
-        void ccTouchMoved(CCTouch*, CCEvent*) override;
-        void ccTouchCancelled(CCTouch*, CCEvent*) override;
-        void cancelAndStoleTouch(cocos2d::CCTouch*, cocos2d::CCEvent*);
-        void claimTouch(CCTouch* pTouch);
-    public:
-        static ScrollLayerExt* create(
-            cocos2d::CCRect const& rect, bool scrollWheelEnabled = true, bool vertical = true
-        );
-        static ScrollLayerExt* create(
-            cocos2d::CCSize const& size, bool scrollWheelEnabled = true, bool vertical = true
-        );
-};
-*/ 
 class ScrollLayerExt : public CCScrollLayerExt, public CCScrollLayerExtDelegate {
     protected:
         bool m_touchOutOfBoundary;
@@ -39,8 +14,6 @@ class ScrollLayerExt : public CCScrollLayerExt, public CCScrollLayerExtDelegate 
         bool m_touchMoved;
         float m_touchLastY;
         bool m_cancellingTouches;
-        std::function<void()> m_callbackMove;
-        std::function<void()> m_callbackEnd;
 
         void cancelAndStoleTouch(cocos2d::CCTouch*, cocos2d::CCEvent*);
         void checkBoundaryOfContent(float);
@@ -54,18 +27,14 @@ class ScrollLayerExt : public CCScrollLayerExt, public CCScrollLayerExtDelegate 
         void ccTouchCancelled(cocos2d::CCTouch*, cocos2d::CCEvent*) override;
         void scrollWheel(float, float) override;
         void visit() override;
-        CCMenuItemSpriteExtra* itemForTouch(CCTouch*);
+        void registerWithTouchDispatcher() override;
+        CCMenuItemSpriteExtra* itemForTouch(cocos2d::CCTouch*);
 
-        ScrollLayerExt(CCRect const& rect, bool scrollWheelEnabled, bool vertical);
+        ScrollLayerExt(cocos2d::CCRect const& rect, bool scrollWheelEnabled, bool vertical);
+        ~ScrollLayerExt() override;
+
     public:
         void scrollToTop();
-        void fixTouchPrio();
-        void setCallbackMove(std::function<void()> callbackMove);
-        void setCallbackEnd(std::function<void()> callbackEnd);
-        static ScrollLayerExt* create(
-            cocos2d::CCRect const& rect, bool scrollWheelEnabled = true, bool vertical = true
-        );
-        static ScrollLayerExt* create(
-            cocos2d::CCSize const& size, bool scrollWheelEnabled = true, bool vertical = true
-        );
+        static ScrollLayerExt* create(cocos2d::CCRect const& rect, bool scrollWheelEnabled = true, bool vertical = true);
+        static ScrollLayerExt* create(cocos2d::CCSize const& size, bool scrollWheelEnabled = true, bool vertical = true);
 };

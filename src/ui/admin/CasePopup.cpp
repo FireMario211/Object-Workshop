@@ -78,7 +78,6 @@ void CasePopup::onLoadCases() {
                 (array.size() <= 3) ? 180.F : 45.F * array.size()
             });
             content->setContentHeight(scrollLayer->m_contentLayer->getContentHeight());
-            content->registerWithTouchDispatcher();
             
             scrollLayer->m_contentLayer->addChild(content);
             scrollLayer->setTouchEnabled(true);
@@ -110,7 +109,6 @@ void CasePopup::onLoadCases() {
             scrollLayer->setID("commentscroll"_spr);
             m_casesBG->addChildAtPosition(scrollLayer, Anchor::BottomLeft);
             scrollLayer->moveToTop();
-            scrollLayer->fixTouchPrio();
         }
     );
 }

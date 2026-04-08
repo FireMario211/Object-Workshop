@@ -4,6 +4,7 @@
 #include "../../nodes/ScrollLayerExt.hpp"
 #include "FiltersPopup.hpp"
 #include "Geode/utils/cocos.hpp"
+#include "../../nodes/ItemNode.hpp"
 
 bool EditPopup::init(ObjectData obj, std::unordered_set<std::string> availableTags, UserData user) {
     if (!Popup::init(350.f, 280.f)) return false;
@@ -17,6 +18,7 @@ bool EditPopup::init(ObjectData obj, std::unordered_set<std::string> availableTa
     m_objName->setCommonFilter(CommonFilter::Any);
     m_objName->setString(obj.name);
     m_mainLayer->addChildAtPosition(m_objName, Anchor::Center, {0, -20});
+    m_oldObjectString = m_object.objectString;
     
     m_objDesc = TextInputNode::create("Description [Optional]", 300, {270.F, 60.F}, 90);
     m_mainLayer->addChildAtPosition(m_objDesc, Anchor::Center, {0, -65});
@@ -29,7 +31,7 @@ bool EditPopup::init(ObjectData obj, std::unordered_set<std::string> availableTa
     m_objDesc->setUpdateCallback([this](std::string text) {
         updateDescObj(text);
     });
-    auto filterSpr = ButtonSprite::create(
+    Build<ButtonSprite>::create(
         CCSprite::createWithSpriteFrameName("GJ_filterIcon_001.png"),
         30,
         0,
@@ -38,23 +40,12 @@ bool EditPopup::init(ObjectData obj, std::unordered_set<std::string> availableTa
         false,
         "GJ_button_04.png",
         false
-    );
-    filterSpr->setScale(0.75F);
-    auto filterBtn = CCMenuItemExt::createSpriteExtra(filterSpr, [this](CCObject*) {
+    ).scale(0.75f).intoMenuItem([this](){
         FiltersPopup::create(m_availableTags, m_object.tags, true, 0, true, [this](std::unordered_set<std::string> selectedTags, bool, bool, bool) {
             m_object.tags = selectedTags;
         })->show();
-    });
-    m_buttonMenu->addChildAtPosition(filterBtn, Anchor::Bottom, {-50, 28});
-
-    auto uploadSpr = ButtonSprite::create("Update", "bigFont.fnt", "GJ_button_01.png");
-    uploadSpr->setScale(0.8F);
-    auto uploadBtn = CCMenuItemSpriteExtra::create(
-        uploadSpr,
-        this,
-        menu_selector(EditPopup::onUpdateBtn)
-    );
-    m_buttonMenu->addChildAtPosition(uploadBtn, Anchor::Bottom, {30, 28});
+    }).parentAtPos(m_buttonMenu, Anchor::Bottom, {-50, 28});
+    Build<ButtonSprite>::create("Update", "bigFont.fnt", "GJ_button_01.png").scale(0.8f).intoMenuItem(this, menu_selector(EditPopup::onUpdateBtn)).parentAtPos(m_buttonMenu, Anchor::Bottom, {30, 28});
 
     auto toggleOffSpr = CCSprite::createWithSpriteFrameName("GJ_checkOff_001.png");
     auto toggleOnSpr = CCSprite::createWithSpriteFrameName("GJ_checkOn_001.png");
@@ -66,13 +57,10 @@ bool EditPopup::init(ObjectData obj, std::unordered_set<std::string> availableTa
         this,
         menu_selector(EditPopup::onOverwriteBtn)
     );
-    auto overwriteLbl = CCLabelBMFont::create("Overwrite", "bigFont.fnt");
-    overwriteLbl->setScale(0.75F);
-
     m_overwriteInfo = MDTextArea::create("Enabling <cg>Overwrite</c> will allow you to <cy>update the current object</c>, rather than needing to <cl>reupload the object</c>.\n\nPlease note that if you are not <cg>Verified</c>, and you overwrite the object, the object will <cl>go back to pending</c>, meaning you will have to wait until a <cp>Reviewer</c> can <cg>accept</c> the object.\n\nPlease ensure that if you do overwrite the object, the object does not violate any <cr>upload rules</c>.", {280.F, 80.F});
     m_buttonMenu->addChildAtPosition(m_overwriteInfo, Anchor::Center, {0,65});
 
-    m_buttonMenu->addChildAtPosition(overwriteLbl, Anchor::Center, {20,8});
+    Build<CCLabelBMFont>::create("Overwrite", "bigFont.fnt").scale(.75f).parentAtPos(m_buttonMenu, Anchor::Center, {20, 8});
     m_buttonMenu->addChildAtPosition(toggleBtn, Anchor::Center, {-65,8});
 
     m_previewBG = CCScale9Sprite::create("square02_small.png");
@@ -81,68 +69,57 @@ bool EditPopup::init(ObjectData obj, std::unordered_set<std::string> availableTa
     auto previewLabel = CCLabelBMFont::create("Select an Object (For overwriting)", "goldFont.fnt");
     previewLabel->setScale(0.425F);
     m_previewBG->addChildAtPosition(previewLabel, Anchor::Top, {0,-8});
-    
+
     if (auto editor = EditorUI::get()) {
         if (obj.authorAccId == user.account_id) {
-            auto scrollLayer = ScrollLayerExt::create({ 0, 0, 275.0F, 280.0F }, true);
-            scrollLayer->setContentSize({275.0F, 60.0F});
-            scrollLayer->setAnchorPoint({0.5, 1.0});
-            auto content = CCMenu::create();
-            content->setScale(0.675F);
-            content->setZOrder(2);
-            content->setPositionX(20);
-            content->registerWithTouchDispatcher();
-            
-            scrollLayer->m_contentLayer->addChild(content);
+            auto scrollLayer = ScrollLayerExt::create({ 0, 0, 275.F, 60.f }, true);
             scrollLayer->setTouchEnabled(true);
-            CCArrayExt<CreateMenuItem*> customItems = editor->createCustomItems();
-            int size = customItems.size() - 4;
-            for (int i = 0; i < size; i++) {
-                customItems[i]->setID(fmt::format("{}", i));
-                if (i > 17) {
-                    customItems[i]->setEnabled(false);
-                }
-                content->addChild(customItems[i]);
-            }
-            m_previewBG->addChild(scrollLayer);
-            content->setLayout(
+
+            auto content = Build<CCMenu>::create().zOrder(2).layout(
                 RowLayout::create()
                     ->setAxisAlignment(AxisAlignment::Start)
-                    ->setCrossAxisAlignment(AxisAlignment::End)
-                    ->setAutoScale(true)
-                    ->setCrossAxisOverflow(false)
-                    ->setGap(5)
+                    ->setAutoScale(false)
+                    ->setCrossAxisOverflow(true)
+                    ->setGap(8)
                     ->setGrowCrossAxis(true)
-            );
-            content->setContentSize({400.0F, 400.0F});
-            content->setAnchorPoint({0.5, 1.0});
-            content->setPosition({137, 280});
-            content->updateLayout();
-            cocos::handleTouchPriority(scrollLayer);
-            scrollLayer->moveToTop();
-            scrollLayer->fixTouchPrio();
-            scrollLayer->setCallbackMove([size, content]() {
-                if (content == nullptr) return;
-                for (int i = 0; i < size; i++) {
-                    if (auto child = typeinfo_cast<CreateMenuItem*>(content->getChildByID(fmt::format("{}", i)))) {
-                        child->setEnabled(false);
-                    }
-                }
-            });
-            scrollLayer->setCallbackEnd([size, content, scrollLayer]() {
-                if (content == nullptr) return;
-                for (int i = 0; i < size; i++) {
-                    if (auto child = typeinfo_cast<CreateMenuItem*>(content->getChildByID(fmt::format("{}", i)))) {
-                        float contentYPos = scrollLayer->m_contentLayer->getPositionY();
-                        float childYPos = (child->getPositionY());
+            ).pos(0,0).anchorPoint(0,0).collect();
 
-                        child->setEnabled(!Utils::isInScrollSnapRange(contentYPos, childYPos));
-                    }
+            auto customObjKeys = CCArrayExt<CCString*>(GameManager::get()->getOrderedCustomObjectKeys());
+            if (customObjKeys.empty()) {
+                Build<CCLabelBMFont>::create("You have no objects.", "chatFont.fnt").scale(0.75f).parentAtPos(m_mainLayer, Anchor::Center);
+            } else {
+                for (auto& key : customObjKeys) {
+                    auto obj = GameManager::get()->stringForCustomObject(key->intValue());
+                    if (obj.empty()) continue;
+                    auto cell = CCMenuItemExt::createSpriteExtra(ItemNode::create(editor->m_editorLayer, obj), [this, obj](auto node) {
+                        int tag = node->getTag();
+                        for (auto& btn : CCArrayExt<CCMenuItemSpriteExtra*>(node->getParent()->getChildren())) {
+                            if (btn->getTag() == tag) {
+                                m_object.objectString = std::string(obj);
+                                static_cast<ItemNode*>(btn->getChildren()->objectAtIndex(0))->toggle(true);
+                            } else {
+                                static_cast<ItemNode*>(btn->getChildren()->objectAtIndex(0))->toggle(false);
+                            }
+                        }
+                    });
+                    cell->setTag(key->intValue());
+                    content->addChild(cell);
                 }
-                if (scrollLayer->m_contentLayer->getPositionY() > -220.F) {
-                    scrollLayer->m_contentLayer->setPositionY(Utils::getSnappedYPosition(scrollLayer->m_contentLayer->getPositionY(), 300)); // or 290
+                scrollLayer->m_contentLayer->setContentSize({
+                    275.f,
+                    60.f
+                });
+                content->setContentSize(scrollLayer->m_contentLayer->getContentSize());
+                scrollLayer->m_contentLayer->addChild(content);
+                if (customObjKeys.size() <= 7) {
+                    scrollLayer->setTouchEnabled(false);
+                    scrollLayer->setMouseEnabled(false);
                 }
-            });
+            }
+            content->updateLayout();
+            scrollLayer->m_contentLayer->setContentHeight(content->getContentHeight());
+            scrollLayer->moveToTop();
+            m_previewBG->addChild(scrollLayer);
         }
         m_mainLayer->addChildAtPosition(m_previewBG, Anchor::Center, {0, 65});
     }
@@ -201,34 +178,29 @@ void EditPopup::onUpdateBtn(CCObject*) {
             auto message = jsonRes.get("message");
             if (message.isOk()) {
                 if (m_previewBG->isVisible()) { // assume they want to overwrite
-                    if (auto editor = EditorUI::get()) {
-                        if (auto gameManager = GameManager::sharedState()) {
-                            if (editor->m_selectedObjectIndex < 0) { // genius robert!
-                                m_object.objectString = gameManager->stringForCustomObject(editor->m_selectedObjectIndex);
-                                web::WebRequest req = web::WebRequest();
-                                req.userAgent(USER_AGENT);
-                                auto certValid = Mod::get()->getSettingValue<bool>("cert-valid");
-                                if (!certValid) {
-                                    req.certVerification(certValid);
-                                }
-                                auto myjson = matjson::Value();
-                                myjson.set("token", token);
-                                myjson.set("data", m_object.objectString);
-                                req.header("Content-Type", "application/json");
-                                req.bodyJSON(myjson);
-                                async::spawn(
-                                    req.post(fmt::format("{}/objects/{}/overwrite", HOST_URL, m_object.id)),
-                                    [this](web::WebResponse value) {
-                                        auto jsonRes = value.json().unwrapOrDefault();
-                                        if (Utils::notifError(jsonRes)) return;
-                                        log::info("Overwrote object.");
-                                        this->onClose(nullptr);
-                                        Notification::create("Updated object!", NotificationIcon::Success)->show();
-                                    }
-                                );
-                                return this->setVisible(false);
-                            }
+                    if (m_oldObjectString != m_object.objectString) {
+                        web::WebRequest req = web::WebRequest();
+                        req.userAgent(USER_AGENT);
+                        auto certValid = Mod::get()->getSettingValue<bool>("cert-valid");
+                        if (!certValid) {
+                            req.certVerification(certValid);
                         }
+                        auto myjson = matjson::Value();
+                        myjson.set("token", token);
+                        myjson.set("data", m_object.objectString);
+                        req.header("Content-Type", "application/json");
+                        req.bodyJSON(myjson);
+                        async::spawn(
+                            req.post(fmt::format("{}/objects/{}/overwrite", HOST_URL, m_object.id)),
+                            [this](web::WebResponse value) {
+                                auto jsonRes = value.json().unwrapOrDefault();
+                                if (Utils::notifError(jsonRes)) return;
+                                log::info("Overwrote object.");
+                                this->onClose(nullptr);
+                                Notification::create("Updated object!", NotificationIcon::Success)->show();
+                            }
+                        );
+                        return this->setVisible(false);
                     }
                 }
                 this->onClose(nullptr);

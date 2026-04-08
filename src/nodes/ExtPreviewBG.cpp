@@ -55,7 +55,6 @@ bool ExtPreviewBG::init(LevelEditorLayer* editorLayer, std::string data, CCSize 
     m_clippingNode->setZOrder(1);
     this->addChildAtPosition(m_clippingNode, Anchor::Center);
 
-    this->registerWithTouchDispatcher();
     this->setTouchEnabled(true);
     this->setTouchMode(kCCTouchesOneByOne);
     this->setMouseEnabled(true);

@@ -155,7 +155,6 @@ void CommentsPopup::onLoadComments(CCObject*) {
                 (array.size() <= 3) ? 180.F : 45.F * array.size()
             });
             content->setContentHeight(scrollLayer->m_contentLayer->getContentHeight());
-            content->registerWithTouchDispatcher();
             
             scrollLayer->m_contentLayer->addChild(content);
             scrollLayer->setTouchEnabled(true);
@@ -186,7 +185,6 @@ void CommentsPopup::onLoadComments(CCObject*) {
             scrollLayer->setID("commentscroll"_spr);
             m_commentsBG->addChildAtPosition(scrollLayer, Anchor::BottomLeft);
             scrollLayer->moveToTop();
-            scrollLayer->fixTouchPrio();
             pageLabel->setString(fmt::format("Page {} of {}", m_object.commentPage, m_object.maxCommentPage).c_str());
         }
     );

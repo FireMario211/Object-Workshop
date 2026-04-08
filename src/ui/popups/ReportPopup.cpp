@@ -48,34 +48,38 @@ bool ReportPopup::init(ObjectData obj, ReportActionType type) {
                 m_reportInput->setVisible(true);
             } else {
                 std::string reportReason = "No reason provided.";
-                switch (i) {
-                    case 1:
-                        reportReason = "Do not upload spam, duplicate, or useless objects.";
-                        break;
-                    case 2:
-                        reportReason = "Do not upload objects other creators have already uploaded to the workshop.";
-                        break;
-                    case 3:
-                        reportReason = "Do not upload entire levels to the workshop.";
-                        break;
-                    case 4:
-                        reportReason = fmt::format("The object \"{}\" was rejected due to copying another creator's work without their permission.", obj.name);
-                        break;
-                    case 5:
-                        reportReason = "Adding swears to the object, name or description of the object is against the rules, as Geometry Dash is a game rated E for everyone.";
-                        break;
-                    case 6:
-                        reportReason = "Do not upload objects that claim to be, or are crash triggers.";
-                        break;
-                    case 7:
-                        reportReason = "Do not upload art/backgrounds made in img2gd.";
-                        break;
-                    case 8:
-                        reportReason = "Do not upload objects that relate to anything that is inappropriate, explicit, sexual, or violent.";
-                        break;
-                    case 9:
-                        reportReason = "Do not upload objects that lag the game.";
-                        break;
+                if (i > 0 && m_type == ReportActionType::Report) {
+                    reportReason = str;
+                } else {
+                    switch (i) {
+                        case 1:
+                            reportReason = "Do not upload spam, duplicate, or useless objects.";
+                            break;
+                        case 2:
+                            reportReason = "Do not upload objects other creators have already uploaded to the workshop.";
+                            break;
+                        case 3:
+                            reportReason = "Do not upload entire levels to the workshop.";
+                            break;
+                        case 4:
+                            reportReason = fmt::format("The object \"{}\" was rejected due to copying another creator's work without their permission.", obj.name);
+                            break;
+                        case 5:
+                            reportReason = "Adding swears to the object, name or description of the object is against the rules, as Geometry Dash is a game rated E for everyone.";
+                            break;
+                        case 6:
+                            reportReason = "Do not upload objects that claim to be, or are crash triggers.";
+                            break;
+                        case 7:
+                            reportReason = "Do not upload art/backgrounds made in img2gd.";
+                            break;
+                        case 8:
+                            reportReason = "Do not upload objects that relate to anything that is inappropriate, explicit, sexual, or violent.";
+                            break;
+                        case 9:
+                            reportReason = "Do not upload objects that lag the game.";
+                            break;
+                    }
                 }
                 m_reportInput->setString(reportReason);
                 m_reportInput->setVisible(false);
@@ -91,6 +95,7 @@ bool ReportPopup::init(ObjectData obj, ReportActionType type) {
         m_reportInput->setMaxCharCount(100);
     } else {
         m_reportInput->setMaxCharCount(500);
+        Build<CCMenuItemToggler>::createToggle(Build<CCSprite>::createSpriteName("GJ_checkOff_001.png").scale(0.65f).collect(), Build<CCSprite>::createSpriteName("GJ_checkOn_001.png").scale(0.65f).collect(), [this](auto){}).store(m_forceReject).parentAtPos(m_buttonMenu, Anchor::BottomLeft, {30, 23});
     }
     m_reportInput->setCommonFilter(CommonFilter::Any);
     m_reportInput->setVisible(type == ReportActionType::Appeal);
@@ -99,8 +104,6 @@ bool ReportPopup::init(ObjectData obj, ReportActionType type) {
     std::string btnTitle = "Report";
     if (type == ReportActionType::Review) {
         btnTitle = "Reject";
-        //Build<CCLabelBMFont>::create("Force Reject", "bigFont.fnt").anchorPoint(0, 0.5).scale(0.45f).parentAtPos(m_buttonMenu, Anchor::BottomLeft, {45, 23});
-        Build<CCMenuItemToggler>::createToggle(Build<CCSprite>::createSpriteName("GJ_checkOff_001.png").scale(0.65f).collect(), Build<CCSprite>::createSpriteName("GJ_checkOn_001.png").scale(0.65f).collect(), [this](auto){}).store(m_forceReject).parentAtPos(m_buttonMenu, Anchor::BottomLeft, {30, 23});
     } else if (type == ReportActionType::ReviewAndCase) {
         btnTitle = "Reject & Moderate";
     } else if (type == ReportActionType::Appeal) {
@@ -133,7 +136,7 @@ void ReportPopup::onReportBtn(CCObject*) {
                 myjson.set("token", token);
                 myjson.set("reason", ZStringView(m_reportInput->getString()));
                 myjson.set("mod", m_type == ReportActionType::ReviewAndCase ? 1 : 0);
-                myjson.set("force", m_type == ReportActionType::Review && (m_forceReject && m_forceReject->isToggled()) ? 1 : 0);
+                myjson.set("force", m_type != ReportActionType::Report && (m_forceReject && m_forceReject->isToggled()) ? 1 : 0);
                 req.header("Content-Type", "application/json");
                 req.bodyJSON(myjson);
                 m_listener.spawn(

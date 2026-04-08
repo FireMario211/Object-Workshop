@@ -4,60 +4,11 @@
 #include "FiltersPopup.hpp"
 #include "Geode/ui/Popup.hpp"
 #include "../auth/AuthLoadLayer.hpp"
+#include "../../nodes/ItemNode.hpp"
 
 extern std::unordered_set<std::string> g_availableTags;
 
 namespace {
-    class ItemNode : public CCNode {
-        protected:
-            CCSprite* m_bgSprBehind;
-            bool init(LevelEditorLayer* editorLayer, gd::string data) {
-                if (!CCNode::init()) return false;
-                this->setContentSize({ 32.0f, 32.0f });
-                auto bg = Build<CCScale9Sprite>::create("square02_small.png").opacity(60).contentSize(this->getContentSize()).parentAtPos(this, Anchor::Center).collect();
-                CCLayerColor* mask = CCLayerColor::create({255, 255, 255});
-                mask->setContentSize(bg->getContentSize());
-                Build<CCClippingNode>::create().contentSize(this->getContentSize()).anchorPoint(0.5f,0.5f).zOrder(1).with([editorLayer, data, mask](auto node) {
-                    auto zData = ZStringView(data);
-                    unsigned int objectCount = std::count(zData.begin(), zData.end(), ';');
-                    if (!zData.empty()) {
-                        auto smartBlock = CCArray::create();
-                        int renderLimit = Mod::get()->getSettingValue<int64_t>("render-objects");
-                        int preRender = Mod::get()->getSettingValue<int64_t>("prerender-objects");
-                        CCSprite* sprite = editorLayer->m_editorUI->spriteFromObjectString(data, false, false, renderLimit, smartBlock, (CCArray *)0x0,(GameObject *)0x0);
-                        editorLayer->updateObjectColors(smartBlock);
-                        sprite->setScale(((node->getContentSize().height - 6) / sprite->getContentSize().height));
-                        if (objectCount >= preRender) {
-                            CCSize contentSize = node->getContentSize();
-                            sprite->setPosition(contentSize / 2);
-                            CCRenderTexture* tex = CCRenderTexture::create(contentSize.width, contentSize.height);
-                            tex->beginWithClear(0, 0, 0, 0);
-                            sprite->visit();
-                            tex->end();
-                            node->addChildAtPosition(tex, Anchor::Center);
-                        } else {
-                            node->addChildAtPosition(sprite, Anchor::Center);
-                        }
-                        node->setStencil(mask);
-                    }
-                }).parentAtPos(bg, Anchor::Center);
-                Build<CCSprite>::create("select_outline.png"_spr).scale(0.4f).visible(false).store(m_bgSprBehind).parentAtPos(this, Anchor::Center);
-                return true;
-            }
-        public:
-            void toggle(bool state) {
-                m_bgSprBehind->setVisible(state);
-            }
-            static ItemNode* create(LevelEditorLayer* editorLayer, gd::string data) {
-                auto pRet = new ItemNode();
-                if (pRet->init(editorLayer, data)) {
-                    pRet->autorelease();
-                    return pRet;
-                }
-                delete pRet;
-                return nullptr;
-            }
-    };
     class RulesPopup : public geode::Popup {
         protected:
             CCMenuItemSpriteExtra* m_okBtn;
@@ -111,8 +62,7 @@ bool ObjUploadPopup::init(UserData user) {
             ->setCrossAxisOverflow(true)
             ->setGap(8)
             ->setGrowCrossAxis(true)
-    ).pos(0,0).anchorPoint(0,0).registerTouchDispatcher().store(m_content);
-    m_scrollLayer->registerWithTouchDispatcher();
+    ).pos(0,0).anchorPoint(0,0).store(m_content);
     if (auto editor = EditorUI::get()) {
         m_previewBG = ExtPreviewBG::create(editor->m_editorLayer, "", {235.F, 100.F});
         m_previewBG->setTouchEnabled(false);
@@ -134,7 +84,7 @@ bool ObjUploadPopup::init(UserData user) {
         auto customObjKeys = CCArrayExt<CCString*>(GameManager::get()->getOrderedCustomObjectKeys());
         if (customObjKeys.empty()) {
             m_nextBtn->setVisible(false);
-            Build<CCLabelBMFont>::create("You have no objects.", "chatFont.fnt").scale(0.75f).parentAtPos(m_mainLayer, Anchor::Left, {75, 0});
+            Build<CCLabelBMFont>::create("You have no objects.", "chatFont.fnt").scale(0.75f).parentAtPos(m_mainLayer, Anchor::Center);
         } else {
             for (auto& key : customObjKeys) {
                 auto obj = GameManager::get()->stringForCustomObject(key->intValue());
@@ -160,12 +110,7 @@ bool ObjUploadPopup::init(UserData user) {
     m_content->updateLayout();
     m_scrollLayer->m_contentLayer->setContentHeight(m_content->getContentHeight());
     Build<CCScale9Sprite>::create("square02_small.png").opacity(60).contentSize(m_scrollLayer->getContentSize()).store(m_bg).parentAtPos(m_mainLayer, Anchor::Center, {0, -12}).collect()->addChild(m_scrollLayer);
-
     m_scrollLayer->moveToTop();
-    Loader::get()->queueInMainThread([this]() {
-        m_scrollLayer->fixTouchPrio();
-        Utils::forceFixPrio(m_content);
-    });
     // Details
 
     m_objName = TextInput::create(335.0F, "Object Name", "bigFont.fnt");

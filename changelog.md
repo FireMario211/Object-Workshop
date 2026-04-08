@@ -1,3 +1,10 @@
+# v1.5.0-beta.2
+- Added support button on bottom left
+- Changed description to remove GDAuth
+- Fixed object overwriting when editing an object
+- (hopefully) Fixed touch prio issues and compatibility with Better Touch Prio 
+- Fixed version not matching in user agent
+- Fixed colors not rendering properly for ratings
 # v1.5.0-beta.1 (Beta as it's not finished!)
 - Ported to Geode v5 (2.208!)
 - Revamped UI

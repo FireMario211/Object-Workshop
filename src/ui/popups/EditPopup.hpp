@@ -22,6 +22,7 @@ protected:
     void onUpdateBtn(CCObject*);
     void onOverwriteBtn(CCObject*);
     void updateDescObj(std::string);
+    std::string m_oldObjectString;
     virtual void onClose(CCObject* sender) override {
         m_objDesc->cancel = true;
         Popup::onClose(sender);

@@ -20,8 +20,6 @@ bool ReportsPopup::init(std::vector<ReportData> reports, UserData user) {
         (reports.size() <= 3) ? 180.F : 45.F * reports.size()
     });
     content->setContentHeight(scrollLayer->m_contentLayer->getContentHeight());
-    content->registerWithTouchDispatcher();
-    
     scrollLayer->m_contentLayer->addChild(content);
     scrollLayer->setTouchEnabled(true);
     for (auto item : reports) {
@@ -86,6 +84,5 @@ bool ReportsPopup::init(std::vector<ReportData> reports, UserData user) {
     scrollLayer->setID("reportscroll"_spr);
     bg->addChildAtPosition(scrollLayer, Anchor::BottomLeft);
     scrollLayer->moveToTop();
-    scrollLayer->fixTouchPrio();
     return true;
 }
