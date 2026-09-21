@@ -1,3 +1,7 @@
+# v1.5.0-beta.3
+- Updated argon
+- Fixed alignment for page text
+- Fixed issue where if the token is blank, it wouldn't force authenticate
 # v1.5.0-beta.2
 - Added support button on bottom left
 - Changed description to remove GDAuth

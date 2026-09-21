@@ -99,7 +99,8 @@ void AuthMenu::testAuth(std::string token, std::function<void(int)> callback) {
         auto jsonRes = value.json().unwrapOrDefault();
         if (jsonRes.isObject()) {
             auto isError = jsonRes.get("error");
-            if (isError.isOk()) {
+            auto isErrors = jsonRes.get("errors");
+            if (isError.isOk() || isErrors.isOk()) {
                 log::error("{}", jsonRes.dump());
                 callback(0);
             } else {

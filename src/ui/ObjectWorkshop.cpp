@@ -606,7 +606,7 @@ void ObjectWorkshop::handleRequest1(web::WebResponse value) {
             ).c_str(), "goldFont.fnt"
         ).scale(.425f).id("pageLabel"_spr).store(m_pageLabel).intoMenuItem([total]() {
             FLAlertLayer::create("Page", fmt::format("There are a total of <cy>{} objects</c> based on your filters.", total).c_str(), "OK")->show();
-        }).anchorPoint(0.5f, 1).id("pageLabelBtn"_spr).parentAtPos(m_buttonMenu, Anchor::TopRight, {(m_leftSide) ? -48.f : -95.f, -6});
+        }).anchorPoint(1, 1).id("pageLabelBtn"_spr).parentAtPos(m_buttonMenu, Anchor::TopRight, {(m_leftSide) ? -6.f : -95.f, -6});
         m_maxPage = o_pageAmount.unwrap().asInt().unwrapOrDefault();
     }
     m_scrollLayer->setTouchEnabled(true);
