@@ -9,6 +9,8 @@ class TextInputNode : public CCNode, TextInputDelegate {
         CCScale9Sprite* m_bg;
         CCTextInputNode* m_input;
         std::string m_text;
+        int m_parseEmotes;
+        std::vector<EmoteToken> m_emoteVector;
         void updateDescText(std::string string);
         std::function<void()> m_textInputChanged = [](){};
         std::function<void()> m_textInputClosed = [](){};

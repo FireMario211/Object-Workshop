@@ -6,7 +6,6 @@
 #include <Geode/ui/TextInput.hpp>
 #include <cassert>
 #include "../nodes/ObjectItem.hpp"
-#include "../nodes/ScrollLayerExt.hpp"
 #include "../nodes/ExtPreviewBG.hpp"
 #include "../nodes/TextInputNode.hpp"
 #include "popups/WarningPopup.hpp"
@@ -80,7 +79,7 @@ struct matjson::Serialize<UserData> {
 };
 
 // do i really need a bunch of event listeners
-class ObjectWorkshop : public geode::Popup, public TextInputDelegate {
+class ObjectWorkshop : public geode::Popup {
 protected:
     async::TaskHolder<geode::utils::web::WebResponse> m_listener2;
     async::TaskHolder<geode::utils::web::WebResponse> m_listener1;
@@ -102,8 +101,6 @@ protected:
     int m_currentPage = 1;
     int m_maxPage = 1;
     bool m_leftSide = false;
-    void textInputOpened(CCTextInputNode* input) override;
-    void textInputClosed(CCTextInputNode* input) override;
     void keyDown(cocos2d::enumKeyCodes, double timestamp) override;
     virtual void keyBackClicked() override;
 
@@ -142,7 +139,7 @@ protected:
     void onBackBtn(CCObject*);
 
     CCScale9Sprite* rightBg;
-    ScrollLayerExt* m_scrollLayer;
+    ScrollLayer* m_scrollLayer;
     CCMenu* m_content;
     
     ObjectData m_currentObject;
@@ -207,9 +204,9 @@ public:
     }
 
     // reverse engineered funcs because ROBERT
-    static CCSprite* spriteFromObjectString(gd::string objectString, bool center, bool filterObjects, int limit, CCArray* smartBlocks, CCArray* filter, GameObject* keyframeObject) {
+    static CCSprite* spriteFromObjectString(std::string objectString, bool center, bool filterObjects, int limit, CCArray* smartBlocks, CCArray* filter, GameObject* keyframeObject) {
         /*
-        gd::string - object string, duh 
+        std::string - object string, duh 
         bool - something with CCPoint
         bool - something with centering and deleting smart objects, 
         int - how many objects should render (0 = unlimited)

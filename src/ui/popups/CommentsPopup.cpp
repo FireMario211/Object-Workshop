@@ -1,6 +1,5 @@
 #include "CommentsPopup.hpp"
 #include "CommentPopup.hpp"
-#include "../../nodes/ScrollLayerExt.hpp"
 #include "../../nodes/CommentCell.hpp"
 #include "../../config.hpp"
 
@@ -54,7 +53,8 @@ bool CommentsPopup::init(ObjectData object, UserData user) {
         1.0F,
         false,
         "GJ_button_01.png",
-        true
+        true,
+        0.f
     );
     likesSpr->setScale(0.6F);
     auto recentSpr = ButtonSprite::create(
@@ -65,7 +65,8 @@ bool CommentsPopup::init(ObjectData object, UserData user) {
         1.0F,
         false,
         "GJ_button_01.png",
-        true
+        true,
+        0.f
     );
     recentSpr->setScale(0.6F);
     auto likesBtn = CCMenuItemSpriteExtra::create(likesSpr, this, menu_selector(CommentsPopup::onCategoryButton));
@@ -146,7 +147,8 @@ void CommentsPopup::onLoadComments(CCObject*) {
             }
             auto nodeArray = CCArray::create();
             
-            auto scrollLayer = ScrollLayerExt::create({ 0, 0, 205.0F, 138.F }, true);
+            auto scrollLayer = ScrollLayer::create({ 0, 0, 205.0F, 138.F }, true);
+            scrollLayer->setStealingTouches(true);
             auto content = CCMenu::create();
             content->setZOrder(2);
             content->setContentWidth(205.0F);
@@ -183,7 +185,7 @@ void CommentsPopup::onLoadComments(CCObject*) {
             content->setAnchorPoint({0.5, 0});
             content->setPosition({102.5F, -2});
             scrollLayer->setID("commentscroll"_spr);
-            m_commentsBG->addChildAtPosition(scrollLayer, Anchor::BottomLeft);
+            m_commentsBG->addChildAtPosition(scrollLayer, Anchor::Center);
             scrollLayer->moveToTop();
             pageLabel->setString(fmt::format("Page {} of {}", m_object.commentPage, m_object.maxCommentPage).c_str());
         }

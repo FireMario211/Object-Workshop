@@ -2,7 +2,7 @@
 #include "../utils.hpp"
 using namespace geode::prelude;
 
-bool ItemNode::init(LevelEditorLayer* editorLayer, gd::string data) {
+bool ItemNode::init(LevelEditorLayer* editorLayer, std::string data) {
     if (!CCNode::init()) return false;
     this->setContentSize({ 32.0f, 32.0f });
     auto bg = Build<CCScale9Sprite>::create("square02_small.png").opacity(60).contentSize(this->getContentSize()).parentAtPos(this, Anchor::Center).collect();

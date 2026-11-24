@@ -129,7 +129,7 @@ bool ObjectItem::init(LevelEditorLayer* editorLayer, ObjectData data) {
         node->_left->setVisible(false);
         node->_scale9Image->setSkewX(20);
         Build<CCSprite>::create("objects_icon.png"_spr).parentAtPos(node, Anchor::Left, {18,0});
-        Build<CCLabelBMFont>::create(GameToolbox::intToShortString(objectCount).c_str(), "chatFont.fnt").scale(1.25f).anchorPoint({0, 0.5}).parentAtPos(node, Anchor::Left, {37, 1});
+        Build<CCLabelBMFont>::create(GameToolbox::intToShortString(objectCount, false).c_str(), "chatFont.fnt").scale(1.25f).anchorPoint({0, 0.5}).parentAtPos(node, Anchor::Left, {37, 1});
     }).parentAtPos(bgSpr, Anchor::BottomLeft, {26, 29});
     Build<CCScale9Sprite>::create("square02_small.png").opacity(60).scale(0.4f).contentSize({90.f, 30.f}).with([data](CCScale9Sprite* node) {
         node->_bottomLeft->setVisible(false);
@@ -138,7 +138,7 @@ bool ObjectItem::init(LevelEditorLayer* editorLayer, ObjectData data) {
         node->_scale9Image->setSkewX(20);
         Build<CCSprite>::createSpriteName("GJ_downloadsIcon_001.png").scale(1.3F).parentAtPos(node, Anchor::Left, {17,0});
         //limitLabelWidth(85.F, 1.2F, 0.6F)
-        Build<CCLabelBMFont>::create(GameToolbox::intToShortString(data.downloads).c_str(), "chatFont.fnt").scale(1.25f).anchorPoint({0, 0.5}).parentAtPos(node, Anchor::Left, {33, 1});
+        Build<CCLabelBMFont>::create(GameToolbox::intToShortString(data.downloads, false).c_str(), "chatFont.fnt").scale(1.25f).anchorPoint({0, 0.5}).parentAtPos(node, Anchor::Left, {33, 1});
     }).parentAtPos(bgSpr, Anchor::BottomRight, {-28, 29}).updateLayout();
     this->addChildAtPosition(bgSpr, Anchor::Center);
 
@@ -150,7 +150,7 @@ bool ObjectItem::init(LevelEditorLayer* editorLayer, ObjectData data) {
     if (!data.objectString.empty()) {
         // i love ghidra (i have no idea what params are what)
         /*
-        gd::string - object string, duh 
+        std::string - object string, duh 
         bool - something with CCPoint
         bool - something with centering and deleting smart objects, 
         int - how many objects should render (0 = unlimited)

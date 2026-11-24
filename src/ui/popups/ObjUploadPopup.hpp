@@ -8,7 +8,7 @@ protected:
     async::TaskHolder<geode::utils::web::WebResponse> m_listener;
 
     int m_selectedIndex = UINT16_MAX;
-    ScrollLayerExt* m_scrollLayer;
+    ScrollLayer* m_scrollLayer;
     CCMenu* m_content;
     CCScale9Sprite* m_bg;
 

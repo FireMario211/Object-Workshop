@@ -29,7 +29,8 @@ bool CaseCell::init(UserData user, CaseData data, std::function<void()> callback
         Utils::calculateScale(data.reason, 16, 100, 0.6F, 0.4F),
         150.F, { 0.0f, 0.5f }, // 1.0
         Utils::calculateScale(data.reason, 16, 100, 15.F, 7.F),
-        true
+        true,
+        0
     );
     commentText->setID("case/area"_spr);
 	commentText->setAnchorPoint({ 0.0f, 0.5f });

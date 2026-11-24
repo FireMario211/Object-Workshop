@@ -80,10 +80,11 @@ bool OWCommentCell::init(CommentData data, ObjectData obj, UserData user, std::f
         Utils::calculateScale(m_data.content, 16, 100, 0.6F, 0.4F),
         150.F, { 0.0f, 0.5f }, // 1.0
         Utils::calculateScale(m_data.content, 16, 100, 15.F, 7.F),
-        true
+        true,
+        20
     );
     commentText->setID("comment/area"_spr);
-	commentText->setAnchorPoint({ 0.0f, 0.5f });
+    commentText->setAnchorPoint({ 0.0f, 0.5f });
     ccColor3B textColor = {255, 255, 255};
     if (data.role == 2) {
         textColor = {0, 255, 0};
@@ -122,7 +123,8 @@ bool OWCommentCell::init(CommentData data, ObjectData obj, UserData user, std::f
     auto pinBtn = CCMenuItemSpriteExtra::create(pinSpr, this, menu_selector(OWCommentCell::onPin));
 
     auto votesLabel = CCLabelBMFont::create(std::to_string(m_data.likes).c_str(), "bigFont.fnt");
-    votesLabel->setScale(0.3F);
+    votesLabel->limitLabelWidth(120.f, 0.3f, 0.25f);
+    votesLabel->setScale(0.25F);
     votesLabel->setID("comment/votes"_spr);
 
     bgSpr->addChildAtPosition(invisLabel, Anchor::Left, {4, 0});

@@ -1,7 +1,6 @@
 #include "EditPopup.hpp"
 #include "../../utils.hpp"
 #include "../../config.hpp"
-#include "../../nodes/ScrollLayerExt.hpp"
 #include "FiltersPopup.hpp"
 #include "Geode/utils/cocos.hpp"
 #include "../../nodes/ItemNode.hpp"
@@ -20,17 +19,11 @@ bool EditPopup::init(ObjectData obj, std::unordered_set<std::string> availableTa
     m_mainLayer->addChildAtPosition(m_objName, Anchor::Center, {0, -20});
     m_oldObjectString = m_object.objectString;
     
-    m_objDesc = TextInputNode::create("Description [Optional]", 300, {270.F, 60.F}, 90);
+    m_objDesc = TextInput::createMultiline({270.f, 60.f}, "Description [Optional] (Use \\n for new line)", "chatFont.fnt");
     m_mainLayer->addChildAtPosition(m_objDesc, Anchor::Center, {0, -65});
-    m_objDesc->addChildAtPosition(m_objDesc->getInput(), Anchor::Center);
     obj.description = Utils::replaceAll(obj.description, "\r\n", "\\n");
     obj.description = Utils::replaceAll(obj.description, "\n", "\\n");
-    updateDescObj(obj.description);
     m_objDesc->setString(obj.description);
-    //m_objDesc->getInput()->m_textArea->setScale(Utils::calculateScale(obj.description, 50, 300, 1.0F, 0.35F));
-    m_objDesc->setUpdateCallback([this](std::string text) {
-        updateDescObj(text);
-    });
     Build<ButtonSprite>::create(
         CCSprite::createWithSpriteFrameName("GJ_filterIcon_001.png"),
         30,
@@ -39,7 +32,8 @@ bool EditPopup::init(ObjectData obj, std::unordered_set<std::string> availableTa
         1.0F,
         false,
         "GJ_button_04.png",
-        false
+        false,
+        0.f
     ).scale(0.75f).intoMenuItem([this](){
         FiltersPopup::create(m_availableTags, m_object.tags, true, 0, true, [this](std::unordered_set<std::string> selectedTags, bool, bool, bool) {
             m_object.tags = selectedTags;
@@ -72,7 +66,8 @@ bool EditPopup::init(ObjectData obj, std::unordered_set<std::string> availableTa
 
     if (auto editor = EditorUI::get()) {
         if (obj.authorAccId == user.account_id) {
-            auto scrollLayer = ScrollLayerExt::create({ 0, 0, 275.F, 60.f }, true);
+            auto scrollLayer = ScrollLayer::create({ 0, 0, 275.F, 60.f }, true);
+            scrollLayer->setStealingTouches(true);
             scrollLayer->setTouchEnabled(true);
 
             auto content = Build<CCMenu>::create().zOrder(2).layout(
@@ -119,22 +114,13 @@ bool EditPopup::init(ObjectData obj, std::unordered_set<std::string> availableTa
             content->updateLayout();
             scrollLayer->m_contentLayer->setContentHeight(content->getContentHeight());
             scrollLayer->moveToTop();
-            m_previewBG->addChild(scrollLayer);
+            m_previewBG->addChildAtPosition(scrollLayer, Anchor::Center);
         }
         m_mainLayer->addChildAtPosition(m_previewBG, Anchor::Center, {0, 65});
     }
     m_previewBG->setVisible(false);
 
     return true;
-}
-
-void EditPopup::updateDescObj(std::string text) {
-    m_objDesc->getInput()->m_textArea->m_width = 300.0F / Utils::calculateScale(text, 50, 300, 1.0F, 0.5F);
-    m_objDesc->getInput()->setScale(Utils::calculateScale(text, 50, 300, 0.75F, 0.45F));
-    m_objDesc->getInput()->setPosition({
-        Utils::calculateScale(text, 50, 300, 100, 60),
-        Utils::calculateScale(text, 50, 300, 25, 20)
-    });
 }
 
 void EditPopup::onOverwriteBtn(CCObject*) {

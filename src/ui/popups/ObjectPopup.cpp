@@ -124,7 +124,7 @@ bool ObjectPopup::init(ObjectData objectData, UserData user) {
             }
             if (m_user.account_id != objectData.authorAccId && m_user.account_id > 0) {
                 Build<CCSprite>::createSpriteName("GJ_reportBtn_001.png").scale(0.5f).intoMenuItem([this]() {
-                    ReportPopup::create(m_object, ReportActionType::Report)->show();
+                    ObjReportPopup::create(m_object, ReportActionType::Report)->show();
                 }).parent(menu);
             }
             if (m_user.role >= 3) {
@@ -137,7 +137,7 @@ bool ObjectPopup::init(ObjectData objectData, UserData user) {
             if (m_user.account_id == objectData.authorAccId) {
                 if (m_object.status == ObjectStatus::PENDING_DELETION) {
                     Build<CCSprite>::createSpriteName("GJ_reportBtn_001.png").scale(0.5f).color(0,255,0).intoMenuItem([this]() {
-                        ReportPopup::create(m_object, ReportActionType::Appeal)->show();
+                        ObjReportPopup::create(m_object, ReportActionType::Appeal)->show();
                     }).parent(menu);
                 }
             }
@@ -169,7 +169,7 @@ bool ObjectPopup::init(ObjectData objectData, UserData user) {
     auto textAreaDesc = MDTextArea::create(objectData.description, {200, 112});
     textAreaDesc->setScale(0.8F);
     textAreaDesc->setAnchorPoint({0, 0.5});
-    m_mainLayer->addChildAtPosition(textAreaDesc, Anchor::Left, {12, -48});
+    m_mainLayer->addChildAtPosition(textAreaDesc, Anchor::Left, {7, -48});
 
     // leftSideBG
     Build<CCScale9Sprite>::create("square02_small.png").opacity(50).contentSize(160,33).anchorPoint(0,0.5).with([objectData](auto node) {
@@ -254,7 +254,7 @@ bool ObjectPopup::init(ObjectData objectData, UserData user) {
                 });
             }).parent(menu);
             Build<CCSprite>::createSpriteName("GJ_dislikeBtn_001.png").scale(0.55f).intoMenuItem([this]{ 
-                ReportPopup::create(m_object, ReportActionType::Review, [this]() {
+                ObjReportPopup::create(m_object, ReportActionType::Review, [this]() {
                     if (m_workshop != nullptr) {
                         this->onClose(nullptr);
                         m_workshop->RegenCategory();
@@ -280,7 +280,7 @@ bool ObjectPopup::init(ObjectData objectData, UserData user) {
         }).enabled((m_user.role >= 3)).parent(menu);
         if (objectData.status == 0) {
             Build<CCSprite>::createSpriteName("accountBtn_blocked_001.png").scale(0.55f).intoMenuItem([this]{ 
-                ReportPopup::create(m_object, ReportActionType::ReviewAndCase, [this]() {
+                ObjReportPopup::create(m_object, ReportActionType::ReviewAndCase, [this]() {
                     if (m_workshop != nullptr) {
                         this->onClose(nullptr);
                         m_workshop->RegenCategory();

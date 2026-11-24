@@ -2,6 +2,8 @@
 #include "../../config.hpp"
 #include "../../utils.hpp"
 
+#define COMMENT_LIMIT 100
+
 bool CommentPopup::init(ObjectData obj, std::function<void()> callback) {
     if (!Popup::init(400.f, 135.f)) return false;
     this->setID("CommentPopup"_spr);
@@ -29,11 +31,11 @@ bool CommentPopup::init(ObjectData obj, std::function<void()> callback) {
     // most undocumented thing ever, why does it have to be 0x0 to allow new lines!? i tried chatFont.fnt before but apparently that keeps the CCLabelBMFont!
     /*auto textInput = CCTextInputNode::create(360.F, 50.F, "Insert comment", "Thonburi", 24, 0x0);
     textInput->setAllowedChars(" abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789.,-!?:;)(/\\\"\'`*=+- _%[]<>|@&^#{}%$~");
-    textInput->setMaxLabelLength(100);
+    textInput->setMaxLabelLength(COMMENT_LIMIT);
     textInput->setLabelPlaceholderColor({0xc8, 0xc8, 0xc8});
     textInput->setDelegate(this);
     textInput->addTextArea(TextArea::create("","chatFont.fnt",1.0F,295.F,{0.5, 0.5},20.F,true));*/
-    Build<CCLabelBMFont>::create("100", "chatFont.fnt")
+    Build<CCLabelBMFont>::create(std::to_string(COMMENT_LIMIT).c_str(), "chatFont.fnt")
         .anchorPoint({1.0, 0.5})
         .color({0,0,0})
         .opacity(125)
@@ -49,6 +51,18 @@ bool CommentPopup::init(ObjectData obj, std::function<void()> callback) {
     });
     m_mainLayer->addChildAtPosition(m_inputNode, Anchor::Center, {0, 9});
     m_buttonMenu->addChildAtPosition(m_inputNode->getInput(), Anchor::Center, {0, 9});
+
+    auto easySpr = EmoteSprite::createWithName("normal");
+    easySpr->fitToHeight(25.f, 0.f);
+    m_emotesBtn = CCMenuItemSpriteExtra::create(
+        easySpr,
+        this,
+        menu_selector(CommentPopup::onEmotes)
+    );
+    m_emotesBtn->setSizeMult(1.5f);
+    m_buttonMenu->addChildAtPosition(
+        m_emotesBtn, Anchor::BottomRight, {-40, 25}
+    );
     /*m_mainLayer->setPositionY(winSize.height * 0.75F);
     m_mainLayer->updateLayout();*/ 
     // this causes text input to break for SOME reason
@@ -58,27 +72,35 @@ bool CommentPopup::init(ObjectData obj, std::function<void()> callback) {
 void CommentPopup::updateCharCountLabel() {
     if (m_closed) return;
     if (m_charCountLabel != nullptr) {
-        int amount = 100 - m_descText.length();
+        int amount = COMMENT_LIMIT - m_descText.length();
         if (amount < 0) {
             m_charCountLabel->setColor({255,0,0});
             m_charCountLabel->setString("Too much!");
         } else {
             m_charCountLabel->setColor({0,0,0});
-            m_charCountLabel->setString(std::to_string(100 - m_descText.length()).c_str());
+            m_charCountLabel->setString(std::to_string(COMMENT_LIMIT - m_descText.length()).c_str());
         }
     }
 }
 
 void CommentPopup::onClose(CCObject* sender) {
+    if (m_emotePicker) {
+        m_emotePicker->onClose(nullptr);
+        m_emotePicker = nullptr;
+    }
     m_closed = true;
     m_inputNode->cancel = true;
     Popup::onClose(sender);
 }
 
+void CommentPopup::onEmotes(CCObject*) {
+    m_emotePicker = EmotePickerPopup::toggle(m_emotePicker, this, m_emotesBtn, m_inputNode->getInput(), EmoteSprite::maxEmotesComment(), COMMENT_LIMIT);
+}
+
 void CommentPopup::onSubmit(CCObject*) {
     if (m_descText.empty()) return;
     if (m_closed) return;
-    if (m_descText.length() > 100) return FLAlertLayer::create("what", "you arent supposed to be above 100 characters...", "WHAT")->show();
+    if (m_descText.length() > COMMENT_LIMIT) return FLAlertLayer::create("what", "you arent supposed to be above 100 characters...", "WHAT")->show();
     m_mainLayer->setVisible(false);
     auto token = Mod::get()->getSettingValue<std::string>("token");
     m_listener.cancel();

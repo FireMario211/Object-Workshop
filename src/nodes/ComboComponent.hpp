@@ -1,6 +1,5 @@
 // Credits to https://github.com/EclipseMenu/EclipseMenu
 #pragma once
-#include "ScrollLayerExt.hpp"
 #include "../utils.hpp"
 //#include <modules/gui/components/combo.hpp>
 
@@ -14,7 +13,7 @@ namespace {
         geode::NineSlice* m_background = nullptr;
         CCLabelBMFont* m_valueLabel = nullptr;
         geode::Ref<CCMenuItemSpriteExtra> m_arrowButton = nullptr;
-        geode::Ref<ScrollLayerExt> m_scrollLayer;
+        geode::Ref<ScrollLayer> m_scrollLayer;
 
         static inline ComboComponentNode* s_activeCombo = nullptr;
         std::vector<std::string> m_options;
@@ -40,7 +39,8 @@ namespace {
 
         void generateSelector() {
             auto const scrollHeight = std::min<float>(m_options.size(), 3.5f) * 80.f;
-            m_scrollLayer = ScrollLayerExt::create({s_width * 0.3f, scrollHeight * 0.3f});
+            m_scrollLayer = ScrollLayer::create({s_width * 0.3f, scrollHeight * 0.3f});
+            m_scrollLayer->setStealingTouches(true);
             m_scrollLayer->setID("scrollLayer");
             m_scrollLayer->setZOrder(2);
             m_scrollLayer->ignoreAnchorPointForPosition(false);

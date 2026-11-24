@@ -2,10 +2,11 @@
 // all thanks to https://github.com/CallocGD/GD-2.205-Decompiled
 // and also from https://github.com/geode-sdk/geode
 
-void ScrollLayerExt::scrollWheel(float pointX, float pointY) {
+bool ScrollLayerExt::scrollWheel(float pointX, float pointY) {
     if (pointX != 0.0) {
         CCScrollLayerExt::scrollLayer(pointX);
     }
+    return true;
 }
 bool ScrollLayerExt::ccTouchBegan(cocos2d::CCTouch *touch, cocos2d::CCEvent *event) {
     if (geode::cocos::nodeIsVisible(this)) {
@@ -154,8 +155,9 @@ ScrollLayerExt::ScrollLayerExt(cocos2d::CCRect const& rect, bool scrollWheelEnab
     this->setMouseEnabled(true);
     this->setTouchEnabled(true);
     this->setUserFlag("alk.better-touch-prio/steals-touch");
+    this->setUserFlag("geode.loader/steals-touch");
 
-    cocos2d::CCTouchDispatcher::get()->registerForcePrio(this, 2);
+    cocos2d::CCTouchDispatcher::get()->registerForcePrio(this, 2, 2);
 }
 
 ScrollLayerExt::~ScrollLayerExt() {

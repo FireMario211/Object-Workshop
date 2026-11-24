@@ -2,7 +2,7 @@
 #include <Geode/Geode.hpp>
 
 #ifdef ARGON
-#include <argon/argon.hpp>
+#include <dankmeme.argon/argon.hpp>
 #endif
 
 #ifdef DASHAUTH

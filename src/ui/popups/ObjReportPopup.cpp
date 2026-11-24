@@ -1,4 +1,4 @@
-#include "ReportPopup.hpp"
+#include "ObjReportPopup.hpp"
 #include "../../config.hpp"
 #include "Geode/ui/Popup.hpp"
 #include "../ObjectWorkshop.hpp"
@@ -27,7 +27,7 @@ static const std::vector<std::string> s_reasons = {
 //Do not upload objects that relate to anything that is inappropriate, explicit, sexual, or violent.
 //Your recent upload "skull" was rejected due to copying another creator's work without their permission.
 
-bool ReportPopup::init(ObjectData obj, ReportActionType type) {
+bool ObjReportPopup::init(ObjectData obj, ReportActionType type) {
     if (!Popup::init(350.f, 200.f)) return false;
     m_object = obj;
     m_type = type;
@@ -114,13 +114,13 @@ bool ReportPopup::init(ObjectData obj, ReportActionType type) {
     auto reportBtn = CCMenuItemSpriteExtra::create(
         reportSpr,
         this,
-        menu_selector(ReportPopup::onReportBtn)
+        menu_selector(ObjReportPopup::onReportBtn)
     );
     m_buttonMenu->addChildAtPosition(reportBtn, Anchor::Bottom, {0, 25});
     return true;
 }
 
-void ReportPopup::onReportBtn(CCObject*) {
+void ObjReportPopup::onReportBtn(CCObject*) {
     if (m_reportInput->getString().empty()) return FLAlertLayer::create("Error", "Please enter in the <cy>reason</c>!", "OK")->show();
     auto token = Mod::get()->getSettingValue<std::string>("token");
     if (m_type != ReportActionType::Report && m_type != ReportActionType::Appeal) {
@@ -134,7 +134,7 @@ void ReportPopup::onReportBtn(CCObject*) {
                 }
                 auto myjson = matjson::Value();
                 myjson.set("token", token);
-                myjson.set("reason", ZStringView(m_reportInput->getString()));
+                myjson.set("reason", std::string(m_reportInput->getString()));
                 myjson.set("mod", m_type == ReportActionType::ReviewAndCase ? 1 : 0);
                 myjson.set("force", m_type != ReportActionType::Report && (m_forceReject && m_forceReject->isToggled()) ? 1 : 0);
                 req.header("Content-Type", "application/json");

@@ -12,7 +12,7 @@ enum ReportActionType {
     Appeal
 };
 
-class ReportPopup : public geode::Popup {
+class ObjReportPopup : public geode::Popup {
 protected:
     async::TaskHolder<geode::utils::web::WebResponse> m_listener;
     ObjectData m_object;
@@ -25,8 +25,8 @@ protected:
     ReportActionType m_type;
     geode::Function<void()> m_callback;
 public:
-    static ReportPopup* create(ObjectData obj, ReportActionType type) {
-        auto ret = new ReportPopup();
+    static ObjReportPopup* create(ObjectData obj, ReportActionType type) {
+        auto ret = new ObjReportPopup();
         if (ret->init(obj, type)) {
             ret->autorelease();
             return ret;
@@ -35,8 +35,8 @@ public:
         delete ret;
         return nullptr;
     }
-    static ReportPopup* create(ObjectData obj, ReportActionType type, geode::Function<void()> callback) {
-        auto ret = new ReportPopup();
+    static ObjReportPopup* create(ObjectData obj, ReportActionType type, geode::Function<void()> callback) {
+        auto ret = new ObjReportPopup();
         ret->m_callback = std::move(callback);
         if (ret->init(obj, type)) {
             ret->autorelease();

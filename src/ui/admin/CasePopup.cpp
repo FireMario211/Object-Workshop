@@ -1,7 +1,6 @@
 #include "CasePopup.hpp"
 #include "../../nodes/CaseCell.hpp"
 #include "../../config.hpp"
-#include "../../nodes/ScrollLayerExt.hpp"
 #include "NewCasePopup.hpp"
 
 bool CasePopup::init(UserData user, UserData managingUser) {
@@ -69,7 +68,8 @@ void CasePopup::onLoadCases() {
                 this->setTitle(fmt::format("Cases ({})", c_total.unwrap().asInt().unwrapOr(0)).c_str());
             }
             auto nodeArray = CCArray::create();
-            auto scrollLayer = ScrollLayerExt::create({ 0, 0, 205.0F, 138.F }, true);
+            auto scrollLayer = ScrollLayer::create({ 0, 0, 205.0F, 138.F }, true);
+            scrollLayer->setStealingTouches(true);
             auto content = CCMenu::create();
             content->setZOrder(2);
             content->setContentWidth(205.0F);
@@ -107,7 +107,7 @@ void CasePopup::onLoadCases() {
             content->setAnchorPoint({0.5, 0});
             content->setPosition({102.5F, -2});
             scrollLayer->setID("commentscroll"_spr);
-            m_casesBG->addChildAtPosition(scrollLayer, Anchor::BottomLeft);
+            m_casesBG->addChildAtPosition(scrollLayer, Anchor::Center);
             scrollLayer->moveToTop();
         }
     );

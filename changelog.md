@@ -1,3 +1,6 @@
+# v1.5.0-beta.4
+- Ported to Geode v6 (2.209!)
+- Added emoji support
 # v1.5.0-beta.3
 - Updated argon
 - Fixed alignment for page text

@@ -53,7 +53,8 @@ bool ObjUploadPopup::init(UserData user) {
     Build<CCSprite>::createSpriteName("GJ_arrow_01_001.png").flipX(true).intoMenuItem(this, menu_selector(ObjUploadPopup::onObjectDetailsPage)).enabled(false).opacity(100).parentAtPos(m_buttonMenu, Anchor::Right, {30, 0}).store(m_nextBtn);
 
     // Select
-    m_scrollLayer = ScrollLayerExt::create({ 0, 0, 272.F, 230.f }, true);
+    m_scrollLayer = ScrollLayer::create({ 0, 0, 272.F, 230.f }, true);
+    m_scrollLayer->setStealingTouches(true);
     m_scrollLayer->setTouchEnabled(true);
     Build<CCMenu>::create().zOrder(2).layout(
         RowLayout::create()
@@ -109,7 +110,7 @@ bool ObjUploadPopup::init(UserData user) {
     }
     m_content->updateLayout();
     m_scrollLayer->m_contentLayer->setContentHeight(m_content->getContentHeight());
-    Build<CCScale9Sprite>::create("square02_small.png").opacity(60).contentSize(m_scrollLayer->getContentSize()).store(m_bg).parentAtPos(m_mainLayer, Anchor::Center, {0, -12}).collect()->addChild(m_scrollLayer);
+    Build<CCScale9Sprite>::create("square02_small.png").opacity(60).contentSize(m_scrollLayer->getContentSize()).store(m_bg).parentAtPos(m_mainLayer, Anchor::Center, {0, -12}).collect()->addChildAtPosition(m_scrollLayer, Anchor::Center);
     m_scrollLayer->moveToTop();
     // Details
 
@@ -119,30 +120,12 @@ bool ObjUploadPopup::init(UserData user) {
     m_objName->setCommonFilter(CommonFilter::Any);
     m_mainLayer->addChildAtPosition(m_objName, Anchor::Center, {0, -20});
 
-#ifndef GEODE_IS_ANDROID32
-    auto textArea = TextArea::create("", "chatFont.fnt", 1.0F, 335.0F, {0.5, 0.5}, 20.0F, true);
-    //             TextArea::create(&local_64,"chatFont.fnt",,0x439d8000,this_03,0x41a00000,1);
-#endif
-    m_objDesc = TextInput::create(335.0F, "Description [Optional] (Use \\n for new line)", "chatFont.fnt");
-#ifndef GEODE_IS_ANDROID32
-    m_objDesc->getInputNode()->addTextArea(textArea);
-    m_objDesc->getInputNode()->m_cursor->setOpacity(0);
-#endif
-    m_objDesc->getBGSprite()->setContentSize({535.0F, 100.0F});
+    m_objDesc = TextInput::createMultiline({270.f, 55.f}, "Description [Optional] (Use \\n for new line)", "chatFont.fnt");
+#warning "oh yeah and look at every TextInput since the last thing is an emoji"
+
     m_objDesc->setMaxCharCount(300);
-    m_objDesc->setCommonFilter(CommonFilter::Any);
+    m_objDesc->setCommonFilter(CommonFilter::Text);
     m_mainLayer->addChildAtPosition(m_objDesc, Anchor::Center, {0, -65});
-#ifndef GEODE_IS_ANDROID32
-    m_objDesc->setCallback(
-        [this, textArea](std::string p0) {
-            m_objDesc->getInputNode()->m_textLabel->setOpacity((p0.empty()) ? 255 : 0);
-            textArea->setScale(Utils::calculateScale(p0, 50, 300, 0.9F, 0.35F));
-            textArea->m_width = 220.0F / Utils::calculateScale(p0, 50, 300, 1.0F, 0.32F);
-            textArea->setString(m_objDesc->getInputNode()->getString());
-            //textArea->setString(p0.data());
-        }
-    );
-#endif
     Build<ButtonSprite>::create("Upload", 205, true, "bigFont.fnt", "GJ_button_01.png", 30.f, 0.8f).intoMenuItem([this]() {
         if (Mod::get()->getSavedValue<int>("rule_ver") != RULES_VERSION) {
             RulesPopup::create([this]() {
@@ -161,7 +144,8 @@ bool ObjUploadPopup::init(UserData user) {
         1.0F,
         false,
         "GJ_button_04.png",
-        false
+        false,
+        0.f
     ).scale(0.75f).intoMenuItem([this]() {
         FiltersPopup::create(g_availableTags, m_filterTags, true, 0, true, [this](std::unordered_set<std::string> selectedTags, bool, bool, bool) {
             m_filterTags = selectedTags;

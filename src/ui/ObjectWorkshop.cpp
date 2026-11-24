@@ -115,8 +115,11 @@ bool ObjectWorkshop::init(bool authenticated) {
     m_searchInput->setCommonFilter(CommonFilter::Any);
     m_searchInput->setScale(0.775F);
     m_searchInput->setAnchorPoint({ 0, .5f });
-    m_searchInput->getBGSprite()->setContentHeight(45);
-    m_searchInput->setTextAlign(TextInputAlign::Left);
+    m_searchInput->getBGSprite()->setContentHeight(20);
+    m_searchInput->setAlignment(Label::Alignment::Left);
+    m_searchInput->setEnterCallback([this](auto const& str) {
+        this->onSearchBtn(nullptr);
+    });
     m_topMenu->addChild(m_searchInput);
     if (auto item = typeinfo_cast<CCMenuItemSpriteExtra*>(m_categoryButtons->getChildByID(fmt::format("category-{}"_spr, currentMenuIndexGD)))) {
         static_cast<CategoryButton*>(item->getChildren()->objectAtIndex(0))->setIndicatorState(true);
@@ -134,7 +137,8 @@ bool ObjectWorkshop::init(bool authenticated) {
         1.0F,
         false,
         "GJ_button_04.png",
-        false
+        false,
+        0.f
     ).scale(.4f).intoMenuItem([this]() {
         FiltersPopup::create(g_availableTags, m_filterTags, m_selectedFeatured, m_user.role, currentMenuIndexGD == 7, [this](std::unordered_set<std::string> selectedTags, bool featured, bool pending, bool reports) {
             bool regenCate = false;
@@ -197,8 +201,9 @@ bool ObjectWorkshop::init(bool authenticated) {
     rightBg->setContentSize({360, s_scrollHeight}); // 295, 225
     m_mainLayer->addChildAtPosition(rightBg, Anchor::Center, {(m_leftSide) ? 13.f : -21.f, -23.f});
 
-    m_scrollLayer = ScrollLayerExt::create({ 0, 0, 340.F, s_scrollHeight }, true); // 360
+    m_scrollLayer = ScrollLayer::create({ 0, 0, 340.F, s_scrollHeight }, true); // 360
     m_scrollLayer->setPositionX(10);
+    m_scrollLayer->setStealingTouches(true);
     m_content = CCMenu::create();
     m_content->setZOrder(2);
     m_content->setPositionX(45);
@@ -224,7 +229,7 @@ bool ObjectWorkshop::init(bool authenticated) {
     m_scrollLayer->setTouchEnabled(true);
     m_scrollLayer->setMouseEnabled(true);
 
-    rightBg->addChild(m_scrollLayer);
+    rightBg->addChildAtPosition(m_scrollLayer, Anchor::Center);
     //rightBg->setVisible(false);
 
     if (authenticated) {
@@ -324,7 +329,27 @@ bool ObjectWorkshop::init(bool authenticated) {
     m_pageInput->setScale(0.525F);
     m_pageInput->setCommonFilter(CommonFilter::Uint);
     m_pageInput->setAnchorPoint({1, 0.5f});
-    m_pageInput->setDelegate(this);
+    auto enterCallback = [this]() -> void {
+        if (m_pageInput->getString().empty()) return m_pageInput->setString(std::to_string(m_currentPage).c_str());
+        int page = numFromString<int>(m_pageInput->getString()).unwrapOr(1);
+        if (page == m_currentPage) return m_pageInput->setString(std::to_string(m_currentPage).c_str());
+        if (page < 1) page = 1;
+        if (page <= m_maxPage) {
+            m_currentPage = page;
+            m_pageInput->setString(std::to_string(m_currentPage).c_str());
+            RegenCategory();
+        }
+    };
+    m_pageInput->setFocusCallback([this, enterCallback](geode::TextInput::FocusState focus) {
+        if (focus == geode::TextInput::FocusState::Focused) {
+            m_pageInput->setString("");
+        } else {
+            enterCallback();
+        }
+    });
+    m_pageInput->setEnterCallback([this, enterCallback](auto const& str) {
+        enterCallback();
+    });
     m_topMenu->addChild(m_pageInput);
     if (m_leftSide) {
         m_closeBtn->updateAnchoredPosition(Anchor::TopLeft, {-22, -16});
@@ -370,22 +395,6 @@ void ObjectWorkshop::onSideButton(CCObject* pSender) {
         }
         static_cast<CategoryButton*>(item->getChildren()->objectAtIndex(0))->setIndicatorState(true);
         currentMenuIndexGD = id;
-        RegenCategory();
-    }
-}
-
-void ObjectWorkshop::textInputOpened(CCTextInputNode* input) {
-    input->setString("");
-}
-
-void ObjectWorkshop::textInputClosed(CCTextInputNode* input) {
-    if (input->getString().empty()) return m_pageInput->setString(std::to_string(m_currentPage).c_str());
-    int page = numFromString<int>(input->getString()).unwrapOr(1);
-    if (page == m_currentPage) return m_pageInput->setString(std::to_string(m_currentPage).c_str());
-    if (page < 1) page = 1;
-    if (page <= m_maxPage) {
-        m_currentPage = page;
-        m_pageInput->setString(std::to_string(m_currentPage).c_str());
         RegenCategory();
     }
 }

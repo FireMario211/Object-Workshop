@@ -5,7 +5,7 @@ using namespace geode::prelude;
 #include "ui/auth/AuthMenu.hpp"
 #include "config.hpp"
 #include "ui/auth/AuthLoadLayer.hpp"
-#include <alphalaneous.editortab_api/include/EditorTabAPI.hpp>
+#include <alphalaneous.editortab_api/API.hpp>
 
 // 13 = custom objects
 void CustomObjects::onWorkshop(CCObject*) {
@@ -108,119 +108,115 @@ void CustomObjects::onWorkshop(CCObject*) {
 
 bool CustomObjects::init(LevelEditorLayer* editorLayer) {
     if (!EditorUI::init(editorLayer)) return false;
-    alpha::editor_tabs::addTab("workshop"_spr, alpha::editor_tabs::BUILD, [this] { // Create the tab
-        std::vector<Ref<CCNode>> nodes;
-        m_fields->menu = CCMenu::create();
-        m_fields->menu->setID("ow-menu"_spr);
-        auto label = CCLabelBMFont::create("Custom Objects", "goldFont.fnt");
-        label->setScale(0.525F);
-        auto customObjsLabel = CCMenuItemSpriteExtra::create(label, this, nullptr);
-        m_fields->menu->addChildAtPosition(customObjsLabel, Anchor::Top, {0, -9});
+    auto buildMode = alpha::editor_tabs::getMode(alpha::editor_tabs::Build);
 
-        m_fields->myObjsLabel = CCLabelBMFont::create("• My Objects", "bigFont.fnt");
-        m_fields->myObjsLabel->setScale(0.4F);
-        m_fields->myObjsLabel->setVisible(false);
-        m_fields->menu->addChildAtPosition(m_fields->myObjsLabel, Anchor::Top, {57, -10});
-        
-        auto btn1Spr = CCScale9Sprite::create("GJ_button_04.png");
-        btn1Spr->setContentSize({90, 90});
-        btn1Spr->setScale(0.7F);
-        
-        auto folder1 = CCSprite::createWithSpriteFrameName("gj_folderBtn_001.png");
-        auto insideFolder = CCSprite::createWithSpriteFrameName("GJ_hammerIcon_001.png");
-        insideFolder->setScale(0.6F);
-        folder1->addChildAtPosition(insideFolder, Anchor::Center, {0, 0});
+    // actual content
+    std::vector<Ref<CCNode>> nodes;
+    m_fields->menu = CCMenu::create();
+    m_fields->menu->setID("ow-menu"_spr);
+    auto label = CCLabelBMFont::create("Custom Objects", "goldFont.fnt");
+    label->setScale(0.525F);
+    auto customObjsLabel = CCMenuItemSpriteExtra::create(label, this, nullptr);
+    m_fields->menu->addChildAtPosition(customObjsLabel, Anchor::Top, {0, -9});
 
-        auto label1 = CCLabelBMFont::create("Objects\nWorkshop", "bigFont.fnt");
-        label1->setScale(0.375);
-        label1->setAlignment(CCTextAlignment::kCCTextAlignmentCenter);
+    m_fields->myObjsLabel = CCLabelBMFont::create("• My Objects", "bigFont.fnt");
+    m_fields->myObjsLabel->setScale(0.4F);
+    m_fields->myObjsLabel->setVisible(false);
+    m_fields->menu->addChildAtPosition(m_fields->myObjsLabel, Anchor::Top, {57, -10});
 
-        auto bgOther1 = cocos2d::extension::CCScale9Sprite::create("square02_001.png", { 0.0f, 0.0f, 80.0f, 80.0f });
-        bgOther1->setContentSize({66, 55});
-        bgOther1->setScaleY(.35F);
-        bgOther1->setOpacity(60);
-        bgOther1->setColor({0,0,0});
+    auto btn1Spr = CCScale9Sprite::create("GJ_button_04.png");
+    btn1Spr->setContentSize({90, 90});
+    btn1Spr->setScale(0.7F);
 
-        auto labelOther1 = TextArea::create(
-            "<cg>0</c> Uploads from you",
-            "bigFont.fnt",
-            0.3F, 70.0F,
-            ccp(0.4, 0),
-            10.0F,
-            false 
-        );
-        labelOther1->setAnchorPoint({0.53, 0.5});
-        labelOther1->setScale(0.75F);
-        btn1Spr->addChildAtPosition(folder1, Anchor::Center, {0, 23});
-        btn1Spr->addChildAtPosition(label1, Anchor::Center, {0, -2});
-        btn1Spr->addChildAtPosition(bgOther1, Anchor::Center, {0, -26});
-        btn1Spr->addChildAtPosition(labelOther1, Anchor::Bottom, {0, 15});
+    auto folder1 = CCSprite::createWithSpriteFrameName("gj_folderBtn_001.png");
+    auto insideFolder = CCSprite::createWithSpriteFrameName("GJ_hammerIcon_001.png");
+    insideFolder->setScale(0.6F);
+    folder1->addChildAtPosition(insideFolder, Anchor::Center, {0, 0});
 
-        m_fields->btn1 = CCMenuItemSpriteExtra::create(btn1Spr, this, menu_selector(CustomObjects::onWorkshop));
-        m_fields->menu->addChildAtPosition(m_fields->btn1, Anchor::Center, {0, -7});
-        m_fields->menu->setContentHeight(90.F);
-        m_fields->menu->updateLayout();
+    auto label1 = CCLabelBMFont::create("Objects\nWorkshop", "bigFont.fnt");
+    label1->setScale(0.375);
+    label1->setAlignment(CCTextAlignment::kCCTextAlignmentCenter);
 
-        auto token = Mod::get()->getSettingValue<std::string>("token");
-        if (token != "" && !m_fields->hasCheckedUploads) {
-            m_fields->hasCheckedUploads = true;
-            web::WebRequest req = web::WebRequest();
-            auto myjson = matjson::Value();
-            myjson.set("token", token);
-            req.header("Content-Type", "application/json");
-            req.userAgent(USER_AGENT);
-            auto certValid = Mod::get()->getSettingValue<bool>("cert-valid");
-            if (!certValid) {
-                req.certVerification(certValid);
-            }
-            req.bodyJSON(myjson);
-            m_fields->m_listener.spawn(req.post(fmt::format("{}/user/@me", HOST_URL)), [this, labelOther1](web::WebResponse value) {
-                if (value.json().isErr()) {
-                    log::error("Invalid server response. {}", value.json().err());
-                    Notification::create("Object Workshop server gave invalid response.", NotificationIcon::Warning)->show();
-                    return;
-                }
-                auto jsonRes = value.json().unwrapOrDefault();
-                if (!jsonRes.isObject()) return log::error("Response isn't object.");
-                auto isError = jsonRes.get("error");
-                if (isError.isOk()) return;
-                auto uploadRes = jsonRes.get("uploads");
+    auto bgOther1 = cocos2d::extension::CCScale9Sprite::create("square02_001.png", { 0.0f, 0.0f, 80.0f, 80.0f });
+    bgOther1->setContentSize({66, 55});
+    bgOther1->setScaleY(.35F);
+    bgOther1->setOpacity(60);
+    bgOther1->setColor({0,0,0});
 
-                if (uploadRes.isOk()) {
-                    auto uploads = uploadRes.unwrap().asInt().unwrapOrDefault();
-                    labelOther1->setString(
-                        fmt::format(
-                            "<cg>{}</c> Upload{} from you",
-                            uploads,
-                            (uploads == 1) ? "" : "s"
-                        )
-                    );
-                }
-            });
+    auto labelOther1 = TextArea::create(
+        "<cg>0</c> Uploads from you",
+        "bigFont.fnt",
+        0.3F, 70.0F,
+        ccp(0.4, 0),
+        10.0F,
+        false,
+        0
+    );
+    labelOther1->setAnchorPoint({0.53, 0.5});
+    labelOther1->setScale(0.75F);
+    btn1Spr->addChildAtPosition(folder1, Anchor::Center, {0, 23});
+    btn1Spr->addChildAtPosition(label1, Anchor::Center, {0, -2});
+    btn1Spr->addChildAtPosition(bgOther1, Anchor::Center, {0, -26});
+    btn1Spr->addChildAtPosition(labelOther1, Anchor::Bottom, {0, 15});
+
+    m_fields->btn1 = CCMenuItemSpriteExtra::create(btn1Spr, this, menu_selector(CustomObjects::onWorkshop));
+    m_fields->menu->addChildAtPosition(m_fields->btn1, Anchor::Center, {0, -7});
+    m_fields->menu->setContentHeight(90.F);
+    m_fields->menu->updateLayout();
+
+    auto token = Mod::get()->getSettingValue<std::string>("token");
+    if (token != "" && !m_fields->hasCheckedUploads) {
+        m_fields->hasCheckedUploads = true;
+        web::WebRequest req = web::WebRequest();
+        auto myjson = matjson::Value();
+        myjson.set("token", token);
+        req.header("Content-Type", "application/json");
+        req.userAgent(USER_AGENT);
+        auto certValid = Mod::get()->getSettingValue<bool>("cert-valid");
+        if (!certValid) {
+            req.certVerification(certValid);
         }
-        auto winSize = CCDirector::sharedDirector()->getWinSize();
-        //m_fields->menu->setPosition({winSize.width / 2, 45});
-        //return alpha::editor_tabs::createEditButtonBar(m_fields->menu);
-        m_fields->menu->setContentSize({300, 90});
-        m_fields->menu->updateLayout();
-        nodes.push_back(m_fields->menu);
-        return alpha::editor_tabs::createEditButtonBar(nodes);
-    }, [] { // create the tab icon
-        auto folder = CCSprite::createWithSpriteFrameName("gj_folderBtn_001.png");
-        folder->setScale(0.4F);
-        auto labelC = CCLabelBMFont::create("C+", "bigFont.fnt");
-        labelC->setScale(0.4F);
-        folder->addChildAtPosition(labelC, Anchor::Center);
-        CCLabelBMFont* textLabelOn = CCLabelBMFont::create("C+", "bigFont.fnt");
-        textLabelOn->setScale(0.4f);
-        CCLabelBMFont* textLabelOff = CCLabelBMFont::create("C+", "bigFont.fnt");
-        textLabelOff->setScale(0.4f);
-        return folder;
-    }, [] (bool state, auto tab) { // do something when the tab is entered and exited
-        //log::info("rawr-tab state: {}", state);
-    }, [] (int rows, int cols, auto tab) { // do something when the tab is reloaded
-        //log::info("rawr tab rows: {}, cols: {}", rows, cols);
-    });
+        req.bodyJSON(myjson);
+        m_fields->m_listener.spawn(req.post(fmt::format("{}/user/@me", HOST_URL)), [this, labelOther1](web::WebResponse value) {
+            if (value.json().isErr()) {
+                log::error("Invalid server response. {}", value.json().err());
+                Notification::create("Object Workshop server gave invalid response.", NotificationIcon::Warning)->show();
+                return;
+            }
+            auto jsonRes = value.json().unwrapOrDefault();
+            if (!jsonRes.isObject()) return log::error("Response isn't object.");
+            auto isError = jsonRes.get("error");
+            if (isError.isOk()) return;
+            auto uploadRes = jsonRes.get("uploads");
+
+            if (uploadRes.isOk()) {
+                auto uploads = uploadRes.unwrap().asInt().unwrapOrDefault();
+                labelOther1->setString(
+                    fmt::format(
+                        "<cg>{}</c> Upload{} from you",
+                        uploads,
+                        (uploads == 1) ? "" : "s"
+                    )
+                );
+            }
+        });
+    }
+    auto winSize = CCDirector::sharedDirector()->getWinSize();
+    m_fields->menu->setContentSize({300, 90});
+    m_fields->menu->updateLayout();
+    nodes.push_back(m_fields->menu);
+
+    // tab
+    auto folder = CCSprite::createWithSpriteFrameName("gj_folderBtn_001.png");
+    folder->setScale(0.4F);
+    auto labelC = CCLabelBMFont::create("C+", "bigFont.fnt");
+    labelC->setScale(0.4F);
+    folder->addChildAtPosition(labelC, Anchor::Center);
+    CCLabelBMFont* textLabelOn = CCLabelBMFont::create("C+", "bigFont.fnt");
+    textLabelOn->setScale(0.4f);
+    CCLabelBMFont* textLabelOff = CCLabelBMFont::create("C+", "bigFont.fnt");
+    textLabelOff->setScale(0.4f);
+    buildMode->createTab("workshop"_spr, alpha::editor_tabs::EditorTab::create(nodes), folder);
     return true;
 }
 

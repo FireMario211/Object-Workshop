@@ -11,7 +11,8 @@ bool ReportsPopup::init(std::vector<ReportData> reports, UserData user) {
     m_mainLayer->addChildAtPosition(bg, Anchor::Center, {0, -5});
 
     auto nodeArray = CCArray::create();
-    auto scrollLayer = ScrollLayerExt::create({ 0, 0, 205.0F, 138.F }, true);
+    auto scrollLayer = ScrollLayer::create({ 0, 0, 205.0F, 138.F }, true);
+    scrollLayer->setStealingTouches(true);
     auto content = CCMenu::create();
     content->setZOrder(2);
     content->setContentWidth(205.0F);
@@ -55,7 +56,8 @@ bool ReportsPopup::init(std::vector<ReportData> reports, UserData user) {
             Utils::calculateScale(item.reason, 16, 100, 0.6F, 0.4F),
             150.F, { 0.0f, 0.5f }, // 1.0
             Utils::calculateScale(item.reason, 16, 100, 15.F, 7.F),
-            true
+            true,
+            0
         );
         commentText->setID("report/area"_spr);
         commentText->setAnchorPoint({ 0.0f, 0.5f });
@@ -82,7 +84,7 @@ bool ReportsPopup::init(std::vector<ReportData> reports, UserData user) {
     content->setAnchorPoint({0.5, 0});
     content->setPosition({102.5F, -2});
     scrollLayer->setID("reportscroll"_spr);
-    bg->addChildAtPosition(scrollLayer, Anchor::BottomLeft);
+    bg->addChildAtPosition(scrollLayer, Anchor::Center);
     scrollLayer->moveToTop();
     return true;
 }
